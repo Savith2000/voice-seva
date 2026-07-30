@@ -23,7 +23,14 @@ import unicodedata
 SVARA = re.compile(
     "["
     "॑-॔"  # devanagari stress/tone signs (udatta, anudatta, grave, acute)
-    "ऀ-ं"  # inverted candrabindu, candrabindu, anusvara handled below
+    "ऀ"  # inverted candrabindu (U+0900)
+    # U+0901 candrabindu and U+0902 anusvara are deliberately NOT here. They
+    # were, as part of a "ऀ-ं" range, and it silently disabled two rows of the
+    # NASALS table below: deleting a mark reached it before mapping could. That
+    # is the worse of the two behaviours. When the model writes "नं" where the
+    # reference has "नम्", deleting the anusvara leaves "न" against "नन्" —
+    # while mapping it to न leaves "नन" against "नन्", which is most of a match.
+    # Absorbing exactly that confusion is what the nasal rule is for.
     "꣠-꣱"  # devanagari extended: vedic tone marks
     "᳐-᳿"  # vedic extensions block
     "]"

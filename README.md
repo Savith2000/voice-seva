@@ -90,6 +90,15 @@ mic → mono         →    sliding window       →    fuzzy match → line
 - **Matcher.** The chant is flattened into one normalised string with a
   character → line index map, reducing "where are we?" to a fuzzy substring
   search. Line boundaries and partial lines fall out for free.
+- **The normaliser exists twice, and a test holds the two together.** Nine rules
+  that deliberately destroy information — strip svara marks, collapse the three
+  sibilants to स and every nasal to न, drop visarga, flatten vowel length,
+  optionally de-aspirate, case-fold, delete all whitespace. They live in
+  `src/lib/chant/normalize.ts` for the browser and
+  `tools/asr-bakeoff/normalize.py` for the harness, and the gate was measured
+  with the Python one. If they drift, the browser matches against numbers nobody
+  measured and nothing fails. So `dump_vectors.py` writes a fixture from Python
+  and the TypeScript test replays it character for character.
 - **Confidence gate.** A LOCKED / SEARCHING / IDLE state machine that would
   rather freeze the screen than jump to a wrong line.
 

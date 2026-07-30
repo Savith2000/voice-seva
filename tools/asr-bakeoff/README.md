@@ -121,13 +121,13 @@ Recording 2, 24 s, the same line chanted 4× with pauses, repeated-take protocol
 | model | norm CER ↓ | |
 |---|---|---|
 | **vak-san** | **0.121** | **GO** |
-| mms-hin | 0.120 | GO |
+| mms-hin | 0.126 | GO |
 | xlsr-hin | 0.139 | GO |
 | vak-hin | 0.145 | GO |
-| whisper-small-hi | 0.204 | MARGINAL |
+| whisper-small-hi | 0.200 | MARGINAL |
 
 **Ten times smaller and better.** vak-san beats MMS on recording 1 (0.095 vs
-0.163) and ties it on recording 2 (0.121 vs 0.120), at 94 MB against 965 MB and
+0.163) and ties it on recording 2 (0.121 vs 0.126), at 94 MB against 965 MB and
 6× the speed. This is what makes the no-backend browser app viable: ~94 MB is a
 plausible first visit, ~1 GB is not.
 
@@ -152,6 +152,25 @@ padding, and no CTC model has the problem.
 
 **Still zero loops from any CTC model**, at any window position, on either
 recording. The architectural claim holds up.
+
+### A third rule bug, found while porting
+
+**The svara rule was deleting anusvara and candrabindu instead of letting the
+nasal rule map them.** Both marks sat inside a `U+0900–U+0902` range in `SVARA`,
+so deletion reached them first and two rows of the `NASALS` table were dead
+code — while the comment beside them said "handled below". `ङञणम ं ँ`
+normalised to `नननन`: four न for six nasals.
+
+Deleting is the worse of the two behaviours. When the model writes `नं` where
+the reference has `नम्`, deleting the anusvara leaves `न` against `नन्`, while
+mapping it to न leaves `नन` against `नन्` — most of a match. Absorbing exactly
+that confusion is what the nasal rule is for.
+
+Re-measured after the fix: recording 1 is **unchanged** (0.095 / 0.134 / 0.163),
+recording 2 moved by ≤0.006. So it changes nothing about model-vs-model
+consistency, because the models rarely emit anusvara on this audio. It will
+matter when matching against the *reference* text, which is full of it — the
+case Chunk 5 exercises and nothing here does.
 
 ### Two bugs this round, both silent
 
