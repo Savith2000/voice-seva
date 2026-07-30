@@ -1,0 +1,138 @@
+device: mps   clips: 1   models: 5
+
+  voicememo-test.m4a -> 4 take(s)
+
+  voicememo-test#1               6.04s
+  voicememo-test#2               5.66s
+  voicememo-test#3               5.08s
+  voicememo-test#4               4.44s
+
+
+==============================================================================
+vak-san  (Harveenchadha/vakyansh-wav2vec2-sanskrit-sam-60, lang=None)
+==============================================================================
+  CTC blank: '<s>' (silence probe 1.00), overriding declared '<pad>'
+
+  voicememo-test#1  (0.04s)
+    raw   नमस्ति रुदरिमन्यम् उत्तुटयश्वे नमेन् नमस्ति अस्तु धन्ने बाहुद्यामुच्ते नमेन्
+    norm  ननस्तिरुदरिनन्यन्उत्तुटयस्वेननेन्ननस्तिअस्तुदन्नेबहुद्यनुच्तेननेन्
+
+  voicememo-test#2  (0.03s)
+    raw   नमस्ति रुदृि मन्यम् उत्तु इष्वे नमन् नमस्ति अस्तु धण्ने बाहुद्यामुत्ते नमेन्
+    norm  ननस्तिरुदृिनन्यन्उत्तुइस्वेननन्ननस्तिअस्तुदन्नेबहुद्यनुत्तेननेन्
+
+  voicememo-test#3  (0.03s)
+    raw   नमस्ति रुदरिमन्यम् उतोिष्वी नमन् नमस्ति अस्तु धन्ने बाहुद्यामुत्ते नमन्
+    norm  ननस्तिरुदरिनन्यन्उतोिस्विननन्ननस्तिअस्तुदन्नेबहुद्यनुत्तेननन्
+
+  voicememo-test#4  (0.02s)
+    raw   नमस्ति रुदिमन्यम् उतु इषि नमन् नमस्ति अस्तु धन्ने बाहुद्यामुत्ति नमन्
+    norm  ननस्तिरुदिनन्यन्उतुइसिननन्ननस्तिअस्तुदन्नेबहुद्यनुत्तिननन्
+
+==============================================================================
+vak-hin  (Harveenchadha/vakyansh-wav2vec2-hindi-him-4200, lang=None)
+==============================================================================
+  CTC blank: '<s>' (silence probe 1.00), overriding declared '<pad>'
+
+  voicememo-test#1  (0.02s)
+    raw   नमस्त रुद्र मन्य उत्तो ेश्वे नमन नमस्ते अस्तु धंड ने बाहुद्यामु्ते नमन
+    norm  ननस्तरुद्रनन्यउत्तोेस्वेनननननस्तेअस्तुदडनेबहुद्यनु्तेननन
+
+  voicememo-test#2  (0.02s)
+    raw   नमस्ते रुद्र मन्य उत्तश्वे नमन नमस्ते अस्तु धंने बाहुद्यामुते नमन
+    norm  ननस्तेरुद्रनन्यउत्तस्वेनननननस्तेअस्तुदनेबहुद्यनुतेननन
+
+  voicememo-test#3  (0.02s)
+    raw   नम्त रुद्र मन्य उत्तर केश्वे नमन नमस्ते अस्तु धं ने बाहुद्यामुत्ते नमन
+    norm  नन्तरुद्रनन्यउत्तरकेस्वेनननननस्तेअस्तुदनेबहुद्यनुत्तेननन
+
+  voicememo-test#4  (0.02s)
+    raw   नमस्त ुद्रमन उत्तो शवे नमन नमते अस्तु धं ने बाहुद्यामु्ते नमक
+    norm  ननस्तुद्रननउत्तोसवेनननननतेअस्तुदनेबहुद्यनु्तेननक
+
+==============================================================================
+xlsr-hin  (theainerd/Wav2Vec2-large-xlsr-hindi, lang=None)
+==============================================================================
+  CTC blank: '[PAD]' (declared; silence probe returned '[PAD]' at 1.00)
+
+  voicememo-test#1  (0.08s)
+    raw   नमस्ती रुदर मनयक औ थोड़ इछवे नमह न्मस्ती अजतूँ धंटने बाहुतजया मुछते नमहै
+    norm  ननस्तिरुदरननयकऔतोडइचवेननहन्नस्तिअजतुदटनेबहुतजयनुचतेननहै
+
+  voicememo-test#2  (0.07s)
+    raw   न्मस्ती रुदर मनयप औथोर इशवे नम्हैन्मस्ती अजतूँ धंदने बाहुत ज्याँ मुटते नमहै
+    norm  न्नस्तिरुदरननयपऔतोरइसवेनन्हैन्नस्तिअजतुददनेबहुतज्यनुटतेननहै
+
+  voicememo-test#3  (0.06s)
+    raw   न्मस्ती रुदर मनिय उतोर इछवे नमहन्मस्ती अजतूँ धंतने बाहुतजया मुठते नमहैं
+    norm  न्नस्तिरुदरननियउतोरइचवेननहन्नस्तिअजतुदतनेबहुतजयनुटतेननहै
+
+  voicememo-test#4  (0.06s)
+    raw   न्मस्ती रुदर मानिया औथो कइशवे नमहं न्मस्ती अजतूं ज़ंतने बाहुत जा मुछते नमहैं
+    norm  न्नस्तिरुदरननियऔतोकइसवेननहन्नस्तिअजतुजतनेबहुतजनुचतेननहै
+
+==============================================================================
+mms-hin  (facebook/mms-1b-all, lang=hin)
+==============================================================================
+  CTC blank: '<pad>' (declared; silence probe returned '|' at 0.73)
+
+  voicememo-test#1  (0.15s)
+    raw   नमस्ती ुद्र मन्यव उत्तोर इशुए नमेह नमस्ती अस्तु घंड ने बाहुद्यामुत ते नमेह
+    norm  ननस्तिुद्रनन्यवउत्तोरइसुएननेहननस्तिअस्तुगडनेबहुद्यनुततेननेह
+
+  voicememo-test#2  (0.52s)
+    raw   नमस्ती ुद्र मन्यव उत्तोर इश्वए नमय है नमस्ती अस्तु घंड ने बाहुत यामुत ते नमयहै
+    norm  ननस्तिुद्रनन्यवउत्तोरइस्वएननयहैननस्तिअस्तुगडनेबहुतयनुततेननयहै
+
+  voicememo-test#3  (0.13s)
+    raw   नमस्ती ुदर मन्यव उत्तोर एशुए नमहैं नमस्ती अस्तु घंड ने बाहुत यामुत ते नमयं
+    norm  ननस्तिुदरनन्यवउत्तोरएसुएननहैननस्तिअस्तुगडनेबहुतयनुततेननय
+
+  voicememo-test#4  (0.23s)
+    raw   नमस्ती ुद्रमन्यव उत्तोर एशुए नमय है नमस्ती अस्तुधंड ने बाहुत व्यामुत ते नमय है
+    norm  ननस्तिुद्रनन्यवउत्तोरएसुएननयहैननस्तिअस्तुदडनेबहुतव्यनुततेननयहै
+
+==============================================================================
+whisper-small-hi  (openai/whisper-small, lang=hi)
+==============================================================================
+[transformers] Both `max_new_tokens` (=72) and `max_length`(=448) seem to have been set. `max_new_tokens` will take precedence. Please refer to the documentation for more information. (https://huggingface.co/docs/transformers/main/en/main_classes/text_generation)
+[transformers] A custom logits processor of type <class 'transformers.generation.logits_process.SuppressTokensLogitsProcessor'> has been passed to `.generate()`, but it was also created in `.generate()`, given its parameterization. The custom <class 'transformers.generation.logits_process.SuppressTokensLogitsProcessor'> will take precedence. Please check the docstring of <class 'transformers.generation.logits_process.SuppressTokensLogitsProcessor'> to see related `.generate()` flags.
+[transformers] A custom logits processor of type <class 'transformers.generation.logits_process.SuppressTokensAtBeginLogitsProcessor'> has been passed to `.generate()`, but it was also created in `.generate()`, given its parameterization. The custom <class 'transformers.generation.logits_process.SuppressTokensAtBeginLogitsProcessor'> will take precedence. Please check the docstring of <class 'transformers.generation.logits_process.SuppressTokensAtBeginLogitsProcessor'> to see related `.generate()` flags.
+[transformers] Ignoring clean_up_tokenization_spaces=True for BPE tokenizer WhisperTokenizer. The clean_up_tokenization post-processing step is designed for WordPiece tokenizers and is destructive for BPE (it strips spaces before punctuation). Set clean_up_tokenization_spaces=False to suppress this warning, or set clean_up_tokenization_spaces_for_bpe_even_though_it_will_corrupt_output=True to force cleanup anyway.
+[transformers] Both `max_new_tokens` (=67) and `max_length`(=448) seem to have been set. `max_new_tokens` will take precedence. Please refer to the documentation for more information. (https://huggingface.co/docs/transformers/main/en/main_classes/text_generation)
+[transformers] Both `max_new_tokens` (=60) and `max_length`(=448) seem to have been set. `max_new_tokens` will take precedence. Please refer to the documentation for more information. (https://huggingface.co/docs/transformers/main/en/main_classes/text_generation)
+[transformers] Both `max_new_tokens` (=53) and `max_length`(=448) seem to have been set. `max_new_tokens` will take precedence. Please refer to the documentation for more information. (https://huggingface.co/docs/transformers/main/en/main_classes/text_generation)
+
+  voicememo-test#1  (0.80s)
+    raw   नमस्ती रुदर मन्यव उतोडेश्वे नमैं, नमस्ती अस्तूधहन्दने बाहुद्य
+    norm  ननस्तिरुदरनन्यवउतोडेस्वेननैननस्तिअस्तुदहन्दनेबहुद्य
+
+  voicememo-test#2  (0.60s)
+    raw   नमस्ती रुदर मन्यव उत्तोड एश्वे नमैं, नमस्ती अस्तूग हन्दने ब
+    norm  ननस्तिरुदरनन्यवउत्तोडएस्वेननैननस्तिअस्तुगहन्दनेब
+
+  voicememo-test#3  (0.54s)
+    raw   नमस्ती रुदर मन्यव उतोटेश्वे नमैं, नमस्ती अस्तूद हन्द
+    norm  ननस्तिरुदरनन्यवउतोटेस्वेननैननस्तिअस्तुदहन्द
+
+  voicememo-test#4  (0.49s)
+    raw   नमस्ती रुदर मन्यब उतोटेश्वे नमैं, नमस्ती अस्तू
+    norm  ननस्तिरुदरनन्यबउतोटेस्वेननैननस्तिअस्तु
+
+
+==============================================================================
+CONSISTENCY  (mean pairwise character error rate between takes)
+==============================================================================
+Lower is better. This measures whether the model repeats itself,
+NOT whether it is correct. Correctness is not required.
+
+model                       raw     norm  script(s)              verdict
+----------------------------------------------------------------------------------------------------
+vak-san                   0.131    0.121   Devanagari            GO — errors repeat, the matcher can absorb them
+vak-hin                   0.138    0.145   Devanagari            GO — errors repeat, the matcher can absorb them
+xlsr-hin                  0.181    0.139   Devanagari            GO — errors repeat, the matcher can absorb them
+mms-hin                   0.131    0.120   Devanagari            GO — errors repeat, the matcher can absorb them
+whisper-small-hi          0.208    0.204   Devanagari            MARGINAL — calibration (Chunk 7) may rescue it
+
+! = the model changed writing system between takes. Normalisation
+    cannot fix this; pin the language instead.
