@@ -21,11 +21,25 @@ export default function Home() {
       <MicCaptureTest />
 
       <section className="font-mono text-xs leading-relaxed text-neutral-600">
+        <p className="mb-2 uppercase tracking-widest text-neutral-500">
+          Chunk 3 &middot; consistency gate
+        </p>
+        <p className="mb-4 max-w-xl leading-relaxed">
+          <span className="text-emerald-500">passed</span> &mdash; run offline in{" "}
+          <span className="text-neutral-400">tools/asr-bakeoff</span>, not here,
+          because swapping models there costs one line and in the browser costs
+          an ONNX conversion. Pick:{" "}
+          <span className="text-neutral-400">
+            vakyansh-wav2vec2-sanskrit-sam-60
+          </span>
+          , 94&nbsp;M params, stability 0.095 on real chanting. It beat a model
+          ten times its size.
+        </p>
         <p className="mb-2 uppercase tracking-widest text-neutral-500">Next up</p>
         <ol className="space-y-1">
-          <li>Chunk 2 &middot; Whisper in a worker, single clip</li>
-          <li>Chunk 3 &middot; consistency test (go/no-go gate)</li>
+          <li>Chunk 2 &middot; that model in a worker, single clip</li>
           <li>Chunk 4 &middot; Anuvaka 1 of Namakam as JSON</li>
+          <li>Chunk 5 &middot; matcher, driven by a text box</li>
         </ol>
       </section>
     </main>
