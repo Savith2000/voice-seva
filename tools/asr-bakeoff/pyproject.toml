@@ -8,4 +8,11 @@ dependencies = [
     "transformers>=4.44",
     "soundfile>=0.12",
     "numpy>=1.26",
+    # export_onnx.py only. No ONNX build of the chosen model exists on the Hub,
+    # so the browser cannot load it until we produce one ourselves.
+    "onnx>=1.16",
+    "onnxruntime>=1.18",
+    # torch.onnx.export goes through the dynamo path by default now, which needs
+    # onnxscript. Without it the export dies on an import error partway through.
+    "onnxscript>=0.1",
 ]

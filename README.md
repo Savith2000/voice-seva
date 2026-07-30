@@ -41,9 +41,24 @@ mic → mono         →    sliding window       →    fuzzy match → line
   *structurally cannot* invent filler or switch alphabet — it reports the sounds
   it heard and stops.
   **`vakyansh-wav2vec2-sanskrit-sam-60`** is the pick: 94 M parameters
-  (~94 MB at int8), trained on 60 hours of actual Sanskrit, and it scored better
-  than a model ten times its size. Full numbers in
+  (**123 MB** shipped, see below), trained on 60 hours of actual Sanskrit, and it
+  scored better than a model ten times its size. Full numbers in
   [`tools/asr-bakeoff`](./tools/asr-bakeoff).
+- **The model is converted locally, not downloaded from the Hub.** No ONNX build
+  of it exists — not for this model, not for any vakyansh model — so
+  `tools/asr-bakeoff/export_onnx.py` produces one and verifies it: fp32 ONNX
+  matches PyTorch at **CER 0.000**, int8 at **0.017**, an order of magnitude
+  under the model's own 0.095 stability, so quantisation does not undermine the
+  gate. 123 MB rather than the 94 MB that one-byte-per-weight suggests, because
+  wav2vec2's positional convolution is weight-normalised — its weight is
+  computed at runtime rather than stored — so those layers cannot be quantised
+  and stay fp32.
+- **WebGPU beats WASM, but not by much: 885 ms vs 1371 ms** per 5-second window,
+  against ~20 ms for the same graph on CPU in Python. int8 operator coverage on
+  the WebGPU execution provider is thin. Both backends return byte-identical
+  text, and the harness page lets you switch between them. This is adequate for
+  the ~1/second design but has little headroom; fp16 is the lever if Chunk 6
+  needs one.
 - **Language match beat data volume, and size didn't matter.** The same
   architecture trained on 4,200 hours of Hindi lost to one trained on 60 hours of
   Sanskrit — 70× the audio in the wrong language was worth less than a little in
@@ -103,6 +118,16 @@ npm run typecheck  # tsc --noEmit
 npm run lint
 ```
 
+**The model weights are not in the repo.** They are 123 MB of derived artefact,
+regenerated in one command:
+
+```bash
+cd tools/asr-bakeoff && uv sync && uv run python export_onnx.py
+```
+
+That writes `public/models/vak-san/` and checks the export against PyTorch
+before declaring success. Without it, Chunk 2's panel reports a 404.
+
 > **No build step between the source and the tests.** `npm test` hands the
 > TypeScript straight to Node, which strips the types. The one thing that breaks
 > is a constructor *parameter property* (`constructor(private x: T)`) — the only
@@ -128,7 +153,7 @@ riskiest assumption is tested first, while it is still cheap to change course.
 | 0 | Next.js skeleton | ML bundles client-side, WebGPU adapter available | ✓ |
 | 1 | Mic capture at 16 kHz | resampling is correct (verified by WAV playback) | ✓ |
 | 3 | **Consistency test** | **go/no-go — is the model consistently wrong?** | ✓ |
-| 2 | CTC model in a worker | chosen model loads, caches, transcribes a clip | |
+| 2 | CTC model in a worker | ONNX export matches PyTorch, transcribes a clip | ✓ |
 | 4 | Anuvaka 1 as JSON | Devanagari + svara marks render correctly | |
 | 5 | Matcher via text box | matching works, tested by typing (no audio) | |
 | 6 | Sliding window | audio drives the matcher end to end | |

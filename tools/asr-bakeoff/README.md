@@ -96,7 +96,9 @@ best model here is also the smallest.
 
 `vakyansh-wav2vec2-sanskrit-sam-60` is wav2vec2-**base** CTC fine-tuned on 60
 hours of **Sanskrit** — the only model tested that was actually trained on the
-language being chanted. 94 M parameters, ~94 MB at int8.
+language being chanted. 94 M parameters, **123 MB** as actually shipped (see
+"Getting it into the browser" below; the one-byte-per-weight estimate of ~94 MB
+turned out not to be achievable).
 
 Recording 1, 16.5 s of continuous Rudram, window-shift protocol:
 
@@ -184,6 +186,62 @@ so two anchors genuinely contain the same words, and `--stability` assumes the
 chant moves forward. Correct answer, wrong question. Every model failing
 identically is the tell. The harness now prints a warning for exactly this case;
 use `--split` for repeated takes.
+
+### Getting it into the browser
+
+```bash
+uv run python export_onnx.py            # writes public/models/vak-san/
+```
+
+No ONNX build of this model exists on the Hub — nor of any vakyansh model — so
+the browser cannot load it until we make one. The script exports, quantises, and
+then **verifies**, which is the part that matters: int8 is lossy, and a model
+that got 10% worse would still emit plausible-looking Devanagari while quietly
+invalidating everything measured above.
+
+| graph | size | CER vs PyTorch |
+|---|---|---|
+| fp32 | 379.6 MB | **0.000** — the export itself is exact |
+| int8 | 123.2 MB | **0.017** — what ships |
+
+0.017 is an order of magnitude below the model's own 0.095 stability, so
+quantisation is not what limits this system. The whole difference is `नमः` →
+`नमह` on two of four windows.
+
+**Why 123 MB and not 94 MB.** One byte per weight predicts ~94 MB, and that is
+not reachable here. wav2vec2's positional convolution is weight-normalised — its
+weight is *computed* at runtime as `weight_g · weight_v / ‖weight_v‖` rather than
+stored as a constant — and onnxruntime's Conv quantiser needs an initializer, so
+it raises `Expected mul_105 to be an initializer`. Those layers stay fp32.
+MatMul-only is therefore the floor for this architecture, not a cautious choice.
+The script still attempts the Conv variant and reports the failure rather than
+hiding it.
+
+**Two other traps the export walked into.** torch emits opset 18 and the
+automatic downconvert to 17 fails on this graph while printing a stack trace as
+though it had not, leaving an 18 model behind — so the default is now 18.
+And current transformers writes the feature-extractor settings to
+`processor_config.json` and omits `special_tokens_map.json` entirely, while
+transformers.js wants `preprocessor_config.json` and looks for the other; the
+script writes both explicitly.
+
+**Verified in the browser against this harness.** Same file, same 5-second
+window at 4.0 s, byte-identical output:
+
+```
+python (int8 onnx)   तेरुध्रमन्यव उत्तोत् ईशवेनमह नमस्ते
+browser (webgpu)     तेरुध्रमन्यव उत्तोत् ईशवेनमह नमस्ते
+```
+
+That comparison is the reason Chunk 2's panel has a "from file" button at all. A
+microphone can never hand two runs the same input, so it could never have proven
+this.
+
+Timings per 5-second window: **WebGPU 885 ms, WASM 1371 ms**, against ~20 ms for
+the same graph on CPU in Python. int8 coverage on the WebGPU execution provider
+is thin, which is why the gap is 1.5× rather than the usual 5–10×. Adequate for
+a ~1/second sliding window, but the headroom is thin; fp16 is the obvious lever
+if Chunk 6 wants one.
 
 ### Still to firm up
 

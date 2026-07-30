@@ -46,3 +46,7 @@ tools/asr-bakeoff/__pycache__/
 tools/asr-bakeoff/uv.lock
 # recordings are large and personal — keep them local
 tools/asr-bakeoff/audio/*
+
+# Converted model weights: ~94 MB of derived artefact, regenerated in one command
+# by tools/asr-bakeoff/export_onnx.py. Git is the wrong place for it.
+public/models/
