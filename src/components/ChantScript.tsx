@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import ChantLineView from "@/components/ChantLineView";
 import { chant } from "@/lib/chant/chant-data";
 import { allLines, flatten } from "@/lib/chant/chant";
 import { cer } from "@/lib/chant/normalize";
@@ -18,11 +19,6 @@ import { cer } from "@/lib/chant/normalize";
  * against, and seeing it beside the source is the quickest way to notice a
  * rule doing something unintended to real text rather than to test strings.
  */
-
-/** System Devanagari, in the order these platforms actually have it. */
-const DEVANAGARI_STACK =
-  '"Noto Sans Devanagari", "Kohinoor Devanagari", "Devanagari Sangam MN", ' +
-  '"Nirmala UI", "Mangal", serif';
 
 export default function ChantScript() {
   const [showNormalized, setShowNormalized] = useState(false);
@@ -72,33 +68,11 @@ export default function ChantScript() {
 
       <ol className="flex flex-col gap-4">
         {lines.map((line) => (
-          <li key={line.sequence} className="flex gap-3">
-            <span className="w-8 shrink-0 pt-2 text-right font-mono text-xs text-neutral-600">
-              {line.sequence}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p
-                lang="sa"
-                className="text-xl leading-loose text-neutral-100"
-                style={{ fontFamily: DEVANAGARI_STACK }}
-              >
-                {line.devanagari}
-              </p>
-              <p className="mt-1 text-sm italic leading-relaxed text-neutral-400">
-                {line.transliteration}
-              </p>
-              {line.meaning ? (
-                <p className="mt-1 text-sm leading-relaxed text-neutral-500">
-                  {line.meaning}
-                </p>
-              ) : null}
-              {showNormalized ? (
-                <p className="mt-1 break-all font-mono text-xs leading-relaxed text-emerald-700">
-                  {line.normalized}
-                </p>
-              ) : null}
-            </div>
-          </li>
+          <ChantLineView
+            key={line.sequence}
+            line={line}
+            showNormalized={showNormalized}
+          />
         ))}
       </ol>
     </section>

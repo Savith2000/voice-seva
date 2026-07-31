@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import ChantLineView, { DEVANAGARI_STACK } from "@/components/ChantLineView";
 import { flatten } from "@/lib/chant/chant";
 import { chant } from "@/lib/chant/chant-data";
 import { match, progressThroughLine } from "@/lib/chant/matcher";
@@ -18,10 +19,6 @@ import { match, progressThroughLine } from "@/lib/chant/matcher";
  * The presets are real vak-san output from tools/asr-bakeoff, not text anyone
  * typed by hand, so what you see is what the model actually produces.
  */
-
-const DEVANAGARI_STACK =
-  '"Noto Sans Devanagari", "Kohinoor Devanagari", "Devanagari Sangam MN", ' +
-  '"Nirmala UI", "Mangal", serif';
 
 type Preset = { label: string; text: string; note: string };
 
@@ -159,42 +156,20 @@ export default function MatcherTest() {
           </p>
 
           <ol className="flex flex-col gap-2">
-            {context.map((line) => {
-              const isMatch = line.sequence === result.line.sequence;
-              const inSpan = result.spanLines.some(
-                (i) => flat.lines[i].sequence === line.sequence,
-              );
-              return (
-                <li
-                  key={line.sequence}
-                  className={`flex gap-3 rounded px-2 py-1 ${
-                    isMatch
-                      ? "bg-emerald-950/40"
-                      : inSpan
-                        ? "bg-neutral-900"
-                        : ""
-                  }`}
-                >
-                  <span className="w-6 shrink-0 pt-1 text-right font-mono text-xs text-neutral-600">
-                    {line.sequence}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      lang="sa"
-                      className={`text-lg leading-loose ${
-                        isMatch ? "text-neutral-50" : "text-neutral-500"
-                      }`}
-                      style={{ fontFamily: DEVANAGARI_STACK }}
-                    >
-                      {line.devanagari}
-                    </p>
-                    {isMatch ? (
-                      <span className="mt-1 block h-0.5 rounded-full bg-emerald-600/70" style={{ width: `${Math.round(progress * 100)}%` }} />
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
+            {context.map((line) => (
+              <ChantLineView
+                key={line.sequence}
+                line={line}
+                dense
+                active={line.sequence === result.line.sequence}
+                inSpan={result.spanLines.some(
+                  (i) => flat.lines[i].sequence === line.sequence,
+                )}
+                progress={
+                  line.sequence === result.line.sequence ? progress : undefined
+                }
+              />
+            ))}
           </ol>
         </>
       )}
