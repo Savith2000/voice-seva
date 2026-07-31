@@ -1,0 +1,14 @@
+[project]
+name = "chant-import"
+version = "0.1.0"
+description = "Decode the anuvaka PDF's legacy font layers into the app's chant JSON"
+requires-python = ">=3.11"
+dependencies = [
+    "pdfminer-six>=20240706",
+    "indic-transliteration>=2.3.0",
+]
+
+# Only needed to re-derive the font maps in decode_pdf.py from scratch:
+#   uv run --with fonttools --with pillow --with pypdfium2 python chart_fonts.py
+[dependency-groups]
+fonts = ["fonttools>=4.53", "pillow>=10.4", "pypdfium2>=4.30"]

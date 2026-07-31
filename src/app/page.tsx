@@ -1,4 +1,5 @@
 import AsrTest from "@/components/AsrTest";
+import ChantScript from "@/components/ChantScript";
 import MicCaptureTest from "@/components/MicCaptureTest";
 import MlSmokeTest from "@/components/MlSmokeTest";
 
@@ -23,6 +24,8 @@ export default function Home() {
 
       <AsrTest />
 
+      <ChantScript />
+
       <section className="font-mono text-xs leading-relaxed text-neutral-600">
         <p className="mb-2 uppercase tracking-widest text-neutral-500">
           Chunk 3 &middot; consistency gate
@@ -40,9 +43,9 @@ export default function Home() {
         </p>
         <p className="mb-2 uppercase tracking-widest text-neutral-500">Next up</p>
         <ol className="space-y-1">
-          <li>Chunk 4 &middot; Anuvaka 1 of Namakam as JSON</li>
           <li>Chunk 5 &middot; matcher, driven by a text box</li>
           <li>Chunk 6 &middot; sliding window, audio to matcher</li>
+          <li>Chunk 7 &middot; calibration, reference text tuned to the model</li>
         </ol>
       </section>
     </main>

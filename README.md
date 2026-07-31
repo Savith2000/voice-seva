@@ -87,9 +87,20 @@ mic → mono         →    sliding window       →    fuzzy match → line
   the text is never shown to a user, unstable hypotheses can be consumed
   directly — no need to wait for confirmed tokens. At 0.02 s per 5-second window
   there is a lot of headroom here.
+- **The chant text is decoded from the source PDF, not retyped.** The Sai Trust
+  edition carries its text twice — Devanagari and transliteration — and both
+  are in legacy 8-bit font encodings with no `ToUnicode` map, so a plain
+  extraction yields `nm?Ste éÔ m/Nyv?`. `tools/chant-import` reads the maps off
+  the embedded fonts' own glyph outlines, then **checks the two layers against
+  each other**: transliterate the Devanagari and it must reproduce the roman
+  layer. That caught two glyphs that decode to something other than they look
+  like, and reph landing inside conjuncts. Svara marks are pitch notation and
+  easy to get subtly wrong, which is why none of this was done by hand.
 - **Matcher.** The chant is flattened into one normalised string with a
   character → line index map, reducing "where are we?" to a fuzzy substring
-  search. Line boundaries and partial lines fall out for free.
+  search. Line boundaries and partial lines fall out for free. The 33 lines of
+  Anuvaka 1 are separable: the two most similar differ by **0.516**, five times
+  the model's own 0.095 stability, so consistency has something to work with.
 - **The normaliser exists twice, and a test holds the two together.** Nine rules
   that deliberately destroy information — strip svara marks, collapse the three
   sibilants to स and every nasal to न, drop visarga, flatten vowel length,
@@ -137,6 +148,12 @@ cd tools/asr-bakeoff && uv sync && uv run python export_onnx.py
 That writes `public/models/vak-san/` and checks the export against PyTorch
 before declaring success. Without it, Chunk 2's panel reports a 404.
 
+**The chant JSON is checked in; the PDF it came from is not.** Source editions
+are publishers' work, and whether to redistribute one is not a decision to make
+as a side effect of committing an importer. To regenerate
+`src/data/chants/`, put the PDF at the repo root and see
+[`tools/chant-import`](./tools/chant-import).
+
 > **No build step between the source and the tests.** `npm test` hands the
 > TypeScript straight to Node, which strips the types. The one thing that breaks
 > is a constructor *parameter property* (`constructor(private x: T)`) — the only
@@ -163,7 +180,7 @@ riskiest assumption is tested first, while it is still cheap to change course.
 | 1 | Mic capture at 16 kHz | resampling is correct (verified by WAV playback) | ✓ |
 | 3 | **Consistency test** | **go/no-go — is the model consistently wrong?** | ✓ |
 | 2 | CTC model in a worker | ONNX export matches PyTorch, transcribes a clip | ✓ |
-| 4 | Anuvaka 1 as JSON | Devanagari + svara marks render correctly | |
+| 4 | Anuvaka 1 as JSON | Devanagari + svara marks render correctly | ✓ |
 | 5 | Matcher via text box | matching works, tested by typing (no audio) | |
 | 6 | Sliding window | audio drives the matcher end to end | |
 | 7 | Calibration mode | reference text tuned to model output | |
