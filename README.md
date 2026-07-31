@@ -85,8 +85,18 @@ mic → mono         →    sliding window       →    fuzzy match → line
 - **Sliding window.** These are batch models with no streaming mode, so
   real-time output is faked by re-transcribing an overlapping window. Because
   the text is never shown to a user, unstable hypotheses can be consumed
-  directly — no need to wait for confirmed tokens. At 0.02 s per 5-second window
-  there is a lot of headroom here.
+  directly — no need to wait for confirmed tokens.
+- **The loop's real job is refusing to run.** Frames arrive ~15 times a second
+  and inference takes ~930 ms, so anything that fires per frame, or on a fixed
+  timer that ignores whether the last request finished, builds a queue that
+  never drains — and every result then describes older and older audio while
+  looking perfectly healthy. Exactly one request is in flight at a time and
+  everything arriving meanwhile is dropped: **measured at 0.81 windows/second
+  with 178 frames dropped** over the test recording. Falling behind by design
+  beats falling behind by accident. Silence and a half-empty buffer are
+  refused too — CTC on silence does not return an empty string, it returns
+  whatever the blank collapses to, and the matcher would place that somewhere
+  with a straight face.
 - **The chant text is decoded from the source PDF, not retyped.** The Sai Trust
   edition carries its text twice — Devanagari and transliteration — and both
   are in legacy 8-bit font encodings with no `ToUnicode` map, so a plain
@@ -194,7 +204,7 @@ riskiest assumption is tested first, while it is still cheap to change course.
 | 2 | CTC model in a worker | ONNX export matches PyTorch, transcribes a clip | ✓ |
 | 4 | Anuvaka 1 as JSON | Devanagari + svara marks render correctly | ✓ |
 | 5 | Matcher via text box | matching works, tested by typing (no audio) | ✓ |
-| 6 | Sliding window | audio drives the matcher end to end | |
+| 6 | Sliding window | audio drives the matcher end to end | ✓ |
 | 7 | Calibration mode | reference text tuned to model output | |
 | 8 | State machine | never jumps on a guess | |
 | 9 | Chanting screen | highlight + scroll feels calm | |

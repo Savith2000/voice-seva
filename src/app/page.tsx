@@ -3,6 +3,7 @@ import ChantScript from "@/components/ChantScript";
 import MatcherTest from "@/components/MatcherTest";
 import MicCaptureTest from "@/components/MicCaptureTest";
 import MlSmokeTest from "@/components/MlSmokeTest";
+import TrackingTest from "@/components/TrackingTest";
 
 export default function Home() {
   return (
@@ -25,6 +26,8 @@ export default function Home() {
 
       <AsrTest />
 
+      <TrackingTest />
+
       <MatcherTest />
 
       <ChantScript />
@@ -46,7 +49,6 @@ export default function Home() {
         </p>
         <p className="mb-2 uppercase tracking-widest text-neutral-500">Next up</p>
         <ol className="space-y-1">
-          <li>Chunk 6 &middot; sliding window, audio to matcher</li>
           <li>Chunk 7 &middot; calibration, reference text tuned to the model</li>
           <li>Chunk 8 &middot; confidence state machine</li>
         </ol>
