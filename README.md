@@ -98,9 +98,21 @@ mic → mono         →    sliding window       →    fuzzy match → line
   easy to get subtly wrong, which is why none of this was done by hand.
 - **Matcher.** The chant is flattened into one normalised string with a
   character → line index map, reducing "where are we?" to a fuzzy substring
-  search. Line boundaries and partial lines fall out for free. The 33 lines of
-  Anuvaka 1 are separable: the two most similar differ by **0.516**, five times
-  the model's own 0.095 stability, so consistency has something to work with.
+  search — Sellers' variant of Levenshtein, where the first row is all zeros so
+  a match may start anywhere for free. Line boundaries and partial lines fall
+  out of that, and it runs in well under a millisecond against the ~885 ms the
+  model takes. The 33 lines of Anuvaka 1 are separable: the two most similar
+  differ by **0.516**, five times the model's own 0.095 stability.
+- **A score is not enough; the matcher also reports a margin.** `बभूव ते धनुः`
+  ends both line 4 and line 27, so it scores a perfect 1.00 in two places at
+  once — confident and a coin flip. Margin is the gap to the best match
+  *somewhere a jump would be visible*, which is not the same as the
+  second-best position: lines are concatenated with no separator, so an
+  alignment ending one character into the next line costs one edit and scores
+  almost identically. Counting that as a rival made a verbatim line 2 look
+  ambiguous at 0.04. Excluding the neighbours a five-second window may legally
+  straddle takes it to 0.58, while leaving the line 4/27 case at 0.00 where it
+  belongs.
 - **The normaliser exists twice, and a test holds the two together.** Nine rules
   that deliberately destroy information — strip svara marks, collapse the three
   sibilants to स and every nasal to न, drop visarga, flatten vowel length,
@@ -181,7 +193,7 @@ riskiest assumption is tested first, while it is still cheap to change course.
 | 3 | **Consistency test** | **go/no-go — is the model consistently wrong?** | ✓ |
 | 2 | CTC model in a worker | ONNX export matches PyTorch, transcribes a clip | ✓ |
 | 4 | Anuvaka 1 as JSON | Devanagari + svara marks render correctly | ✓ |
-| 5 | Matcher via text box | matching works, tested by typing (no audio) | |
+| 5 | Matcher via text box | matching works, tested by typing (no audio) | ✓ |
 | 6 | Sliding window | audio drives the matcher end to end | |
 | 7 | Calibration mode | reference text tuned to model output | |
 | 8 | State machine | never jumps on a guess | |
