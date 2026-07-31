@@ -132,8 +132,21 @@ mic → mono         →    sliding window       →    fuzzy match → line
   with the Python one. If they drift, the browser matches against numbers nobody
   measured and nothing fails. So `dump_vectors.py` writes a fixture from Python
   and the TypeScript test replays it character for character.
-- **Confidence gate.** A LOCKED / SEARCHING / IDLE state machine that would
-  rather freeze the screen than jump to a wrong line.
+- **Following is cheap; jumping is expensive.** That asymmetry is the whole
+  confidence design. Chanting moves forward a line at a time, so a result that
+  continues from where the screen already is needs only ordinary evidence,
+  while one that would throw the screen elsewhere has to say so twice. It also
+  changes how a result is *judged*: margin measures the risk of landing in the
+  wrong place, and staying put takes no such risk — so a window that agrees
+  with the current line is held to score alone. Requiring margin there froze
+  the display at the end of every line, which is exactly where windows are
+  weakest (the tail of the test recording scores 0.65 with a margin of 0.06
+  and is entirely correct).
+- **It would rather look stale than wrong.** A bad window holds the line
+  instead of blanking it; four in a row give the lock up but leave the last
+  known line on screen; silence pauses without losing the place, and only
+  eight seconds of it ends the session. A wrong line pulls someone out of the
+  chant, and a slightly old one does not.
 
 ## Stack
 
@@ -183,9 +196,19 @@ as a side effect of committing an importer. To regenerate
 > `erasableSyntaxOnly` is on in `tsconfig.json` so `tsc` reports that as an
 > error rather than leaving it to surface later as an unrunnable test file.
 
-The dev server serves a **development harness**, not the app — a set of
-instruments for testing each piece in isolation. The real chanting interface
-arrives in Chunk 9.
+Three routes:
+
+| | |
+|---|---|
+| `/` | the front door |
+| `/chant` | **the app** — listen, follow, scroll |
+| `/harness` | the instruments, one per chunk, reporting numbers the app has no reason to show |
+
+`/harness` is not a worse copy of `/chant`. It shows the matcher's **raw**
+answer, with no state machine in the way, which is how you tell "the matcher
+was wrong" from "the matcher was right and the state machine was being
+sensible". Both drive the same pipeline through the same `useAsrSession`, so
+they cannot drift into reproducing different bugs.
 
 > **Microphone requires a secure context.** `localhost` qualifies, so desktop
 > development works. Testing on a phone over a LAN address (`192.168.x.x:3000`)
@@ -205,10 +228,10 @@ riskiest assumption is tested first, while it is still cheap to change course.
 | 4 | Anuvaka 1 as JSON | Devanagari + svara marks render correctly | ✓ |
 | 5 | Matcher via text box | matching works, tested by typing (no audio) | ✓ |
 | 6 | Sliding window | audio drives the matcher end to end | ✓ |
-| 7 | Calibration mode | reference text tuned to model output | |
-| 8 | State machine | never jumps on a guess | |
-| 9 | Chanting screen | highlight + scroll feels calm | |
-| 10 | Demo polish | someone else can use it unaided | |
+| 7 | Calibration mode | reference text tuned to model output | skipped |
+| 8 | State machine | never jumps on a guess | ✓ |
+| 9 | Chanting screen | highlight + scroll feels calm | ✓ |
+| 10 | Demo polish | someone else can use it unaided | ✓ |
 
 **Step 3 was the gate, and it has passed** — out of order, and deliberately so.
 Accuracy is irrelevant; the question was whether the errors repeat. Consistent

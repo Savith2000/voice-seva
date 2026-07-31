@@ -2,80 +2,23 @@
 
 // Chunk 6's instrument: microphone, model and matcher wired end to end.
 //
-// Everything before this was testable in isolation. This is the first thing
-// that can only be judged by chanting at it — the numbers to watch are the
-// rate (how often a window actually completes) and the dropped count (how many
-// arrived while the model was still busy). Together they say whether the
-// design holds at ~885 ms per window, or whether Chunk 7's calibration and a
-// smaller dtype become necessary.
+// This shows the matcher's *raw* answer, deliberately — no state machine, no
+// refusal to jump, no holding through a bad window. That is what makes it an
+// instrument rather than a worse copy of the chanting screen: when the real
+// screen misbehaves, this is where you find out whether the matcher was wrong
+// or the state machine was being sensible about a matcher that was right.
 //
-// The highlighted line does not scroll and does not refuse to move on a weak
-// match. Those are Chunks 9 and 8. Here it follows the raw matcher output, so
-// what you see is what the matcher actually said, jitter included.
+// It shares its audio and model plumbing with the real screen through
+// useAsrSession, so the two cannot drift into reproducing different bugs.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import ChantLineView, { DEVANAGARI_STACK } from "@/components/ChantLineView";
-import { MicCapture } from "@/lib/audio/capture";
 import { flatten } from "@/lib/chant/chant";
 import { chant } from "@/lib/chant/chant-data";
 import { progressThroughLine } from "@/lib/chant/matcher";
-import { SlidingWindowTracker, type TrackerTick } from "@/lib/chant/tracker";
-import type { AsrMessage, AsrRequest } from "@/workers/asr.worker";
-
-const SAMPLE_RATE = 16_000;
-/** What the capture worklet delivers, so a replay looks the same to the tracker. */
-const FRAME_SAMPLES = 1024;
-
-/**
- * Feed a recording to the tracker at the speed it was recorded.
- *
- * A microphone cannot hand two runs the same input, which makes every
- * regression here a matter of opinion. Replaying a file gives the loop
- * identical audio every time — and it is the only way to watch the line
- * follow along without chanting into the laptop.
- *
- * Paced rather than dumped in at once: the whole question this chunk answers
- * is how the loop behaves when audio arrives faster than the model consumes
- * it, and a single push would skip straight past it.
- */
-async function replayFile(
-  file: File,
-  onFrame: (samples: Float32Array) => void,
-): Promise<() => void> {
-  // Decoding through a 16 kHz context resamples in native code, exactly as
-  // MicCapture does, rather than hand-rolling a decimator that would alias.
-  const ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
-  try {
-    const decoded = await ctx.decodeAudioData(await file.arrayBuffer());
-    const samples = decoded.getChannelData(0);
-
-    let offset = 0;
-    const timer = setInterval(() => {
-      if (offset >= samples.length) {
-        clearInterval(timer);
-        return;
-      }
-      const end = Math.min(offset + FRAME_SAMPLES, samples.length);
-      onFrame(samples.slice(offset, end));
-      offset = end;
-    }, (FRAME_SAMPLES / SAMPLE_RATE) * 1000);
-
-    return () => {
-      clearInterval(timer);
-      void ctx.close();
-    };
-  } catch (error) {
-    await ctx.close();
-    throw error;
-  }
-}
-
-type Phase =
-  | { kind: "idle" }
-  | { kind: "starting"; step: string }
-  | { kind: "running"; device: string }
-  | { kind: "failed"; message: string };
+import { useAsrSession } from "@/lib/chant/use-asr-session";
+import type { TrackerTick } from "@/lib/chant/tracker";
 
 type Live = {
   state: TrackerTick["state"];
@@ -86,9 +29,8 @@ type Live = {
   margin: number;
   rivalLine: number | null;
   inferenceMs: number;
-  rms: number;
   windows: number;
-  dropped: number;
+  startedAt: number;
   elapsedMs: number;
 };
 
@@ -101,134 +43,26 @@ const ZERO: Live = {
   margin: 0,
   rivalLine: null,
   inferenceMs: 0,
-  rms: 0,
   windows: 0,
-  dropped: 0,
+  startedAt: 0,
   elapsedMs: 0,
 };
 
 export default function TrackingTest() {
-  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
   const [live, setLive] = useState<Live>(ZERO);
-
   const flat = useMemo(() => flatten(chant), []);
-  const workerRef = useRef<Worker | null>(null);
-  const captureRef = useRef<MicCapture | null>(null);
-  const replayRef = useRef<(() => void) | null>(null);
-  const trackerRef = useRef<SlidingWindowTracker | null>(null);
-  const pendingRef = useRef(
-    new Map<number, (value: { text: string; inferenceMs: number }) => void>(),
-  );
-  const rejectRef = useRef(new Map<number, (reason: Error) => void>());
-  const nextIdRef = useRef(1);
-  const startedAtRef = useRef(0);
-  const mountedRef = useRef(true);
 
-  const stop = useCallback(async () => {
-    trackerRef.current?.stop();
-    trackerRef.current = null;
-
-    // Anything still in flight will never be answered now.
-    for (const reject of rejectRef.current.values()) {
-      reject(new Error("session ended"));
-    }
-    pendingRef.current.clear();
-    rejectRef.current.clear();
-
-    replayRef.current?.();
-    replayRef.current = null;
-
-    const capture = captureRef.current;
-    captureRef.current = null;
-    await capture?.stop();
-
-    workerRef.current?.terminate();
-    workerRef.current = null;
-
-    if (mountedRef.current) setPhase({ kind: "idle" });
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      void stop();
-    };
-  }, [stop]);
-
-  const start = useCallback(async (source: "mic" | File) => {
-    setLive(ZERO);
-    setPhase({ kind: "starting", step: "loading model" });
-
-    try {
-      const worker = new Worker(
-        new URL("../workers/asr.worker.ts", import.meta.url),
-        { type: "module" },
-      );
-      workerRef.current = worker;
-
-      const ready = new Promise<string>((resolve, reject) => {
-        const onMessage = (event: MessageEvent<AsrMessage>) => {
-          const message = event.data;
-          if (message.type === "ready") {
-            resolve(message.device);
-            return;
-          }
-          if (message.type === "result") {
-            pendingRef.current.get(message.id)?.({
-              text: message.text,
-              inferenceMs: message.inferenceMs,
-            });
-            pendingRef.current.delete(message.id);
-            rejectRef.current.delete(message.id);
-            return;
-          }
-          // An error with no id is a load failure and ends the session; one
-          // with an id is a single bad window, which the tracker shrugs off.
-          if (message.id === undefined) {
-            reject(new Error(message.message));
-          } else {
-            rejectRef.current.get(message.id)?.(new Error(message.message));
-            pendingRef.current.delete(message.id);
-            rejectRef.current.delete(message.id);
-          }
-        };
-        worker.addEventListener("message", onMessage);
-        worker.addEventListener("error", (event) =>
-          reject(new Error(event.message || "worker failed")),
-        );
-        worker.postMessage({ type: "load", device: "auto" } satisfies AsrRequest);
-      });
-
-      const device = await ready;
-      if (!mountedRef.current || !workerRef.current) return;
-
-      setPhase({
-        kind: "starting",
-        step: source === "mic" ? "opening microphone" : "decoding file",
-      });
-
-      const transcribe = (samples: Float32Array) =>
-        new Promise<{ text: string; inferenceMs: number }>((resolve, reject) => {
-          const id = nextIdRef.current++;
-          pendingRef.current.set(id, resolve);
-          rejectRef.current.set(id, reject);
-          // Transferred rather than copied: 320 KB per window, once a second,
-          // and the tracker never looks at the array again.
-          worker.postMessage({ type: "transcribe", id, samples } satisfies AsrRequest, [
-            samples.buffer,
-          ]);
-        });
-
-      const tracker = new SlidingWindowTracker(flat, transcribe, (tick) => {
-        if (!mountedRef.current) return;
+  const session = useAsrSession(
+    flat,
+    useCallback(
+      (tick: TrackerTick) => {
         setLive((previous) => {
+          const startedAt = previous.startedAt || tick.at;
           const base = {
             ...previous,
+            startedAt,
             state: tick.state,
-            rms: tick.rms,
-            dropped: tracker.dropped,
-            elapsedMs: performance.now() - startedAtRef.current,
+            elapsedMs: tick.at - startedAt,
           };
           if (tick.state !== "matched") return base;
           const result = tick.result;
@@ -238,7 +72,8 @@ export default function TrackingTest() {
             transcript: tick.transcript,
             inferenceMs: tick.inferenceMs,
             // A miss keeps the previous line on screen rather than blanking
-            // it. Deciding when to actually give up is Chunk 8's job.
+            // it. Deciding when to actually give up is the state machine's
+            // job, and it is not in this panel on purpose.
             lineIndex: result ? result.lineIndex : previous.lineIndex,
             progress: result ? progressThroughLine(result, flat) : previous.progress,
             score: result ? result.score : 0,
@@ -248,46 +83,13 @@ export default function TrackingTest() {
               : null,
           };
         });
-      });
-      trackerRef.current = tracker;
+      },
+      [flat],
+    ),
+  );
 
-      startedAtRef.current = performance.now();
-      const push = (samples: Float32Array) => trackerRef.current?.push(samples);
-
-      if (source === "mic") {
-        const capture = await MicCapture.start(
-          (frame) => push(frame.samples),
-          () => {},
-          { processing: false },
-        );
-        captureRef.current = capture;
-        if (!mountedRef.current) {
-          await capture.stop();
-          return;
-        }
-      } else {
-        const cancel = await replayFile(source, push);
-        replayRef.current = cancel;
-        if (!mountedRef.current) {
-          cancel();
-          return;
-        }
-      }
-
-      setPhase({ kind: "running", device: `${device} · ${source === "mic" ? "mic" : source.name}` });
-    } catch (error) {
-      await stop();
-      if (mountedRef.current) {
-        setPhase({
-          kind: "failed",
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-  }, [flat, stop]);
-
-  const running = phase.kind === "running";
-  const busy = phase.kind === "starting";
+  const running = session.phase.kind === "running";
+  const starting = session.phase.kind === "starting";
 
   const context = useMemo(() => {
     if (live.lineIndex === null) return [];
@@ -295,24 +97,37 @@ export default function TrackingTest() {
     return flat.lines.slice(from, live.lineIndex + 3);
   }, [live.lineIndex, flat]);
 
-  const rate =
-    live.elapsedMs > 0 ? (live.windows / live.elapsedMs) * 1000 : 0;
+  const rate = live.elapsedMs > 0 ? (live.windows / live.elapsedMs) * 1000 : 0;
+
+  const begin = (source: "mic" | File) => {
+    setLive(ZERO);
+    void session.start(source);
+  };
 
   return (
     <section className="flex flex-col gap-4 rounded-lg border border-neutral-800 p-5">
       <p className="font-mono text-xs uppercase tracking-widest text-neutral-500">
-        Chunk 6 &middot; live tracking
+        Chunk 6 &middot; live tracking (raw)
       </p>
 
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          onClick={running || busy ? () => void stop() : () => void start("mic")}
-          disabled={busy}
+          onClick={
+            running || starting ? () => void session.stop() : () => begin("mic")
+          }
+          disabled={starting}
           className="rounded border border-neutral-700 px-4 py-2 font-mono text-xs uppercase tracking-widest text-neutral-200 hover:border-neutral-500 disabled:opacity-40"
         >
-          {running ? "stop" : busy ? phase.step : "start chanting"}
+          {running
+            ? "stop"
+            : starting
+              ? session.phase.kind === "starting"
+                ? session.phase.step
+                : "starting"
+              : "start chanting"}
         </button>
+
         <label className="cursor-pointer rounded border border-neutral-800 px-3 py-2 font-mono text-xs uppercase tracking-widest text-neutral-400 hover:border-neutral-600 hover:text-neutral-200">
           replay a file
           <input
@@ -322,30 +137,32 @@ export default function TrackingTest() {
             onChange={(event) => {
               const file = event.target.files?.[0];
               event.target.value = "";
-              if (file) void start(file);
+              if (file) begin(file);
             }}
           />
         </label>
-        {running ? (
+
+        {running && session.phase.kind === "running" ? (
           <span className="font-mono text-xs text-neutral-500">
-            {phase.device} &middot; {live.state}
+            {session.phase.device} &middot; {live.state}
             {live.windows > 0 ? (
               <>
-                {" "}&middot; {live.inferenceMs.toFixed(0)} ms/window &middot;{" "}
-                {rate.toFixed(2)}/s &middot; {live.dropped} frames dropped
+                {" "}
+                &middot; {live.inferenceMs.toFixed(0)} ms/window &middot;{" "}
+                {rate.toFixed(2)}/s &middot; {session.dropped} frames dropped
               </>
             ) : null}
           </span>
         ) : null}
       </div>
 
-      {phase.kind === "failed" ? (
+      {session.phase.kind === "failed" ? (
         <p className="font-mono text-xs leading-relaxed text-red-400">
-          {phase.message}
+          {session.phase.message}
         </p>
       ) : null}
 
-      {running && live.windows > 0 ? (
+      {live.windows > 0 ? (
         <div className="flex flex-wrap gap-x-6 gap-y-1 font-mono text-xs text-neutral-500">
           <span>
             line{" "}
@@ -368,7 +185,7 @@ export default function TrackingTest() {
         </div>
       ) : null}
 
-      {running && live.transcript ? (
+      {live.transcript ? (
         <p
           lang="sa"
           className="break-words text-sm leading-relaxed text-neutral-500"
@@ -397,9 +214,13 @@ export default function TrackingTest() {
       ) : null}
 
       <p className="font-mono text-xs leading-relaxed text-neutral-600">
-        Raw matcher output, one window a second. It will jitter and it will
-        sometimes jump &mdash; refusing to act on a weak match is Chunk 8, and
-        scrolling calmly is Chunk 9.
+        Raw matcher output, one window a second &mdash; it will jitter and
+        sometimes jump. The chanting screen at{" "}
+        <a href="/chant" className="text-neutral-400 underline">
+          /chant
+        </a>{" "}
+        runs the same pipeline through the confidence state machine, which is
+        what stops it acting on results like these.
       </p>
     </section>
   );

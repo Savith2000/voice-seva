@@ -23,25 +23,33 @@ export const SAMPLE_RATE = 16_000;
 /** Measured in Chunk 3 against real chanting: 3 s jitters, 8 s blurs lines. */
 export const WINDOW_SECONDS = 5;
 
-export type TrackerTick = {
+type TickBase = {
   /** Clock reading when the window was taken. */
   at: number;
   /** Loudness of the window, 0..1. */
   rms: number;
   /** Seconds of audio actually transcribed. */
   audioSeconds: number;
-} & (
-  | {
-      state: "matched";
-      transcript: string;
-      result: MatchResult | null;
-      inferenceMs: number;
-    }
-  | {
-      /** Nothing was transcribed, and why. */
-      state: "silent" | "filling";
-    }
-);
+};
+
+/** A window that was actually run through the model. */
+export type MatchedTick = TickBase & {
+  state: "matched";
+  transcript: string;
+  /** Null when the transcript normalises to nothing. */
+  result: MatchResult | null;
+  inferenceMs: number;
+};
+
+// "silent" and "filling" are separate members rather than one member with a
+// `state: "silent" | "filling"` union. TypeScript narrows a discriminated
+// union by eliminating whole members, so the combined form can never be
+// narrowed away — every consumer would be left unable to see `result` even
+// after ruling both of them out.
+export type TrackerTick =
+  | MatchedTick
+  | (TickBase & { state: "silent" })
+  | (TickBase & { state: "filling" });
 
 export type Transcribe = (
   samples: Float32Array,
