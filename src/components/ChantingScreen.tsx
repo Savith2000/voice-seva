@@ -47,6 +47,10 @@ export default function ChantingScreen() {
   const [fontStep, setFontStep] = useState(DEFAULT_FONT_STEP);
   const [query, setQuery] = useState("");
   const [showMeaning, setShowMeaning] = useState(true);
+  /** Which script gets the large size. Devanagari is the source; the
+   *  romanisation is what most people here actually read from. Neither is
+   *  the obviously correct default, so it is a button. */
+  const [devanagariLeads, setDevanagariLeads] = useState(false);
   const [devices, setDevices] = useState<AudioInput[]>([]);
   const [deviceId, setDeviceId] = useState("");
 
@@ -72,7 +76,7 @@ export default function ChantingScreen() {
 
   // --- scrolling -------------------------------------------------------------
 
-  const lineRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const verseRefs = useRef<(HTMLLIElement | null)[]>([]);
   const lastScrolledTo = useRef<number | null>(null);
 
   useEffect(() => {
@@ -82,7 +86,7 @@ export default function ChantingScreen() {
     // more distracting than not scrolling at all.
     if (lastScrolledTo.current === displayIndex) return;
     lastScrolledTo.current = displayIndex;
-    lineRefs.current[displayIndex]?.scrollIntoView({
+    verseRefs.current[displayIndex]?.scrollIntoView({
       behavior: "smooth",
       block: "center",
     });
@@ -109,6 +113,27 @@ export default function ChantingScreen() {
       candidate: null,
     }));
   }, []);
+
+  /**
+   * The verses, each holding its own lines.
+   *
+   * A verse is two half-lines separated by a danda, which is how the book
+   * sets it and how it is chanted — so showing them together means the whole
+   * unit is in front of you rather than half of it. Fifteen of the eighteen
+   * are exactly two lines; the three that are not (the opening invocation,
+   * verse 10, and the closing salutation) really are single lines, which is
+   * why this groups by verse rather than by pairs. Blind pairs would put the
+   * invocation and the first half of verse 2 in the same box.
+   */
+  const verses = useMemo(() => {
+    const out: { verse: number; lines: ChantLine[] }[] = [];
+    for (const line of lines) {
+      const last = out[out.length - 1];
+      if (last && last.verse === line.verse) last.lines.push(line);
+      else out.push({ verse: line.verse, lines: [line] });
+    }
+    return out;
+  }, [lines]);
 
   const matches = useMemo(() => {
     const raw = query.trim();
@@ -149,6 +174,18 @@ export default function ChantingScreen() {
     // Real names arrive only once a stream has been opened.
     if (running) queueMicrotask(() => void refreshDevices());
   }, [running, refreshDevices]);
+
+  /** Verses to show: all of them, or only those a search touched. */
+  const shownVerses = useMemo(() => {
+    if (!matches) return verses;
+    const wanted = new Set(matches.map((line) => line.sequence));
+    return verses
+      .map((group) => ({
+        ...group,
+        lines: group.lines.filter((line) => wanted.has(line.sequence)),
+      }))
+      .filter((group) => group.lines.length > 0);
+  }, [verses, matches]);
 
   const toggleFullScreen = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen();
@@ -206,6 +243,43 @@ export default function ChantingScreen() {
                 ))}
               </select>
             ) : null}
+
+            {/* Which script is the big one. A segmented control rather than
+                a labelled switch, because the two options say themselves. */}
+            <div
+              className="flex items-center rounded-full border border-neutral-800"
+              role="group"
+              aria-label="Which script to read from"
+            >
+              <button
+                type="button"
+                onClick={() => setDevanagariLeads(false)}
+                aria-pressed={!devanagariLeads}
+                title="Romanised text large"
+                className={`rounded-l-full px-3 py-1 text-xs transition-colors ${
+                  devanagariLeads
+                    ? "text-neutral-600 hover:text-neutral-400"
+                    : "bg-neutral-800 text-neutral-100"
+                }`}
+              >
+                A
+              </button>
+              <button
+                type="button"
+                onClick={() => setDevanagariLeads(true)}
+                aria-pressed={devanagariLeads}
+                title="Devanagari large"
+                lang="sa"
+                style={{ fontFamily: DEVANAGARI_STACK }}
+                className={`rounded-r-full px-3 py-1 text-xs transition-colors ${
+                  devanagariLeads
+                    ? "bg-neutral-800 text-neutral-100"
+                    : "text-neutral-600 hover:text-neutral-400"
+                }`}
+              >
+                अ
+              </button>
+            </div>
 
             <IconToggle
               on={autoScroll}
@@ -318,70 +392,117 @@ export default function ChantingScreen() {
       {/* --- the script -------------------------------------------------- */}
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
         <ol className="flex flex-col gap-6">
-          {(matches ?? lines).map((line) => {
-            const index = lines.indexOf(line);
-            const active = index === displayIndex;
+          {shownVerses.map((group) => {
+            // The verse is the visual unit; the line inside it is the
+            // position. Scrolling by verse is calmer than scrolling by
+            // half-line, and it keeps the second half of a couplet on screen
+            // while the first is being chanted.
+            const holdsActive = group.lines.some(
+              (line) => lines.indexOf(line) === displayIndex,
+            );
             return (
               <li
-                key={line.sequence}
+                key={group.verse}
                 ref={(node) => {
-                  lineRefs.current[index] = node;
+                  for (const line of group.lines) {
+                    verseRefs.current[lines.indexOf(line)] = node;
+                  }
                 }}
-                onClick={() => selectLine(index)}
-                className={`cursor-pointer rounded-lg px-4 py-3 transition-colors ${
-                  active
-                    ? "bg-emerald-950/50 ring-1 ring-emerald-800/60"
-                    : "hover:bg-neutral-900/60"
+                className={`rounded-lg px-4 py-3 transition-colors ${
+                  holdsActive
+                    ? "bg-emerald-950/40 ring-1 ring-emerald-800/50"
+                    : ""
                 }`}
               >
-                <div className="flex gap-4">
-                  <span
-                    className={`w-7 shrink-0 pt-1 text-right font-mono text-xs ${
-                      active ? "text-emerald-500" : "text-neutral-700"
-                    }`}
-                  >
-                    {line.sequence}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      lang="sa-Latn"
-                      className={`leading-snug ${
-                        active ? "text-neutral-50" : "text-neutral-400"
+                {group.lines.map((line) => {
+                  const index = lines.indexOf(line);
+                  const active = index === displayIndex;
+                  const primary = devanagariLeads ? "devanagari" : "translit";
+                  return (
+                    <div
+                      key={line.sequence}
+                      onClick={() => selectLine(index)}
+                      className={`-mx-2 flex cursor-pointer gap-4 rounded px-2 py-1.5 transition-colors ${
+                        active ? "" : "hover:bg-neutral-900/50"
                       }`}
-                      style={{ fontSize: `${scale * 1.5}rem` }}
                     >
-                      {line.transliteration}
-                    </p>
-                    <p
-                      lang="sa"
-                      className={`mt-1 leading-loose ${
-                        active ? "text-neutral-400" : "text-neutral-600"
-                      }`}
-                      style={{
-                        fontFamily: DEVANAGARI_STACK,
-                        fontSize: `${scale}rem`,
-                      }}
-                    >
-                      {line.devanagari}
-                    </p>
-                    {showMeaning && line.meaning ? (
-                      <p
-                        className="mt-2 leading-relaxed text-neutral-500"
-                        style={{ fontSize: `${scale * 0.85}rem` }}
-                      >
-                        {line.meaning}
-                      </p>
-                    ) : null}
-                    {active ? (
                       <span
-                        className="mt-3 block h-0.5 rounded-full bg-emerald-600/70 transition-all duration-700"
-                        style={{
-                          width: `${Math.round(displayProgress * 100)}%`,
-                        }}
-                      />
-                    ) : null}
-                  </div>
-                </div>
+                        className={`w-7 shrink-0 pt-1 text-right font-mono text-xs ${
+                          active ? "text-emerald-500" : "text-neutral-700"
+                        }`}
+                      >
+                        {line.sequence}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        {primary === "devanagari" ? (
+                          <>
+                            <p
+                              lang="sa"
+                              className={`leading-loose ${
+                                active ? "text-neutral-50" : "text-neutral-400"
+                              }`}
+                              style={{
+                                fontFamily: DEVANAGARI_STACK,
+                                fontSize: `${scale * 1.5}rem`,
+                              }}
+                            >
+                              {line.devanagari}
+                            </p>
+                            <p
+                              lang="sa-Latn"
+                              className={`mt-1 leading-snug ${
+                                active ? "text-neutral-400" : "text-neutral-600"
+                              }`}
+                              style={{ fontSize: `${scale * 0.95}rem` }}
+                            >
+                              {line.transliteration}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p
+                              lang="sa-Latn"
+                              className={`leading-snug ${
+                                active ? "text-neutral-50" : "text-neutral-400"
+                              }`}
+                              style={{ fontSize: `${scale * 1.5}rem` }}
+                            >
+                              {line.transliteration}
+                            </p>
+                            <p
+                              lang="sa"
+                              className={`mt-1 leading-loose ${
+                                active ? "text-neutral-400" : "text-neutral-600"
+                              }`}
+                              style={{
+                                fontFamily: DEVANAGARI_STACK,
+                                fontSize: `${scale}rem`,
+                              }}
+                            >
+                              {line.devanagari}
+                            </p>
+                          </>
+                        )}
+                        {showMeaning && line.meaning ? (
+                          <p
+                            className="mt-2 leading-relaxed text-neutral-500"
+                            style={{ fontSize: `${scale * 0.85}rem` }}
+                          >
+                            {line.meaning}
+                          </p>
+                        ) : null}
+                        {active ? (
+                          <span
+                            className="mt-2 block h-0.5 rounded-full bg-emerald-600/70 transition-all duration-700"
+                            style={{
+                              width: `${Math.round(displayProgress * 100)}%`,
+                            }}
+                          />
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
               </li>
             );
           })}

@@ -165,6 +165,19 @@ mic → mono         →    sliding window       →    fuzzy match → line
   with the Python one. If they drift, the browser matches against numbers nobody
   measured and nothing fails. So `dump_vectors.py` writes a fixture from Python
   and the TypeScript test replays it character for character.
+- **The screen shows verses, but tracks lines.** A verse is two half-lines
+  either side of a danda, which is how the book sets it and how it is chanted,
+  so grouping by verse keeps the whole unit in front of you and makes the
+  scroll move once per couplet instead of twice. It groups by *verse* rather
+  than by pairs because three of the eighteen genuinely are single lines — the
+  opening invocation, verse 10, and the closing salutation — and blind pairs
+  would box the invocation together with half of verse 2. The position is
+  still a line: the active one is brighter inside its verse, and tapping
+  either half sets it precisely.
+- **Which script is large is a button, not a decision.** Devanagari is the
+  source and the romanisation is what most people here actually read from;
+  neither is obviously the right default, and it changes per person rather
+  than per app.
 - **Following is cheap; jumping is expensive.** That asymmetry is the whole
   confidence design. Chanting moves forward a line at a time, so a result that
   continues from where the screen already is needs only ordinary evidence,
