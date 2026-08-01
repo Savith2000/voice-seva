@@ -96,7 +96,8 @@ best model here is also the smallest.
 
 `vakyansh-wav2vec2-sanskrit-sam-60` is wav2vec2-**base** CTC fine-tuned on 60
 hours of **Sanskrit** — the only model tested that was actually trained on the
-language being chanted. 94 M parameters, **123 MB** as actually shipped (see
+language being chanted. 94 M parameters, **123 MB int8 / 190 MB fp16** as
+actually shipped (see
 "Getting it into the browser" below; the one-byte-per-weight estimate of ~94 MB
 turned out not to be achievable).
 
@@ -226,6 +227,14 @@ invalidating everything measured above.
 0.017 is an order of magnitude below the model's own 0.095 stability, so
 quantisation is not what limits this system. The whole difference is `नमः` →
 `नमह` on two of four windows.
+
+**Why fp16 as well as int8.** int8 is the smaller download and is *not* the
+faster graph in a browser: on WebGPU a 5-second window takes 887 ms in int8
+and 48 ms in fp16, because onnxruntime-web's WebGPU backend has thin int8
+kernel coverage and dequantises or falls back per node. On WASM both are
+~1400 ms, which is what makes the diagnosis certain rather than a guess. So
+`export_onnx.py` emits both and the worker picks by backend. fp16 also scores
+CER 0.000 against PyTorch where int8 scores 0.017.
 
 **Why 123 MB and not 94 MB.** One byte per weight predicts ~94 MB, and that is
 not reachable here. wav2vec2's positional convolution is weight-normalised — its

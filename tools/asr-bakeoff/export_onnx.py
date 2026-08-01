@@ -107,6 +107,39 @@ def quantize(source: Path, target: Path, *, include_conv: bool) -> Path:
     return target
 
 
+def to_fp16(source: Path, target: Path) -> Path:
+    """Half-precision weights, for the browser's GPU rather than for size.
+
+    int8 is the smallest download and that is not the same as the fastest
+    thing to execute. onnxruntime-web's WebGPU backend has thin int8 kernel
+    coverage, so a quantised MatMul with no WebGPU kernel either falls back to
+    CPU or is dequantised to float per node — both slower than shipping float
+    weights in the first place, and both paying a copy across the GPU boundary
+    each time.
+
+    So fp16 is ~2x the download of int8 and may still be several times faster
+    to run. Measured in the browser by BenchPanel rather than argued about.
+
+    `keep_io_types` leaves the graph's inputs and outputs fp32, so callers
+    hand it the same Float32Array and read back the same logits — only the
+    weights and internal arithmetic change.
+    """
+    import onnx
+    from onnxconverter_common import float16
+
+    model = onnx.load(str(source))
+    converted = float16.convert_float_to_float16(
+        model,
+        keep_io_types=True,
+        # The wav2vec2 feature extractor sees raw waveform values, and its
+        # layer norms compute variances that underflow at half precision.
+        # Leaving those two node types alone costs almost nothing in size.
+        op_block_list=["LayerNormalization", "GroupNormalization"],
+    )
+    onnx.save(converted, str(target))
+    return target
+
+
 def write_configs(out_dir: Path, spec, processor) -> None:
     """Write the metadata files transformers.js reads, under the names it uses.
 
@@ -232,6 +265,14 @@ def main() -> int:
             continue
         variants[label] = path
         print(f"  {label:9}  {path.stat().st_size / 1e6:7.1f} MB  {path.name}")
+
+    # dtype "fp16" resolves to exactly "model_fp16.onnx".
+    try:
+        fp16 = to_fp16(fp32, fp32.with_name("model_fp16.onnx"))
+        variants["fp16"] = fp16
+        print(f"  fp16       {fp16.stat().st_size / 1e6:7.1f} MB  {fp16.name}")
+    except Exception as error:  # noqa: BLE001 - report, do not abort the run
+        print(f"  fp16       unavailable — {error}")
 
     if "int8" not in variants:
         raise SystemExit("int8 quantisation failed; nothing shippable was produced")

@@ -43,8 +43,9 @@ export default function Home() {
       <section className="flex flex-col gap-3 border-t border-neutral-900 pt-8 text-sm leading-relaxed text-neutral-500">
         <p>
           <span className="text-neutral-300">First time:</span> the speech model
-          is about 123&nbsp;MB and downloads once, then stays cached. Allow the
-          microphone when the browser asks.
+          downloads once and then stays cached &mdash; 190&nbsp;MB if your
+          browser has WebGPU, 123&nbsp;MB if not. Allow the microphone when
+          asked.
         </p>
         <p>
           <span className="text-neutral-300">If it loses you:</span> tap any

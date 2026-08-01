@@ -15,6 +15,7 @@ import { test } from "node:test";
 import { flatten, type Chant } from "./chant.ts";
 import {
   CORROBORATION,
+  CORROBORATION_MS,
   IDLE_AFTER_SILENT_MS,
   INITIAL,
   PATIENCE,
@@ -177,6 +178,49 @@ test("a second window agreeing is enough to jump", () => {
   state = step(state, heard(PARTIAL_LINE_29));
   assert.equal(seq(state), 29, "never accepted the corroborated jump");
   assert.equal(CORROBORATION, 2);
+});
+
+test("a fast loop does not make the screen four times easier to move", () => {
+  // The rule used to be "two agreeing windows". At the old ~1200 ms cadence
+  // that was 2.4 s of evidence; once inference dropped to ~48 ms and the loop
+  // sped up to 250 ms it became 0.5 s, and the same code silently became four
+  // times more willing to jump. Evidence has to be measured in seconds of
+  // chanting, not in units of however fast the model happens to run.
+  let state = run([line(10, 1000)]);
+  let at = 1000;
+  for (let i = 0; i < 3; i++) {
+    at += 250;
+    state = step(state, heard(PARTIAL_LINE_29, at));
+  }
+  assert.equal(
+    seq(state),
+    10,
+    "three windows inside a second were enough to move the screen",
+  );
+
+  // Keep agreeing past the corroboration window and it does move.
+  at += CORROBORATION_MS;
+  state = step(state, heard(PARTIAL_LINE_29, at));
+  assert.equal(seq(state), 29);
+});
+
+test("a lock survives a burst of bad windows at a fast cadence", () => {
+  // Same arithmetic on the other side: four consecutive misses used to be
+  // ~5 s of nonsense and is now 1 s, which is a cough.
+  let state = run([line(10, 1000)]);
+  let at = 1000;
+  for (let i = 0; i < 5; i++) {
+    at += 250;
+    state = step(state, heard("अअअअअअअअअअअअ", at));
+  }
+  assert.equal(state.kind, "locked", "gave up a lock over one second of noise");
+
+  // Sustained nonsense still ends it.
+  for (let i = 0; i < 8; i++) {
+    at += 250;
+    state = step(state, heard("अअअअअअअअअअअअ", at));
+  }
+  assert.equal(state.kind, "searching");
 });
 
 test("two mediocre windows disagreeing with each other move nothing", () => {

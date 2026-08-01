@@ -282,7 +282,9 @@ export default function AsrTest() {
 
       {model.kind === "cold" && (
         <p className="text-neutral-500">
-          ~123 MB, cached by the browser after the first load.
+          123 MB (int8, wasm) or 190 MB (fp16, webgpu), cached after the first
+          load. fp16 is the larger download and runs ~18x faster; see the
+          latency bench.
         </p>
       )}
       {model.kind === "loading" && (

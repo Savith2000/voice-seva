@@ -69,6 +69,7 @@ const MODEL_ID = "vak-san";
 export type AsrReady = {
   type: "ready";
   device: string;
+  dtype: AsrDtype;
   loadMs: number;
   /** Non-fatal: WebGPU was asked for and refused. Worth surfacing, not throwing. */
   fallbackReason?: string;
@@ -101,29 +102,39 @@ export type AsrMessage = AsrReady | AsrResult | AsrError | AsrProgress;
 
 /** "auto" tries WebGPU and falls back; the explicit values force one backend.
  *
- * Forcing exists because the answer is not obvious and matters a lot. WebGPU is
- * the faster backend for most models, but this one is int8, and the WebGPU
- * execution provider's int8 operator coverage is thin — measured here at ~880 ms
- * per 5-second window against ~20 ms for the same graph on CPU in Python. So
- * the panel offers both and reports the number, rather than assuming the GPU
- * wins. Chunk 6 needs a window transcribed roughly every second, so this is a
- * feasibility question, not a micro-optimisation.
+ * Forcing exists because the answer was not obvious and mattered a lot. With
+ * the int8 graph WebGPU managed only ~887 ms per 5-second window against
+ * ~20 ms for the same graph on CPU in Python — the WebGPU provider's int8
+ * kernel coverage is thin. Switching the GPU path to fp16 took that to ~48 ms
+ * (see bestDtypeFor below). The panel still offers both and reports the
+ * number, because the whole point is that this was measured.
  */
 export type AsrDevice = "auto" | "webgpu" | "wasm";
 
+/**
+ * Which exported graph to run.
+ *
+ * "q8" is the 123 MB int8 export and the only one shipped by default. The
+ * others exist so the cost of that choice can be measured rather than
+ * assumed — int8 is the smallest download, which is not the same as the
+ * fastest thing to execute.
+ */
+export type AsrDtype = "q8" | "fp16" | "fp32";
+
 export type AsrRequest =
-  | { type: "load"; device?: AsrDevice }
+  | { type: "load"; device?: AsrDevice; dtype?: AsrDtype }
   | { type: "transcribe"; id: number; samples: Float32Array };
 
 let processor: Processor | null = null;
 let model: PreTrainedModel | null = null;
 let loading: Promise<AsrReady> | null = null;
 let loadedDevice: AsrDevice | null = null;
+let loadedDtype: AsrDtype | null = null;
 
 /**
  * Turn transformers.js's per-file callbacks into one overall figure.
  *
- * The graph is 123 MB and the first load is the longest the app ever makes
+ * The graph is 123-190 MB and the first load is the longest the app ever makes
  * anyone wait, with nothing to look at. The library offers a "progress_total"
  * status that has already done the aggregating; the per-file tally is a
  * fallback, because a progress bar that silently stops moving is worse than
@@ -169,7 +180,33 @@ function reportProgress() {
   }
 }
 
-async function load(requested: AsrDevice): Promise<AsrReady> {
+/**
+ * The right graph for a given backend, measured rather than assumed.
+ *
+ * Per-window inference on a 5-second window, on this machine:
+ *
+ *            webgpu    wasm
+ *   int8      887 ms   1405 ms
+ *   fp16       48 ms   1411 ms
+ *
+ * fp16 is 18x faster on the GPU and identical on WASM, which is the signature
+ * of int8 blocking the GPU path rather than of fp16 being clever: where
+ * onnxruntime-web has no WebGPU kernel for a quantised MatMul it dequantises
+ * or falls back per node, paying a copy across the GPU boundary each time.
+ * WASM has real int8 kernels, so nothing changes there.
+ *
+ * So the download follows the backend: 190 MB of fp16 buys an 18x speedup on
+ * a machine with WebGPU, and 123 MB of int8 stays the right choice without
+ * one, where the extra 67 MB would buy nothing at all.
+ */
+function bestDtypeFor(device: string): AsrDtype {
+  return device === "webgpu" ? "fp16" : "q8";
+}
+
+async function load(
+  requested: AsrDevice,
+  dtype?: AsrDtype,
+): Promise<AsrReady> {
   const started = performance.now();
   const progress_callback = reportProgress();
 
@@ -178,42 +215,48 @@ async function load(requested: AsrDevice): Promise<AsrReady> {
     loadVocab(),
   ]);
 
-  // dtype "q8" is what resolves the filename to model_quantized.onnx, which is
-  // the only graph we ship — the fp32 export puts its weights in an external
-  // .onnx.data file that transformers.js cannot load.
-  const options = { dtype: "q8", progress_callback } as const;
-
+  // The dtype picks the filename: "q8" resolves to model_quantized.onnx,
+  // "fp16" to model_fp16.onnx, "fp32" to model.onnx.
   let device: string = requested;
+  let resolvedDtype: AsrDtype = dtype ?? bestDtypeFor(requested);
   let fallbackReason: string | undefined;
 
   if (requested === "auto") {
     // A hard failure here would read as "the model is broken" rather than
-    // "this backend cannot run it", so fall back and say so.
+    // "this backend cannot run it", so fall back and say so. The fallback
+    // changes the graph as well as the backend — fp16 buys nothing on WASM.
     try {
+      resolvedDtype = dtype ?? bestDtypeFor("webgpu");
       model = await AutoModelForCTC.from_pretrained(MODEL_ID, {
-        ...options,
+        dtype: resolvedDtype,
+        progress_callback,
         device: "webgpu",
       });
       device = "webgpu";
     } catch (error) {
       fallbackReason = error instanceof Error ? error.message : String(error);
+      resolvedDtype = dtype ?? bestDtypeFor("wasm");
       model = await AutoModelForCTC.from_pretrained(MODEL_ID, {
-        ...options,
+        dtype: resolvedDtype,
+        progress_callback,
         device: "wasm",
       });
       device = "wasm";
     }
   } else {
     model = await AutoModelForCTC.from_pretrained(MODEL_ID, {
-      ...options,
+      dtype: resolvedDtype,
+      progress_callback,
       device: requested,
     });
   }
 
   loadedDevice = requested;
+  loadedDtype = resolvedDtype;
   return {
     type: "ready",
     device,
+    dtype: resolvedDtype,
     loadMs: performance.now() - started,
     fallbackReason,
   };
@@ -225,16 +268,20 @@ self.addEventListener("message", async (event: MessageEvent<AsrRequest>) => {
   try {
     if (request.type === "load") {
       const wanted = request.device ?? "auto";
+      const wantedDtype = request.dtype;
       // Cached rather than re-entered: the panel may ask twice (a re-render, a
-      // retry), and loading the same 123 MB graph concurrently would double peak
+      // retry), and loading the same graph twice concurrently would double peak
       // memory for no benefit. Asking for a *different* backend is a real
       // request though, so that reloads.
-      if (loadedDevice !== wanted) {
+      if (
+        loadedDevice !== wanted ||
+        (wantedDtype !== undefined && loadedDtype !== wantedDtype)
+      ) {
         await model?.dispose();
         model = null;
-        loading = load(wanted);
+        loading = load(wanted, wantedDtype);
       }
-      loading ??= load(wanted);
+      loading ??= load(wanted, wantedDtype);
       self.postMessage(await loading);
       return;
     }

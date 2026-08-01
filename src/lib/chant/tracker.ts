@@ -23,6 +23,20 @@ export const SAMPLE_RATE = 16_000;
 /** Measured in Chunk 3 against real chanting: 3 s jitters, 8 s blurs lines. */
 export const WINDOW_SECONDS = 5;
 
+/**
+ * Floor between the starts of two windows.
+ *
+ * Was 1000 ms, chosen when a window cost ~930 ms and the floor never bound.
+ * On fp16/WebGPU a window costs ~48 ms, so this became the entire update
+ * cadence and therefore most of the delay between chanting a line and seeing
+ * it — the loop was idle ~80% of the time waiting for its own rate limit.
+ *
+ * 250 ms gives four updates a second at roughly a 20% duty cycle. Lower would
+ * still work; it would mostly buy heat. Where WebGPU is unavailable inference
+ * takes ~1400 ms and this floor never binds, exactly as before.
+ */
+export const DEFAULT_INTERVAL_MS = 250;
+
 type TickBase = {
   /** Clock reading when the window was taken. */
   at: number;
@@ -104,7 +118,7 @@ export class SlidingWindowTracker {
   ) {
     const {
       windowSeconds = WINDOW_SECONDS,
-      minIntervalMs = 1000,
+      minIntervalMs = DEFAULT_INTERVAL_MS,
       silenceRms = 0.005,
       minFillRatio = 0.6,
       sampleRate = SAMPLE_RATE,

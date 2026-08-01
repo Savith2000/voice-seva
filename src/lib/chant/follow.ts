@@ -47,8 +47,22 @@ export const CONTINUES = { back: 1, forward: 2 } as const;
 /** Agreeing windows needed before the screen jumps somewhere unrelated. */
 export const CORROBORATION = 2;
 
-/** Consecutive poor windows before a lock is given up. */
+/**
+ * ...and how long they must keep agreeing.
+ *
+ * Counting windows alone stopped meaning anything once the loop sped up. At
+ * the old ~1200 ms cadence two agreeing windows were 2.4 s of evidence; at
+ * 250 ms they are 0.5 s, and the same rule silently became four times more
+ * willing to jump. Evidence for moving the screen should be measured in
+ * seconds of chanting, not in units of however fast the model happens to run.
+ */
+export const CORROBORATION_MS = 800;
+
+/** Consecutive poor windows before a lock is given up... */
 export const PATIENCE = 4;
+
+/** ...and how long they must go on for, for the same reason. */
+export const PATIENCE_MS = 2000;
 
 /** Quiet for this long and the session is over rather than paused. */
 export const IDLE_AFTER_SILENT_MS = 8000;
@@ -101,8 +115,10 @@ export type FollowState = {
   holding: boolean;
   /** Consecutive windows that said nothing useful. */
   misses: number;
-  /** A distant position waiting to be confirmed. */
-  candidate: { lineIndex: number; agreements: number } | null;
+  /** A distant position waiting to be confirmed, and since when. */
+  candidate: { lineIndex: number; agreements: number; since: number } | null;
+  /** When the current run of useless windows began. */
+  missingSince: number | null;
   /** Clock reading of the last accepted position. */
   updatedAt: number;
   /** Clock reading of the last window that was not silence. */
@@ -117,6 +133,7 @@ export const INITIAL: FollowState = {
   holding: false,
   misses: 0,
   candidate: null,
+  missingSince: null,
   updatedAt: 0,
   heardAt: 0,
 };
@@ -145,6 +162,7 @@ function accept(
     holding: false,
     misses: 0,
     candidate: null,
+    missingSince: null,
     updatedAt: at,
     heardAt: at,
   };
@@ -188,6 +206,7 @@ export function follow(
 
   if (!result || confidence === "low") {
     const misses = state.misses + 1;
+    const missingSince = state.missingSince ?? tick.at;
     if (state.kind !== "locked") {
       // Hearing something, making no sense of it. Say so rather than
       // pretending to a position.
@@ -195,6 +214,7 @@ export function follow(
         ...state,
         kind: misses >= CORROBORATION ? "searching" : state.kind,
         misses,
+        missingSince,
         candidate: null,
         heardAt: tick.at,
       };
@@ -202,18 +222,19 @@ export function follow(
     // Locked. Hold the line rather than blanking on a bad window — a dropped
     // phrase, a cough, someone turning a page. Give up only after PATIENCE of
     // them in a row.
-    if (misses >= PATIENCE) {
+    if (misses >= PATIENCE && tick.at - missingSince >= PATIENCE_MS) {
       return {
         ...state,
         kind: "searching",
         confidence: null,
         holding: true,
         misses,
+        missingSince,
         candidate: null,
         heardAt: tick.at,
       };
     }
-    return { ...state, holding: true, misses, heardAt: tick.at };
+    return { ...state, holding: true, misses, missingSince, heardAt: tick.at };
   }
 
   // From here the window is worth something.
@@ -234,12 +255,14 @@ export function follow(
   // Medium confidence, somewhere else. This is exactly the case that must not
   // move the screen on one window's say-so. Hold the position and wait for a
   // second window to agree.
-  const agreements =
+  const carried =
     state.candidate && continues(state.candidate.lineIndex, result.lineIndex)
-      ? state.candidate.agreements + 1
-      : 1;
+      ? state.candidate
+      : null;
+  const agreements = carried ? carried.agreements + 1 : 1;
+  const since = carried ? carried.since : tick.at;
 
-  if (agreements >= CORROBORATION) {
+  if (agreements >= CORROBORATION && tick.at - since >= CORROBORATION_MS) {
     return accept(state, result, confidence, tick.at, progress);
   }
 
@@ -247,7 +270,8 @@ export function follow(
     ...state,
     holding: state.kind === "locked",
     misses: 0,
-    candidate: { lineIndex: result.lineIndex, agreements },
+    missingSince: null,
+    candidate: { lineIndex: result.lineIndex, agreements, since },
     heardAt: tick.at,
   };
 }

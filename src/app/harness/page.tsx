@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import AsrTest from "@/components/AsrTest";
+import BenchPanel from "@/components/BenchPanel";
 import ChantScript from "@/components/ChantScript";
 import MatcherTest from "@/components/MatcherTest";
 import MicCaptureTest from "@/components/MicCaptureTest";
@@ -31,6 +32,8 @@ export default function Home() {
       <MicCaptureTest />
 
       <AsrTest />
+
+      <BenchPanel />
 
       <TrackingTest />
 

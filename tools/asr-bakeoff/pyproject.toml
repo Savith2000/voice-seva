@@ -14,5 +14,6 @@ dependencies = [
     "onnxruntime>=1.18",
     # torch.onnx.export goes through the dynamo path by default now, which needs
     # onnxscript. Without it the export dies on an import error partway through.
+    "onnxconverter-common>=1.14",
     "onnxscript>=0.1",
 ]

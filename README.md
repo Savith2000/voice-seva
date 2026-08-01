@@ -40,25 +40,37 @@ mic → mono         →    sliding window       →    fuzzy match → line
   (`आप आप आप आप …`). CTC has no language model and no generation loop, so it
   *structurally cannot* invent filler or switch alphabet — it reports the sounds
   it heard and stops.
-  **`vakyansh-wav2vec2-sanskrit-sam-60`** is the pick: 94 M parameters
-  (**123 MB** shipped, see below), trained on 60 hours of actual Sanskrit, and it
-  scored better than a model ten times its size. Full numbers in
+  **`vakyansh-wav2vec2-sanskrit-sam-60`** is the pick: 94 M parameters,
+  trained on 60 hours of actual Sanskrit, and it scored better than a model
+  ten times its size. Full numbers in
   [`tools/asr-bakeoff`](./tools/asr-bakeoff).
 - **The model is converted locally, not downloaded from the Hub.** No ONNX build
   of it exists — not for this model, not for any vakyansh model — so
   `tools/asr-bakeoff/export_onnx.py` produces one and verifies it: fp32 ONNX
   matches PyTorch at **CER 0.000**, int8 at **0.017**, an order of magnitude
   under the model's own 0.095 stability, so quantisation does not undermine the
-  gate. 123 MB rather than the 94 MB that one-byte-per-weight suggests, because
+  gate. The int8 graph is 123 MB rather than the 94 MB that one-byte-per-weight
+  suggests, because
   wav2vec2's positional convolution is weight-normalised — its weight is
   computed at runtime rather than stored — so those layers cannot be quantised
   and stay fp32.
-- **WebGPU beats WASM, but not by much: 885 ms vs 1371 ms** per 5-second window,
-  against ~20 ms for the same graph on CPU in Python. int8 operator coverage on
-  the WebGPU execution provider is thin. Both backends return byte-identical
-  text, and the harness page lets you switch between them. This is adequate for
-  the ~1/second design but has little headroom; fp16 is the lever if Chunk 6
-  needs one.
+- **The download follows the backend, and the reason is an 18x speedup.**
+  Per-window inference on a 5-second window, measured in the browser:
+
+  | | webgpu | wasm |
+  |---|---|---|
+  | int8 (123 MB) | 887 ms | 1405 ms |
+  | **fp16 (190 MB)** | **48 ms** | 1411 ms |
+
+  int8 is the smallest download, which is not the same as the fastest thing to
+  execute. Where onnxruntime-web has no WebGPU kernel for a quantised MatMul it
+  dequantises or falls back per node, paying a copy across the GPU boundary
+  each time — so the int8 graph was *preventing* the GPU from being used. WASM
+  has real int8 kernels, which is why nothing changes there and why the gap is
+  diagnostic rather than mysterious. fp16 also has better fidelity than int8
+  (CER 0.000 vs 0.017 against PyTorch), so the 67 MB buys accuracy as well as
+  speed. Machines without WebGPU still get the 123 MB int8 graph, where the
+  extra download would buy nothing at all.
 - **Language match beat data volume, and size didn't matter.** The same
   architecture trained on 4,200 hours of Hindi lost to one trained on 60 hours of
   Sanskrit — 70× the audio in the wrong language was worth less than a little in
@@ -86,17 +98,27 @@ mic → mono         →    sliding window       →    fuzzy match → line
   real-time output is faked by re-transcribing an overlapping window. Because
   the text is never shown to a user, unstable hypotheses can be consumed
   directly — no need to wait for confirmed tokens.
-- **The loop's real job is refusing to run.** Frames arrive ~15 times a second
-  and inference takes ~930 ms, so anything that fires per frame, or on a fixed
-  timer that ignores whether the last request finished, builds a queue that
-  never drains — and every result then describes older and older audio while
-  looking perfectly healthy. Exactly one request is in flight at a time and
-  everything arriving meanwhile is dropped: **measured at 0.81 windows/second
-  with 178 frames dropped** over the test recording. Falling behind by design
-  beats falling behind by accident. Silence and a half-empty buffer are
-  refused too — CTC on silence does not return an empty string, it returns
-  whatever the blank collapses to, and the matcher would place that somewhere
-  with a straight face.
+- **The loop's real job is refusing to run.** Frames arrive ~15 times a second,
+  so anything that fires per frame — or on a fixed timer that ignores whether
+  the last request finished — builds a queue that never drains, and every
+  result then describes older and older audio while looking perfectly healthy.
+  Exactly one request is in flight and everything arriving meanwhile is
+  dropped. Falling behind by design beats falling behind by accident. Silence
+  and a half-empty buffer are refused too — CTC on silence does not return an
+  empty string, it returns whatever the blank collapses to, and the matcher
+  would place that somewhere with a straight face.
+- **The felt delay is `inference + cadence/2`, and cadence *is* inference.**
+  Because a window only starts once the last one returns, every millisecond
+  off inference comes off twice. On the test recording: **0.81 windows/second
+  and ~1.5 s of lag on int8, 3.25 windows/second and ~190 ms on fp16** — the
+  same transcript, byte for byte, arriving eight times sooner. Everything
+  after the model (match, state machine, React) is under 5 ms combined, so
+  there was never anything else worth optimising.
+- **Evidence is counted in seconds, not in windows.** When the loop ran once
+  a second, "two agreeing windows before jumping" meant 2.4 s of evidence. At
+  250 ms it would have meant 0.5 s — the same code silently four times more
+  willing to move the screen. Corroboration and patience are both wall-clock
+  thresholds now, so making the model faster cannot make the app twitchier.
 - **The chant text is decoded from the source PDF, not retyped.** The Sai Trust
   edition carries its text twice — Devanagari and transliteration — and both
   are in legacy 8-bit font encodings with no `ToUnicode` map, so a plain
