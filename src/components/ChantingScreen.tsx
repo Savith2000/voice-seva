@@ -17,13 +17,6 @@ import { listAudioInputs, type AudioInput } from "@/lib/audio/capture";
 import { allLines, flatten, type ChantLine } from "@/lib/chant/chant";
 import { chant } from "@/lib/chant/chant-data";
 import { INITIAL, follow, statusLine, type FollowState } from "@/lib/chant/follow";
-import {
-  NO_PACE,
-  estimateLagMs,
-  leadPosition,
-  observePace,
-  type Pace,
-} from "@/lib/chant/lead";
 import { progressThroughLine } from "@/lib/chant/matcher";
 import { useAsrSession } from "@/lib/chant/use-asr-session";
 
@@ -54,20 +47,8 @@ export default function ChantingScreen() {
   const [fontStep, setFontStep] = useState(DEFAULT_FONT_STEP);
   const [query, setQuery] = useState("");
   const [showMeaning, setShowMeaning] = useState(true);
-  const [leadEnabled, setLeadEnabled] = useState(true);
   const [devices, setDevices] = useState<AudioInput[]>([]);
   const [deviceId, setDeviceId] = useState("");
-
-  // Where the highlight actually goes, once the model's lag is added back on.
-  const [lead, setLead] = useState<{
-    lineIndex: number;
-    progress: number;
-    charsAhead: number;
-    rate: number;
-  } | null>(null);
-  const paceRef = useRef<Pace>(NO_PACE);
-  const lastTickAtRef = useRef<number | null>(null);
-  const stateRef = useRef<FollowState>(INITIAL);
 
   const session = useAsrSession(
     flat,
@@ -77,47 +58,7 @@ export default function ChantingScreen() {
           tick.state === "matched" && tick.result
             ? progressThroughLine(tick.result, flat)
             : 0;
-
-        // Folded through a ref as well as state, so the lead below can see
-        // what the state machine actually decided about this very tick.
-        const next = follow(stateRef.current, tick, progress);
-        stateRef.current = next;
-        setState(next);
-
-        if (tick.state !== "matched" || !tick.result) return;
-
-        // The lead is a *display* adjustment applied to the position the
-        // state machine accepted — never to the raw match. Without this
-        // check, a jump the machine deliberately refused would still drag the
-        // highlight across the screen, which is precisely the behaviour the
-        // machine exists to prevent.
-        const accepted =
-          next.kind === "locked" && next.lineIndex === tick.result.lineIndex;
-        if (!accepted) {
-          setLead(null);
-          return;
-        }
-
-        // Tempo comes from where consecutive windows actually landed; the lag
-        // from how long this window took plus how long the highlight will now
-        // sit still. Both measured, neither assumed.
-        const previousAt = lastTickAtRef.current;
-        lastTickAtRef.current = tick.at;
-        paceRef.current = observePace(paceRef.current, tick.result.end, tick.at);
-
-        const interval = previousAt === null ? 0 : tick.at - previousAt;
-        const placed = leadPosition(
-          flat,
-          tick.result.end,
-          paceRef.current,
-          estimateLagMs(tick.inferenceMs, interval),
-        );
-        setLead({
-          lineIndex: placed.lineIndex,
-          progress: placed.progress,
-          charsAhead: placed.charsAhead,
-          rate: paceRef.current.rate,
-        });
+        setState((previous) => follow(previous, tick, progress));
       },
       [flat],
     ),
@@ -126,11 +67,8 @@ export default function ChantingScreen() {
   const running = session.phase.kind === "running";
   const starting = session.phase.kind === "starting";
 
-  // What the screen shows. The state machine owns the position; the lead only
-  // nudges it forward, and only while there is a live lock to nudge.
-  const useLead = leadEnabled && lead !== null && state.kind === "locked";
-  const displayIndex = useLead ? lead.lineIndex : state.lineIndex;
-  const displayProgress = useLead ? lead.progress : state.progress;
+  const displayIndex = state.lineIndex;
+  const displayProgress = state.progress;
 
   // --- scrolling -------------------------------------------------------------
 
@@ -160,24 +98,16 @@ export default function ChantingScreen() {
    * corroboration" rule then protects it. */
   const selectLine = useCallback((index: number) => {
     lastScrolledTo.current = null;
-    // The old lead was measured from the position being overruled.
-    setLead(null);
-    paceRef.current = NO_PACE;
-    lastTickAtRef.current = null;
-    setState((previous) => {
-      const next: FollowState = {
-        ...previous,
-        kind: "locked",
-        lineIndex: index,
-        progress: 0,
-        confidence: "high",
-        holding: !previous.heardAt,
-        misses: 0,
-        candidate: null,
-      };
-      stateRef.current = next;
-      return next;
-    });
+    setState((previous) => ({
+      ...previous,
+      kind: "locked",
+      lineIndex: index,
+      progress: 0,
+      confidence: "high",
+      holding: !previous.heardAt,
+      misses: 0,
+      candidate: null,
+    }));
   }, []);
 
   const matches = useMemo(() => {
@@ -285,16 +215,6 @@ export default function ChantingScreen() {
               scroll
             </IconToggle>
 
-            <IconToggle
-              on={leadEnabled}
-              onClick={() => setLeadEnabled((v) => !v)}
-              title={
-                "Highlight slightly ahead of the model, to cancel the delay " +
-                "between chanting and recognising it"
-              }
-            >
-              lead
-            </IconToggle>
 
             <IconToggle
               on={showMeaning}
@@ -484,9 +404,6 @@ export default function ChantingScreen() {
             : "tap any line to set the position by hand"}
           {running && session.phase.kind === "running"
             ? ` · ${session.phase.device} · ${session.phase.source}`
-            : ""}
-          {useLead && lead
-            ? ` · leading ${lead.charsAhead} chars at ${lead.rate.toFixed(1)}/s`
             : ""}
         </p>
       </footer>
