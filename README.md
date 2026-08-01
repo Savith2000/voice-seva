@@ -197,6 +197,27 @@ mic → mono         →    sliding window       →    fuzzy match → line
   move costs more attention than a highlight that is honestly a little late.
   The lag is better attacked at the source (faster inference, a shorter hop
   between windows) than papered over with a guess.
+- **Jumps are noticed by the tail of the transcript, not the whole window.**
+  Right after someone moves to a different line, the five-second window is
+  still almost entirely the *old* line — and a transcript that is half one
+  line and half another matches neither, because the chant is one string and
+  "end of line 10 + start of line 25" does not occur in it. Roughly half the
+  query counts as errors whichever way it aligns, so the score sits around 0.5
+  and the state machine is right to refuse it. The position therefore cannot
+  move until the window flushes: a **3.0 s median**, measured.
+
+  The last 40% of the same transcript is already the recent audio. Matching it
+  separately notices a jump in **1.25 s median** and costs nothing — no second
+  inference pass, and matching is under a millisecond. End to end, following a
+  jump went from **3.75 s to 2.50 s**.
+
+  It can only ever *propose*. Over 3,177 windows of ordinary chanting the tail
+  proposed a jump that was not happening once, at medium confidence, which
+  corroboration refused — so unlike a high-confidence full-window match it is
+  never allowed to move the screen on its own. And a proposal that has not yet
+  been corroborated does not stop ordinary tracking: freezing for the
+  corroboration window would let one spurious tail match stall the display for
+  most of a second, which looks broken rather than careful.
 - **It would rather look stale than wrong.** A bad window holds the line
   instead of blanking it; four in a row give the lock up but leave the last
   known line on screen; silence pauses without losing the place, and only

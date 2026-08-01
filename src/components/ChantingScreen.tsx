@@ -58,11 +58,19 @@ export default function ChantingScreen() {
     flat,
     useCallback(
       (tick) => {
+        const matched = tick.state === "matched";
         const progress =
-          tick.state === "matched" && tick.result
-            ? progressThroughLine(tick.result, flat)
-            : 0;
-        setState((previous) => follow(previous, tick, progress));
+          matched && tick.result ? progressThroughLine(tick.result, flat) : 0;
+        // The tail points at a different line than the full window whenever it
+        // is proposing a jump, so it needs its own progress — otherwise an
+        // accepted jump would land with the *old* line's position bar.
+        const recentProgress =
+          matched && tick.recent
+            ? progressThroughLine(tick.recent, flat)
+            : progress;
+        setState((previous) =>
+          follow(previous, tick, progress, recentProgress),
+        );
       },
       [flat],
     ),

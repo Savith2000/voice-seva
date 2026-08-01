@@ -152,6 +152,8 @@ function accept(
   confidence: Confidence,
   at: number,
   progress: number,
+  /** A jump still gathering evidence, which accepting this must not discard. */
+  candidate: FollowState["candidate"] = null,
 ): FollowState {
   return {
     ...state,
@@ -161,7 +163,7 @@ function accept(
     confidence,
     holding: false,
     misses: 0,
-    candidate: null,
+    candidate,
     missingSince: null,
     updatedAt: at,
     heardAt: at,
@@ -178,6 +180,8 @@ export function follow(
   state: FollowState,
   tick: TrackerTick,
   progress = 0,
+  /** Progress through the line the *tail* points at, if it is accepted. */
+  recentProgress = progress,
 ): FollowState {
   if (tick.state === "filling") {
     // Startup, or a buffer that has just been cleared. Nothing has gone wrong
@@ -204,6 +208,67 @@ export function follow(
     continues(state.lineIndex, result.lineIndex);
   const confidence = classify(result, { continuing: carryingOn });
 
+  // Does anything think we are somewhere else entirely?
+  //
+  // The tail is consulted *first*, and consulted even while the full window is
+  // still tracking happily. That is the whole point: for the first few seconds
+  // after a jump the five-second window is mostly the old line, so it reports
+  // the old line, plausibly and continuously — and a rule that only looked at
+  // the full match would keep re-accepting the old position and reset the
+  // candidate every time, so the jump could never accumulate.
+  //
+  // A tail proposal can only ever *propose*. It is less discriminative than
+  // the full window, and over 3,177 windows of ordinary chanting it proposed
+  // a jump that was not happening once. Letting it bypass corroboration the
+  // way a high-confidence full match may would trade a slow screen for a
+  // wrong one.
+  const proposes = (candidateMatch: MatchResult | null) =>
+    candidateMatch &&
+    classify(candidateMatch) !== "low" &&
+    !continues(state.lineIndex, candidateMatch.lineIndex)
+      ? candidateMatch
+      : null;
+  const proposal = proposes(tick.recent) ?? proposes(result);
+
+  let candidate: FollowState["candidate"] = null;
+  if (proposal) {
+    const carried =
+      state.candidate && continues(state.candidate.lineIndex, proposal.lineIndex)
+        ? state.candidate
+        : null;
+    candidate = {
+      lineIndex: proposal.lineIndex,
+      agreements: (carried?.agreements ?? 0) + 1,
+      since: carried?.since ?? tick.at,
+    };
+
+    if (
+      candidate.agreements >= CORROBORATION &&
+      tick.at - candidate.since >= CORROBORATION_MS
+    ) {
+      return accept(
+        state,
+        proposal,
+        classify(proposal),
+        tick.at,
+        proposal === result ? progress : recentProgress,
+      );
+    }
+
+    // An unambiguous *full-window* match elsewhere still moves at once — the
+    // recovery path, and evidence the tail cannot produce on its own.
+    if (proposal === result && confidence === "high") {
+      return accept(state, result, confidence, tick.at, progress);
+    }
+  }
+
+  // A proposal that has not yet been corroborated must not stop the screen
+  // following the chanting it can still see. Freezing for the corroboration
+  // window would mean one spurious tail match — of which there was one in
+  // 3,177 windows — stalled the display for the better part of a second, and
+  // for that whole time the app would look broken rather than careful. So
+  // ordinary tracking continues below, carrying the candidate with it.
+
   if (!result || confidence === "low") {
     const misses = state.misses + 1;
     const missingSince = state.missingSince ?? tick.at;
@@ -215,7 +280,7 @@ export function follow(
         kind: misses >= CORROBORATION ? "searching" : state.kind,
         misses,
         missingSince,
-        candidate: null,
+        candidate,
         heardAt: tick.at,
       };
     }
@@ -230,11 +295,18 @@ export function follow(
         holding: true,
         misses,
         missingSince,
-        candidate: null,
+        candidate,
         heardAt: tick.at,
       };
     }
-    return { ...state, holding: true, misses, missingSince, heardAt: tick.at };
+    return {
+      ...state,
+      holding: true,
+      misses,
+      missingSince,
+      candidate,
+      heardAt: tick.at,
+    };
   }
 
   // From here the window is worth something.
@@ -242,38 +314,35 @@ export function follow(
     // Carrying on from where we were. This is the common case and it needs no
     // corroboration — demanding any would make the screen lag a line behind
     // for the entire recitation.
-    return accept(state, result, confidence, tick.at, progress);
+    return accept(state, result, confidence, tick.at, progress, candidate);
   }
 
   if (confidence === "high") {
     // Unambiguous and well-scored. Requirement 1.7's "high confidence:
     // highlight and scroll automatically" — including when it means jumping,
     // which is what makes recovering from a lost position possible at all.
-    return accept(state, result, confidence, tick.at, progress);
+    return accept(state, result, confidence, tick.at, progress, candidate);
   }
 
-  // Medium confidence, somewhere else. This is exactly the case that must not
-  // move the screen on one window's say-so. Hold the position and wait for a
-  // second window to agree.
-  const carried =
-    state.candidate && continues(state.candidate.lineIndex, result.lineIndex)
-      ? state.candidate
-      : null;
-  const agreements = carried ? carried.agreements + 1 : 1;
-  const since = carried ? carried.since : tick.at;
-
-  if (agreements >= CORROBORATION && tick.at - since >= CORROBORATION_MS) {
-    return accept(state, result, confidence, tick.at, progress);
+  if (state.kind === "locked") {
+    // Locked, and this window neither carries on nor convinces. Hold, and let
+    // the candidate keep gathering. Reaching here and accepting anyway was a
+    // bug: it took the very medium-confidence jump that corroboration exists
+    // to refuse, and waved it straight through.
+    return {
+      ...state,
+      holding: true,
+      misses: 0,
+      missingSince: null,
+      candidate,
+      heardAt: tick.at,
+    };
   }
 
-  return {
-    ...state,
-    holding: state.kind === "locked",
-    misses: 0,
-    missingSince: null,
-    candidate: { lineIndex: result.lineIndex, agreements, since },
-    heardAt: tick.at,
-  };
+  // Not locked, and this window agrees with the position still on screen —
+  // the lock was lost but the chanting never actually left. Re-lock rather
+  // than making someone wait out corroboration to return to where they are.
+  return accept(state, result, confidence, tick.at, progress, candidate);
 }
 
 /** What to tell the user, in their words rather than the machine's. */
