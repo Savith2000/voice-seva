@@ -206,22 +206,27 @@ mic → mono         →    sliding window       →    fuzzy match → line
   and the state machine is right to refuse it. The position therefore cannot
   move until the window flushes: a **3.0 s median**, measured.
 
-  The last 30% of the same transcript is already the recent audio. Matching it
-  separately notices a jump in **1.00 s median** and costs nothing — no second
+  The last 40% of the same transcript is already the recent audio. Matching it
+  separately notices a jump in **1.25 s median** and costs nothing — no second
   inference pass, and matching is under a millisecond. End to end, following a
-  jump went from **3.75 s to 2.00 s**.
+  jump went from **3.75 s to 2.50 s**.
 
-  It can only ever *propose*. A shorter tail is less discriminative, and over
-  3,177 windows of ordinary chanting it proposed a jump that was not happening
-  three times — but all at medium confidence, and **none of them reached the
-  screen**: corroboration refused every one, at up to double the model's
-  measured error rate. That is the number worth testing, so the suite chants
-  the whole anuvaka through the reducer and fails on a single wrong landing.
-  Unlike a high-confidence full-window match, a tail is never allowed to move
-  the screen on its own. And a proposal that has not yet been corroborated
-  does not stop ordinary tracking: freezing for the corroboration window would
-  let one spurious tail match stall the display for most of a second, which
-  looks broken rather than careful.
+  It can only ever *propose*. Unlike a high-confidence full-window match, a
+  tail is never allowed to move the screen on its own — corroboration always
+  gates it. And a proposal that has not yet been corroborated does not stop
+  ordinary tracking: freezing for the corroboration window would let one
+  spurious tail match stall the display for most of a second, which looks
+  broken rather than careful.
+- **The simulation bounds the tail from one side only; chanting decides the
+  other.** A 30% tail is measurably faster (1.00 s) and the sweep found *zero*
+  wrong landings for it at up to double the model's error rate — and it was
+  still too twitchy to chant with, so it was reverted to 40%. The sweep
+  degrades clean reference text with uniform substitutions and deletions,
+  which is nothing like what actually reaches the tail at a line boundary:
+  breath, silence, a half-swallowed final syllable, and a CTC model that
+  answers confidently when handed any of them. A shorter tail is a larger
+  fraction of exactly that. Worth remembering before trusting the next sweep
+  that says something is safe.
 - **It would rather look stale than wrong.** A bad window holds the line
   instead of blanking it; four in a row give the lock up but leave the last
   known line on screen; silence pauses without losing the place, and only

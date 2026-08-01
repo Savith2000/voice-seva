@@ -45,16 +45,23 @@ export const DEFAULT_INTERVAL_MS = 250;
  *
  *   30%  1.00 s      40%  1.25 s      50%  slower again
  *
- * The cost of a shorter tail is discriminability. Over 3,177 windows of
- * ordinary chanting, 30% proposed a jump that was not happening three times
- * and 40% once — but every one of those was medium confidence, and a tail
- * proposal can only ever propose. Corroboration refused all of them, and
- * `follow.test.ts` pins that end to end rather than trusting it.
+ * 30% was tried and reverted: too sensitive when actually chanted at.
  *
- * So the extra proposals cost nothing that reaches the screen, and 30% is
- * the faster of two safe options.
+ * That is worth recording, because the simulation said otherwise. Replaying
+ * the whole anuvaka through the reducer at three noise levels found *zero*
+ * wrong landings at 30%, and the real thing was jumpy anyway. The simulation
+ * degrades clean reference text with uniform substitutions and deletions,
+ * which is nothing like what actually reaches the tail at a line boundary:
+ * breath, silence, a half-swallowed final syllable, and a CTC model that
+ * answers confidently when handed any of them. A shorter tail contains a
+ * larger fraction of exactly that.
+ *
+ * So the sweep bounds the safe region from one side only. Real audio is the
+ * other side, and it is the one that decides. If 40% still feels twitchy the
+ * next rung is 50%, which cost ~0.5 s and had no false proposals at any
+ * simulated noise level.
  */
-export const RECENT_FRACTION = 0.3;
+export const RECENT_FRACTION = 0.4;
 
 /** Never match a tail shorter than this; a stub matches everywhere. */
 export const MIN_RECENT_CHARS = 8;
@@ -118,8 +125,8 @@ export type MatchedTick = TickBase & {
    *
    * It is strictly less discriminative than the full window, so it is only
    * ever allowed to *propose* — see follow.ts. Measured over 3,177 windows of
-   * ordinary chanting it proposed a jump that was not happening three times,
-   * all at medium confidence, and corroboration refused every one.
+   * ordinary chanting it proposed a jump that was not happening once, at
+   * medium confidence, which corroboration then refused.
    */
   recent: MatchResult | null;
   inferenceMs: number;
