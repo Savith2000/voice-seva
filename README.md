@@ -197,36 +197,27 @@ mic → mono         →    sliding window       →    fuzzy match → line
   move costs more attention than a highlight that is honestly a little late.
   The lag is better attacked at the source (faster inference, a shorter hop
   between windows) than papered over with a guess.
-- **Jumps are noticed by the tail of the transcript, not the whole window.**
-  Right after someone moves to a different line, the five-second window is
-  still almost entirely the *old* line — and a transcript that is half one
-  line and half another matches neither, because the chant is one string and
-  "end of line 10 + start of line 25" does not occur in it. Roughly half the
-  query counts as errors whichever way it aligns, so the score sits around 0.5
-  and the state machine is right to refuse it. The position therefore cannot
-  move until the window flushes: a **3.0 s median**, measured.
+- **Matching the recent tail of the transcript was tried and reverted.** After
+  a jump the five-second window is still mostly the *old* line, and a
+  transcript that is half one line and half another matches neither — so the
+  position cannot move until the window flushes, a **3.5 s median**. Matching
+  just the last 30–40% of the same transcript notices a jump in ~1 s and costs
+  nothing, and it was built, gated behind corroboration, and measured: a sweep
+  of the whole anuvaka at up to double the model's error rate found **zero**
+  wrong landings.
 
-  The last 40% of the same transcript is already the recent audio. Matching it
-  separately notices a jump in **1.25 s median** and costs nothing — no second
-  inference pass, and matching is under a millisecond. End to end, following a
-  jump went from **3.75 s to 2.50 s**.
+  It was still too jumpy to chant with, at both 40% and 30%, and it is gone.
+  The lesson is about the sweep rather than the tail: it degrades clean
+  reference text with uniform substitutions, which is nothing like what
+  reaches a matcher at a line boundary — breath, silence, a half-swallowed
+  final syllable, and a CTC model that answers confidently when handed any of
+  them. A shorter window is a larger fraction of exactly that material, and no
+  amount of synthetic noise reproduces it. This is the second time a synthetic
+  proxy has pointed the wrong way here; the first was TTS audio ranking
+  Whisper above every CTC model.
 
-  It can only ever *propose*. Unlike a high-confidence full-window match, a
-  tail is never allowed to move the screen on its own — corroboration always
-  gates it. And a proposal that has not yet been corroborated does not stop
-  ordinary tracking: freezing for the corroboration window would let one
-  spurious tail match stall the display for most of a second, which looks
-  broken rather than careful.
-- **The simulation bounds the tail from one side only; chanting decides the
-  other.** A 30% tail is measurably faster (1.00 s) and the sweep found *zero*
-  wrong landings for it at up to double the model's error rate — and it was
-  still too twitchy to chant with, so it was reverted to 40%. The sweep
-  degrades clean reference text with uniform substitutions and deletions,
-  which is nothing like what actually reaches the tail at a line boundary:
-  breath, silence, a half-swallowed final syllable, and a CTC model that
-  answers confidently when handed any of them. A shorter tail is a larger
-  fraction of exactly that. Worth remembering before trusting the next sweep
-  that says something is safe.
+  If jump latency needs attacking again, do it with a recording of someone
+  actually jumping lines, not with a simulation.
 - **It would rather look stale than wrong.** A bad window holds the line
   instead of blanking it; four in a row give the lock up but leave the last
   known line on screen; silence pauses without losing the place, and only

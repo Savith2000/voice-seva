@@ -25,7 +25,7 @@ import {
   type FollowState,
 } from "./follow.ts";
 import { match, progressThroughLine } from "./matcher.ts";
-import { matchRecent, type MatchedTick, type TrackerTick } from "./tracker.ts";
+import { type MatchedTick, type TrackerTick } from "./tracker.ts";
 
 const chant = JSON.parse(
   readFileSync(
@@ -46,10 +46,6 @@ function heard(text: string, at = (clock += 1000)): MatchedTick {
     state: "matched",
     transcript: text,
     result: match(text, flat),
-    // The real tail, not null: every test built on this helper — including
-    // the replay of the fifteen genuine transcripts — then exercises the
-    // tail-proposal path as well, which is where a spurious jump would show.
-    recent: matchRecent(text, flat),
     inferenceMs: 900,
   };
 }
@@ -255,190 +251,6 @@ test("agreeing with where we are does not rescue outright noise", () => {
   // 12 at 0.17, and being locked on line 12 must not turn that into evidence.
   const noise = match("अअअअअअअअअअअअ", flat)!;
   assert.equal(classify(noise, { continuing: true }), "low");
-});
-
-// --- noticing a jump quickly ------------------------------------------------
-
-/** Chanting speed measured from the test recording. */
-const CHARS_PER_SECOND = 5.5;
-
-/**
- * A window `t` seconds after jumping from one line to another: the tail of the
- * old line, then the head of the new one.
- */
-function windowAcrossJump(from: number, to: number, t: number, seconds = 5) {
-  const total = Math.round(seconds * CHARS_PER_SECOND);
-  const fresh = Math.min(total, Math.round(t * CHARS_PER_SECOND));
-  const stale = total - fresh;
-  const old = flat.lines[from].normalized;
-  return (
-    (stale > 0 ? old.slice(-stale) : "") +
-    flat.lines[to].normalized.slice(0, fresh)
-  );
-}
-
-/** A tick built the way the tracker builds one: full window plus its tail. */
-function jumpTick(from: number, to: number, t: number, at: number): MatchedTick {
-  const text = windowAcrossJump(from, to, t);
-  return {
-    at,
-    rms: 0.2,
-    audioSeconds: 5,
-    state: "matched",
-    transcript: text,
-    result: match(text, flat),
-    recent: matchRecent(text, flat),
-    inferenceMs: 60,
-  };
-}
-
-test("the tail is consulted even while the full window still tracks the old line", () => {
-  // The case the whole feature exists for. Two seconds after a jump the
-  // five-second window is 60% the old line, so it reports the old line —
-  // plausibly, continuously, and wrongly. A rule that only looked at the full
-  // match would keep re-accepting that and reset the candidate every time, so
-  // the jump could never accumulate at all.
-  const state = run([line(11, 1000)]);
-  const tick = jumpTick(10, 24, 2, 2000);
-
-  assert.ok(tick.result, "no full-window match");
-  assert.ok(
-    tick.result!.lineIndex <= 11,
-    "the full window has already moved on; pick a harder moment",
-  );
-  assert.ok(tick.recent, "no tail match");
-
-  const after = step(state, tick);
-
-  // The tail's proposal is on the books...
-  assert.ok(after.candidate, "the tail proposal was not recorded");
-  assert.equal(
-    flat.lines[after.candidate!.lineIndex].sequence,
-    25,
-    "the candidate is not the line being jumped to",
-  );
-
-  // ...and the screen has not moved to it, but has also not frozen: the full
-  // window can still see chanting and keeps following it.
-  assert.notEqual(seq(after), 25, "jumped on a single tail proposal");
-  assert.ok(
-    seq(after)! <= 13,
-    `tracking wandered to line ${seq(after)} instead of carrying on`,
-  );
-  assert.equal(after.kind, "locked", "froze while the proposal gathered");
-});
-
-test("a jump is followed within a couple of seconds of chanting the new line", () => {
-  // End to end through the reducer: before the tail was consulted, the full
-  // window needed a 3.0 s median to notice, plus corroboration on top.
-  let state = run([line(11, 0)]);
-  let switched: number | null = null;
-
-  for (let t = 0.25; t <= 5; t += 0.25) {
-    state = step(state, jumpTick(10, 24, t, t * 1000));
-    if (state.kind === "locked" && seq(state) === 25 && switched === null) {
-      switched = t;
-    }
-  }
-
-  assert.ok(switched !== null, "never followed the jump");
-  assert.ok(
-    switched! <= 2.75,
-    `took ${switched}s of the new line to follow the jump`,
-  );
-});
-
-test("chanting straight through never lands the screen on the wrong line", () => {
-  // The counter-test for the tail. A shorter tail notices jumps sooner and is
-  // less discriminative, so it proposes jumps that are not happening — three
-  // times in 3,177 windows at a realistic error rate. What matters is not the
-  // proposal count but whether any of them survive corroboration and reach
-  // the screen, so this chants the whole anuvaka through the real reducer at
-  // four windows a second and counts landings that are wrong.
-  //
-  // The noise here goes to 20%, double the model's measured error rate: if
-  // the tail is going to mislead, this is where it shows.
-  const CPS = 5.5;
-  const WINDOW = Math.round(5 * CPS);
-  const STEP = Math.max(1, Math.round(0.25 * CPS));
-
-  const degrade = (text: string, rate: number, seed: number) => {
-    let s = seed;
-    const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-    const SUBS: Record<string, string> = {
-      "क": "ग", "त": "द", "स": "श", "प": "ब", "न": "म", "र": "ल",
-    };
-    let out = "";
-    for (const ch of text) {
-      if (rnd() < rate) {
-        if (rnd() < 0.5) continue;
-        out += SUBS[ch] ?? ch;
-      } else out += ch;
-    }
-    return out;
-  };
-
-  for (const noise of [0, 0.1, 0.2]) {
-    let state = INITIAL;
-    let at = 0;
-    const wrong: string[] = [];
-
-    for (let end = WINDOW; end <= flat.text.length; end += STEP) {
-      const truth = flat.lineAt[end - 1];
-      const text = degrade(flat.text.slice(end - WINDOW, end), noise, 1000 + end);
-      at += 250;
-      const before = state.lineIndex;
-      state = follow(
-        state,
-        {
-          at,
-          rms: 0.2,
-          audioSeconds: 5,
-          state: "matched",
-          transcript: text,
-          result: match(text, flat),
-          recent: matchRecent(text, flat),
-          inferenceMs: 60,
-        },
-        0.5,
-        0.5,
-      );
-      const landed = state.lineIndex;
-      if (state.kind !== "locked" || landed === null || landed === before) {
-        continue;
-      }
-      if (Math.abs(landed - truth) > 1) {
-        wrong.push(`line ${truth + 1} -> ${landed + 1}`);
-      }
-    }
-
-    assert.deepEqual(
-      wrong,
-      [],
-      `at ${noise * 100}% noise the screen jumped wrongly: ${wrong.join(", ")}`,
-    );
-  }
-});
-
-test("a single tail proposal never moves the screen, however confident", () => {
-  // The tail is less discriminative than the full window — over 3,177 windows
-  // of ordinary chanting it proposed a jump that was not happening once. It
-  // may propose; only corroboration may accept.
-  const state = run([line(11, 1000)]);
-  const tail = matchRecent(flat.lines[24].normalized, flat);
-  assert.ok(tail);
-
-  const after = step(state, {
-    at: 2000,
-    rms: 0.2,
-    audioSeconds: 5,
-    state: "matched",
-    transcript: flat.lines[11].normalized,
-    result: match(flat.lines[11].normalized, flat),
-    recent: tail,
-    inferenceMs: 60,
-  });
-  assert.equal(seq(after), 12, "a lone tail proposal moved the screen");
 });
 
 test("a clean window elsewhere jumps at once", () => {

@@ -16,7 +16,6 @@
 
 import { type FlatChant } from "./chant.ts";
 import { match, type MatchResult } from "./matcher.ts";
-import { normalize } from "./normalize.ts";
 import { RingBuffer } from "../audio/ring-buffer.ts";
 
 export const SAMPLE_RATE = 16_000;
@@ -37,34 +36,6 @@ export const WINDOW_SECONDS = 5;
  * takes ~1400 ms and this floor never binds, exactly as before.
  */
 export const DEFAULT_INTERVAL_MS = 250;
-
-/**
- * How much of the transcript counts as "recent".
- *
- * Swept against simulated jumps, median time to notice one:
- *
- *   30%  1.00 s      40%  1.25 s      50%  slower again
- *
- * 30% was tried and reverted: too sensitive when actually chanted at.
- *
- * That is worth recording, because the simulation said otherwise. Replaying
- * the whole anuvaka through the reducer at three noise levels found *zero*
- * wrong landings at 30%, and the real thing was jumpy anyway. The simulation
- * degrades clean reference text with uniform substitutions and deletions,
- * which is nothing like what actually reaches the tail at a line boundary:
- * breath, silence, a half-swallowed final syllable, and a CTC model that
- * answers confidently when handed any of them. A shorter tail contains a
- * larger fraction of exactly that.
- *
- * So the sweep bounds the safe region from one side only. Real audio is the
- * other side, and it is the one that decides. If 40% still feels twitchy the
- * next rung is 50%, which cost ~0.5 s and had no false proposals at any
- * simulated noise level.
- */
-export const RECENT_FRACTION = 0.4;
-
-/** Never match a tail shorter than this; a stub matches everywhere. */
-export const MIN_RECENT_CHARS = 8;
 
 /**
  * Never leave the machine less than this fraction of its time to itself.
@@ -107,28 +78,8 @@ type TickBase = {
 export type MatchedTick = TickBase & {
   state: "matched";
   transcript: string;
-  /** The whole window. Stable and discriminative; slow to notice a jump. */
+  /** Null when the transcript normalises to nothing. */
   result: MatchResult | null;
-  /**
-   * The last {@link RECENT_FRACTION} of the same transcript, matched again.
-   *
-   * Immediately after someone jumps, the five-second window is still almost
-   * entirely the *old* line, and a transcript that is half one line and half
-   * another matches neither — the chant is one string, so "end of line 10 +
-   * start of line 25" does not occur in it, and roughly half the query counts
-   * as errors whichever way it aligns. So the position cannot move until the
-   * window flushes, which measures at a **3.0 s median**.
-   *
-   * The tail of the same transcript is already the recent audio, so matching
-   * it separately notices a jump in **1.25 s median** and costs nothing: no
-   * second inference pass, and matching is under a millisecond.
-   *
-   * It is strictly less discriminative than the full window, so it is only
-   * ever allowed to *propose* — see follow.ts. Measured over 3,177 windows of
-   * ordinary chanting it proposed a jump that was not happening once, at
-   * medium confidence, which corroboration then refused.
-   */
-  recent: MatchResult | null;
   inferenceMs: number;
 };
 
@@ -311,15 +262,13 @@ export class SlidingWindowTracker {
       // caller has already torn down. Delivering it would repaint a screen
       // that is meant to be idle.
       if (this.stopped) return;
-      const full = match(text, this.flat);
       this.onTick({
         at,
         rms,
         audioSeconds,
         state: "matched",
         transcript: text,
-        result: full,
-        recent: matchRecent(text, this.flat),
+        result: match(text, this.flat),
         inferenceMs,
       });
     } catch {
@@ -333,24 +282,6 @@ export class SlidingWindowTracker {
   stop(): void {
     this.stopped = true;
   }
-}
-
-/**
- * Match only the recent tail of a transcript.
- *
- * Sliced from the normalised form rather than the raw text so the fraction
- * means the same thing regardless of how much whitespace and how many svara
- * marks the raw transcript happened to contain.
- */
-export function matchRecent(text: string, flat: FlatChant): MatchResult | null {
-  const whole = normalize(text);
-  if (whole.length < MIN_RECENT_CHARS) return null;
-  const take = Math.max(
-    MIN_RECENT_CHARS,
-    Math.round(whole.length * RECENT_FRACTION),
-  );
-  if (take >= whole.length) return null;
-  return match(whole.slice(-take), flat);
 }
 
 export function rootMeanSquare(samples: Float32Array): number {
