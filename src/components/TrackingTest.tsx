@@ -149,7 +149,9 @@ export default function TrackingTest() {
               <>
                 {" "}
                 &middot; {live.inferenceMs.toFixed(0)} ms/window &middot;{" "}
-                {rate.toFixed(2)}/s &middot; {session.dropped} frames dropped
+                {rate.toFixed(2)}/s &middot;{" "}
+                {Math.round(session.dutyCycle * 100)}% busy &middot;{" "}
+                {session.dropped} frames dropped
               </>
             ) : null}
           </span>

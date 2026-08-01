@@ -114,6 +114,17 @@ mic → mono         →    sliding window       →    fuzzy match → line
   same transcript, byte for byte, arriving eight times sooner. Everything
   after the model (match, state machine, React) is under 5 ms combined, so
   there was never anything else worth optimising.
+- **The loop leaves the machine at least half of itself.** Pacing on
+  `max(floor, inference)` means the duty cycle *rises* as the hardware gets
+  weaker: 48 ms of work every 250 ms is 25% busy, but 400 ms of work every
+  400 ms is 100% busy — the faster the machine, the gentler the loop was
+  being, which is exactly backwards. A laptop pinned flat for a 45-minute
+  session gets hot, thermally throttles, and so gets slower still. The
+  interval is now `clamp(2 × measured inference, 250 ms, 1500 ms)`, so a slow
+  device updates less often rather than melting, and a fast one is unaffected.
+  The ceiling exists because a machine without WebGPU is inference-bound at
+  ~1400 ms anyway — stretching it to 2.8 s would protect nothing and cost a
+  lot. Measured at **25% busy** on an M-series Mac.
 - **Evidence is counted in seconds, not in windows.** When the loop ran once
   a second, "two agreeing windows before jumping" meant 2.4 s of evidence. At
   250 ms it would have meant 0.5 s — the same code silently four times more
@@ -240,6 +251,26 @@ answer, with no state machine in the way, which is how you tell "the matcher
 was wrong" from "the matcher was right and the state machine was being
 sensible". Both drive the same pipeline through the same `useAsrSession`, so
 they cannot drift into reproducing different bugs.
+
+### What it needs from the device
+
+| | with WebGPU | without |
+|---|---|---|
+| download | 190 MB fp16 | 123 MB int8 |
+| per window | ~48 ms | ~1400 ms |
+| updates | ~4/second | ~0.7/second |
+| busy | ~25% | inference-bound |
+
+Both work. Without WebGPU the highlight lags by a second or two instead of
+about 200 ms, which is the difference between "follows you" and "catches up
+with you" — usable, not pleasant. The fallback is automatic: if the fp16 graph
+cannot be created, the worker retries on WASM with int8 and says so.
+
+The GPU work is small and bursty — a 94 M-parameter encoder over five seconds
+of audio, a few times a second, at a quarter duty cycle. It is not a game
+loop. The things that would genuinely hurt on a weak machine are memory
+(190 MB of weights, shared with system RAM on integrated graphics) and heat
+over a long session, which is what the duty-cycle cap above is for.
 
 > **Microphone requires a secure context.** `localhost` qualifies, so desktop
 > development works. Testing on a phone over a LAN address (`192.168.x.x:3000`)

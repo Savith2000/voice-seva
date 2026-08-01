@@ -267,5 +267,13 @@ export function useAsrSession(
     get dropped() {
       return trackerRef.current?.dropped ?? 0;
     },
+    /** Gap between window starts, after duty-cycle protection. */
+    get intervalMs() {
+      return trackerRef.current?.intervalMs ?? 0;
+    },
+    /** Share of wall-clock time the model is running, 0..1. */
+    get dutyCycle() {
+      return trackerRef.current?.dutyCycle ?? 0;
+    },
   };
 }

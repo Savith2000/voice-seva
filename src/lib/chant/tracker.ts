@@ -37,6 +37,34 @@ export const WINDOW_SECONDS = 5;
  */
 export const DEFAULT_INTERVAL_MS = 250;
 
+/**
+ * Never leave the machine less than this fraction of its time to itself.
+ *
+ * Without it the loop paces on `max(floor, inference)`, which means the duty
+ * cycle *rises* as the hardware gets weaker: 48 ms of work every 250 ms is
+ * 19% busy, but 400 ms of work every 400 ms is 100% busy — a mid-range
+ * laptop would be pinned flat for a 45-minute session, get hot, thermally
+ * throttle, and so get slower still. The faster the machine, the gentler the
+ * loop was being. Exactly backwards.
+ *
+ * A factor of 2 keeps it at or under half the device, whatever the device is.
+ */
+export const DUTY_FACTOR = 2;
+
+/**
+ * ...but never pace slower than this.
+ *
+ * Where there is no WebGPU a window costs ~1400 ms, and the duty rule alone
+ * would stretch the cadence to 2.8 s. That path is already degraded and the
+ * machine is inference-bound regardless — the rate limit is not what is
+ * costing it anything — so the cap stops the protection from turning a slow
+ * experience into an unusable one.
+ */
+export const MAX_INTERVAL_MS = 1500;
+
+/** Weight of each new inference timing. Low: one slow window is not a trend. */
+const PACING_SMOOTHING = 0.3;
+
 type TickBase = {
   /** Clock reading when the window was taken. */
   at: number;
@@ -107,6 +135,9 @@ export class SlidingWindowTracker {
   private lastFireAt = Number.NEGATIVE_INFINITY;
   private lastStatusAt = Number.NEGATIVE_INFINITY;
   private lastStatusState: "silent" | "filling" | null = null;
+  /** Smoothed inference time, and the pacing derived from it. */
+  private averageInferenceMs: number | null = null;
+  private pacingMs: number;
   /** Windows dropped because inference was still running. Worth surfacing. */
   private droppedWhileBusy = 0;
 
@@ -134,11 +165,23 @@ export class SlidingWindowTracker {
     this.minIntervalMs = minIntervalMs;
     this.silenceRms = silenceRms;
     this.now = now;
+    this.pacingMs = minIntervalMs;
     this.ring = new RingBuffer(this.windowSamples);
   }
 
   get dropped(): number {
     return this.droppedWhileBusy;
+  }
+
+  /** Current gap between window starts, after duty-cycle protection. */
+  get intervalMs(): number {
+    return this.pacingMs;
+  }
+
+  /** Share of wall-clock time the model is running, 0..1. */
+  get dutyCycle(): number {
+    if (this.averageInferenceMs === null) return 0;
+    return Math.min(1, this.averageInferenceMs / this.pacingMs);
   }
 
   /** Feed one frame of microphone audio. Fires a transcription if it is time. */
@@ -171,7 +214,7 @@ export class SlidingWindowTracker {
       return;
     }
 
-    if (at - this.lastFireAt < this.minIntervalMs) return;
+    if (at - this.lastFireAt < this.pacingMs) return;
 
     // Claim the slot before anything async, so two frames arriving back to
     // back cannot both get through.
@@ -189,7 +232,7 @@ export class SlidingWindowTracker {
    */
   private report(tick: TrackerTick & { state: "silent" | "filling" }): void {
     const changed = tick.state !== this.lastStatusState;
-    if (!changed && tick.at - this.lastStatusAt < this.minIntervalMs) return;
+    if (!changed && tick.at - this.lastStatusAt < this.pacingMs) return;
     this.lastStatusState = tick.state;
     this.lastStatusAt = tick.at;
     this.onTick(tick);
@@ -203,6 +246,18 @@ export class SlidingWindowTracker {
   ): Promise<void> {
     try {
       const { text, inferenceMs } = await this.transcribe(window);
+
+      // Pace off what this machine actually costs, not what a fast one does.
+      this.averageInferenceMs =
+        this.averageInferenceMs === null
+          ? inferenceMs
+          : this.averageInferenceMs * (1 - PACING_SMOOTHING) +
+            inferenceMs * PACING_SMOOTHING;
+      this.pacingMs = Math.min(
+        MAX_INTERVAL_MS,
+        Math.max(this.minIntervalMs, DUTY_FACTOR * this.averageInferenceMs),
+      );
+
       // A result that lands after stop() describes audio from a session the
       // caller has already torn down. Delivering it would repaint a screen
       // that is meant to be idle.

@@ -15,6 +15,7 @@ import { test } from "node:test";
 
 import { flatten, type Chant } from "./chant.ts";
 import {
+  MAX_INTERVAL_MS,
   SAMPLE_RATE,
   SlidingWindowTracker,
   rootMeanSquare,
@@ -43,6 +44,8 @@ const silence = (length = 1024) => new Float32Array(length);
 function harness(
   text = "ते अश्तु धन्वने बाहोभ्याभुत्",
   options: TrackerOptions = {},
+  /** What the fake model claims it cost. Pacing is derived from this. */
+  inferenceMs = 880,
 ) {
   let clock = 0;
   const pending: (() => void)[] = [];
@@ -54,7 +57,7 @@ function harness(
     () => {
       calls++;
       return new Promise((resolve) => {
-        pending.push(() => resolve({ text, inferenceMs: 880 }));
+        pending.push(() => resolve({ text, inferenceMs }));
       });
     },
     (tick) => ticks.push(tick),
@@ -113,7 +116,8 @@ test("the next window starts only after the previous one returns", async () => {
   assert.equal(h.calls, 1);
 
   await h.settle();
-  h.advance(1000);
+  // Long enough to clear the pacing this fake model's 880 ms earns it.
+  h.advance(MAX_INTERVAL_MS);
   h.tracker.push(frame());
   assert.equal(h.calls, 2);
 });
@@ -142,7 +146,9 @@ test("a slow model lowers the rate instead of building a queue", async () => {
 });
 
 test("minIntervalMs throttles a model that returns instantly", async () => {
-  const h = harness("नमस्ते", { minIntervalMs: 1000 });
+  // inferenceMs of 1 keeps duty-cycle pacing out of the way, so this tests
+  // the floor rather than the protection above it.
+  const h = harness("नमस्ते", { minIntervalMs: 1000 }, 1);
   fill(h.tracker);
   await h.settle();
 
@@ -153,6 +159,105 @@ test("minIntervalMs throttles a model that returns instantly", async () => {
   h.advance(800);
   h.tracker.push(frame());
   assert.equal(h.calls, 2);
+});
+
+// --- not melting the machine ------------------------------------------------
+
+test("a slow machine is paced gently, not hammered", () => {
+  // Without this the loop paces on max(floor, inference), so the duty cycle
+  // *rises* as the hardware weakens: 400 ms of work every 400 ms pins a
+  // laptop flat for the whole session. The faster the machine, the gentler
+  // the loop was being.
+  const clock = 0;
+  const ticks: TrackerTick[] = [];
+  const tracker = new SlidingWindowTracker(
+    flat,
+    async () => ({ text: "नमस्ते", inferenceMs: 400 }),
+    (tick) => ticks.push(tick),
+    { now: () => clock },
+  );
+
+  fill(tracker);
+  return Promise.resolve()
+    .then(() => Promise.resolve())
+    .then(() => {
+      assert.ok(
+        tracker.intervalMs >= 700,
+        `400 ms of work is being scheduled every ${tracker.intervalMs} ms`,
+      );
+      assert.ok(
+        tracker.dutyCycle <= 0.55,
+        `duty cycle ${tracker.dutyCycle.toFixed(2)} leaves nothing for the UI`,
+      );
+    });
+});
+
+test("a fast machine is not slowed down by the protection", () => {
+  // The whole point is that this costs nothing where it is not needed.
+  const clock = 0;
+  const tracker = new SlidingWindowTracker(
+    flat,
+    async () => ({ text: "नमस्ते", inferenceMs: 48 }),
+    () => {},
+    { now: () => clock },
+  );
+
+  fill(tracker);
+  return Promise.resolve()
+    .then(() => Promise.resolve())
+    .then(() => {
+      assert.equal(tracker.intervalMs, 250, "the floor stopped applying");
+      assert.ok(tracker.dutyCycle < 0.25);
+    });
+});
+
+test("pacing never stretches past the cap on a very slow backend", () => {
+  // Without WebGPU a window costs ~1400 ms. The duty rule alone would pace at
+  // 2.8 s, which would make an already-degraded path unusable for no gain —
+  // that machine is inference-bound, not rate-limited.
+  const clock = 0;
+  const tracker = new SlidingWindowTracker(
+    flat,
+    async () => ({ text: "नमस्ते", inferenceMs: 1400 }),
+    () => {},
+    { now: () => clock },
+  );
+
+  fill(tracker);
+  return Promise.resolve()
+    .then(() => Promise.resolve())
+    .then(() => {
+      assert.equal(tracker.intervalMs, MAX_INTERVAL_MS);
+    });
+});
+
+test("one slow window does not re-pace the whole session", () => {
+  // Smoothed, because a single hitch — a background tab, a GC pause — is not
+  // evidence about the machine.
+  let clock = 0;
+  let call = 0;
+  const tracker = new SlidingWindowTracker(
+    flat,
+    async () => ({ text: "नमस्ते", inferenceMs: ++call === 3 ? 900 : 48 }),
+    () => {},
+    { now: () => clock },
+  );
+
+  fill(tracker);
+  return (async () => {
+    for (let i = 0; i < 4; i++) {
+      await Promise.resolve();
+      await Promise.resolve();
+      clock += 2000;
+      tracker.push(frame());
+    }
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.ok(
+      tracker.intervalMs < 700,
+      `one 900 ms window moved pacing to ${tracker.intervalMs} ms`,
+    );
+  })();
 });
 
 // --- refusing to run --------------------------------------------------------
