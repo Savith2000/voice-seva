@@ -80,6 +80,11 @@ export default function AsrTest() {
         if (message.id === jobIdRef.current) {
           setJob({ kind: "done", result: message });
         }
+      } else if (message.type === "progress") {
+        // This panel loads on a button press and reports its own timings; the
+        // download bar belongs on the chanting screen, where the wait is
+        // unexpected rather than the point.
+        return;
       } else {
         // A failure during load and a failure during inference are different
         // problems and belong in different places on screen.

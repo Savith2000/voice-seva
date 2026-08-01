@@ -13,9 +13,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DEVANAGARI_STACK } from "@/components/ChantLineView";
+import { listAudioInputs, type AudioInput } from "@/lib/audio/capture";
 import { allLines, flatten, type ChantLine } from "@/lib/chant/chant";
 import { chant } from "@/lib/chant/chant-data";
 import { INITIAL, follow, statusLine, type FollowState } from "@/lib/chant/follow";
+import {
+  NO_PACE,
+  estimateLagMs,
+  leadPosition,
+  observePace,
+  type Pace,
+} from "@/lib/chant/lead";
 import { progressThroughLine } from "@/lib/chant/matcher";
 import { useAsrSession } from "@/lib/chant/use-asr-session";
 
@@ -46,6 +54,20 @@ export default function ChantingScreen() {
   const [fontStep, setFontStep] = useState(DEFAULT_FONT_STEP);
   const [query, setQuery] = useState("");
   const [showMeaning, setShowMeaning] = useState(true);
+  const [leadEnabled, setLeadEnabled] = useState(true);
+  const [devices, setDevices] = useState<AudioInput[]>([]);
+  const [deviceId, setDeviceId] = useState("");
+
+  // Where the highlight actually goes, once the model's lag is added back on.
+  const [lead, setLead] = useState<{
+    lineIndex: number;
+    progress: number;
+    charsAhead: number;
+    rate: number;
+  } | null>(null);
+  const paceRef = useRef<Pace>(NO_PACE);
+  const lastTickAtRef = useRef<number | null>(null);
+  const stateRef = useRef<FollowState>(INITIAL);
 
   const session = useAsrSession(
     flat,
@@ -55,7 +77,47 @@ export default function ChantingScreen() {
           tick.state === "matched" && tick.result
             ? progressThroughLine(tick.result, flat)
             : 0;
-        setState((previous) => follow(previous, tick, progress));
+
+        // Folded through a ref as well as state, so the lead below can see
+        // what the state machine actually decided about this very tick.
+        const next = follow(stateRef.current, tick, progress);
+        stateRef.current = next;
+        setState(next);
+
+        if (tick.state !== "matched" || !tick.result) return;
+
+        // The lead is a *display* adjustment applied to the position the
+        // state machine accepted — never to the raw match. Without this
+        // check, a jump the machine deliberately refused would still drag the
+        // highlight across the screen, which is precisely the behaviour the
+        // machine exists to prevent.
+        const accepted =
+          next.kind === "locked" && next.lineIndex === tick.result.lineIndex;
+        if (!accepted) {
+          setLead(null);
+          return;
+        }
+
+        // Tempo comes from where consecutive windows actually landed; the lag
+        // from how long this window took plus how long the highlight will now
+        // sit still. Both measured, neither assumed.
+        const previousAt = lastTickAtRef.current;
+        lastTickAtRef.current = tick.at;
+        paceRef.current = observePace(paceRef.current, tick.result.end, tick.at);
+
+        const interval = previousAt === null ? 0 : tick.at - previousAt;
+        const placed = leadPosition(
+          flat,
+          tick.result.end,
+          paceRef.current,
+          estimateLagMs(tick.inferenceMs, interval),
+        );
+        setLead({
+          lineIndex: placed.lineIndex,
+          progress: placed.progress,
+          charsAhead: placed.charsAhead,
+          rate: paceRef.current.rate,
+        });
       },
       [flat],
     ),
@@ -64,23 +126,29 @@ export default function ChantingScreen() {
   const running = session.phase.kind === "running";
   const starting = session.phase.kind === "starting";
 
+  // What the screen shows. The state machine owns the position; the lead only
+  // nudges it forward, and only while there is a live lock to nudge.
+  const useLead = leadEnabled && lead !== null && state.kind === "locked";
+  const displayIndex = useLead ? lead.lineIndex : state.lineIndex;
+  const displayProgress = useLead ? lead.progress : state.progress;
+
   // --- scrolling -------------------------------------------------------------
 
   const lineRefs = useRef<(HTMLLIElement | null)[]>([]);
   const lastScrolledTo = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!autoScroll || state.lineIndex === null) return;
+    if (!autoScroll || displayIndex === null) return;
     // Only scroll when the line actually changes. Re-centring on every window
     // would mean the page creeping under the reader once a second, which is
     // more distracting than not scrolling at all.
-    if (lastScrolledTo.current === state.lineIndex) return;
-    lastScrolledTo.current = state.lineIndex;
-    lineRefs.current[state.lineIndex]?.scrollIntoView({
+    if (lastScrolledTo.current === displayIndex) return;
+    lastScrolledTo.current = displayIndex;
+    lineRefs.current[displayIndex]?.scrollIntoView({
       behavior: "smooth",
       block: "center",
     });
-  }, [state.lineIndex, autoScroll]);
+  }, [displayIndex, autoScroll]);
 
   // --- manual control --------------------------------------------------------
 
@@ -92,16 +160,24 @@ export default function ChantingScreen() {
    * corroboration" rule then protects it. */
   const selectLine = useCallback((index: number) => {
     lastScrolledTo.current = null;
-    setState((previous) => ({
-      ...previous,
-      kind: "locked",
-      lineIndex: index,
-      progress: 0,
-      confidence: "high",
-      holding: !previous.heardAt,
-      misses: 0,
-      candidate: null,
-    }));
+    // The old lead was measured from the position being overruled.
+    setLead(null);
+    paceRef.current = NO_PACE;
+    lastTickAtRef.current = null;
+    setState((previous) => {
+      const next: FollowState = {
+        ...previous,
+        kind: "locked",
+        lineIndex: index,
+        progress: 0,
+        confidence: "high",
+        holding: !previous.heardAt,
+        misses: 0,
+        candidate: null,
+      };
+      stateRef.current = next;
+      return next;
+    });
   }, []);
 
   const matches = useMemo(() => {
@@ -116,14 +192,43 @@ export default function ChantingScreen() {
     );
   }, [query, lines]);
 
+  // --- microphones -----------------------------------------------------------
+
+  const refreshDevices = useCallback(async () => {
+    try {
+      setDevices(await listAudioInputs());
+    } catch {
+      // Enumeration is a convenience; a failure here must not stop anyone
+      // from chanting on the default input.
+    }
+  }, []);
+
+  useEffect(() => {
+    // Deferred, as elsewhere in this codebase: enumeration resolves into a
+    // setState, and React objects to one being reachable synchronously from
+    // an effect body.
+    queueMicrotask(() => void refreshDevices());
+    // Labels stay blank until permission is granted, and the set changes when
+    // a headset is plugged in mid-session.
+    navigator.mediaDevices?.addEventListener("devicechange", refreshDevices);
+    return () =>
+      navigator.mediaDevices?.removeEventListener("devicechange", refreshDevices);
+  }, [refreshDevices]);
+
+  useEffect(() => {
+    // Real names arrive only once a stream has been opened.
+    if (running) queueMicrotask(() => void refreshDevices());
+  }, [running, refreshDevices]);
+
   const toggleFullScreen = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen();
     else void document.documentElement.requestFullscreen();
   }, []);
 
   const scale = FONT_STEPS[fontStep];
+
   const current: ChantLine | null =
-    state.lineIndex === null ? null : lines[state.lineIndex];
+    displayIndex === null ? null : lines[displayIndex];
 
   return (
     <div className="flex min-h-dvh flex-col bg-neutral-950 text-neutral-100">
@@ -147,7 +252,7 @@ export default function ChantingScreen() {
               onClick={
                 running || starting
                   ? () => void session.stop()
-                  : () => void session.start("mic")
+                  : () => void session.start("mic", { deviceId: deviceId || undefined })
               }
               disabled={starting}
               className="rounded-full border border-neutral-700 px-4 py-1.5 font-mono text-xs uppercase tracking-widest hover:border-neutral-500 disabled:opacity-40"
@@ -155,12 +260,40 @@ export default function ChantingScreen() {
               {running ? "pause" : starting ? "starting…" : "listen"}
             </button>
 
+            {devices.length > 0 ? (
+              <select
+                value={deviceId}
+                onChange={(event) => setDeviceId(event.target.value)}
+                disabled={running || starting}
+                title="Microphone"
+                className="max-w-40 truncate rounded-full border border-neutral-800 bg-neutral-950 px-3 py-1 font-mono text-xs text-neutral-400 outline-none hover:border-neutral-600 disabled:opacity-40"
+              >
+                <option value="">default mic</option>
+                {devices.map((device) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.label}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+
             <IconToggle
               on={autoScroll}
               onClick={() => setAutoScroll((v) => !v)}
               title="Auto-scroll"
             >
               scroll
+            </IconToggle>
+
+            <IconToggle
+              on={leadEnabled}
+              onClick={() => setLeadEnabled((v) => !v)}
+              title={
+                "Highlight slightly ahead of the model, to cancel the delay " +
+                "between chanting and recognising it"
+              }
+            >
+              lead
             </IconToggle>
 
             <IconToggle
@@ -204,6 +337,44 @@ export default function ChantingScreen() {
           </div>
         </div>
 
+        {starting && session.progress ? (
+          <div className="border-t border-neutral-900 px-4 py-2">
+            <div className="mx-auto max-w-4xl">
+              <div className="flex items-baseline justify-between font-mono text-xs text-neutral-500">
+                <span>
+                  Downloading the speech model
+                  {session.progress.fraction !== null
+                    ? ` — ${Math.round(session.progress.fraction * 100)}%`
+                    : "…"}
+                </span>
+                <span className="text-neutral-700">
+                  {formatMb(session.progress.loaded)}
+                  {session.progress.total > 0
+                    ? ` / ${formatMb(session.progress.total)}`
+                    : ""}
+                </span>
+              </div>
+              <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-neutral-800">
+                <div
+                  className={`h-full rounded-full bg-emerald-500 ${
+                    session.progress.fraction === null
+                      ? "w-1/3 animate-pulse"
+                      : "transition-[width] duration-300"
+                  }`}
+                  style={
+                    session.progress.fraction === null
+                      ? undefined
+                      : { width: `${session.progress.fraction * 100}%` }
+                  }
+                />
+              </div>
+              <p className="mt-1 font-mono text-xs text-neutral-700">
+                Happens once &mdash; the browser keeps it cached afterwards.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {session.phase.kind === "failed" ? (
           <p className="border-t border-red-900/50 bg-red-950/30 px-4 py-2 text-center font-mono text-xs text-red-300">
             {session.phase.message}
@@ -229,7 +400,7 @@ export default function ChantingScreen() {
         <ol className="flex flex-col gap-6">
           {(matches ?? lines).map((line) => {
             const index = lines.indexOf(line);
-            const active = index === state.lineIndex;
+            const active = index === displayIndex;
             return (
               <li
                 key={line.sequence}
@@ -285,7 +456,7 @@ export default function ChantingScreen() {
                       <span
                         className="mt-3 block h-0.5 rounded-full bg-emerald-600/70 transition-all duration-700"
                         style={{
-                          width: `${Math.round(state.progress * 100)}%`,
+                          width: `${Math.round(displayProgress * 100)}%`,
                         }}
                       />
                     ) : null}
@@ -314,10 +485,17 @@ export default function ChantingScreen() {
           {running && session.phase.kind === "running"
             ? ` · ${session.phase.device} · ${session.phase.source}`
             : ""}
+          {useLead && lead
+            ? ` · leading ${lead.charsAhead} chars at ${lead.rate.toFixed(1)}/s`
+            : ""}
         </p>
       </footer>
     </div>
   );
+}
+
+function formatMb(bytes: number): string {
+  return `${(bytes / 1_000_000).toFixed(0)} MB`;
 }
 
 function Status({

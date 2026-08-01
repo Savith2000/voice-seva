@@ -86,7 +86,18 @@ export type AsrResult = {
 
 export type AsrError = { type: "error"; id?: number; message: string };
 
-export type AsrMessage = AsrReady | AsrResult | AsrError;
+/** Download progress, aggregated across every file the model needs. */
+export type AsrProgress = {
+  type: "progress";
+  loaded: number;
+  total: number;
+  /** 0..1, or null while the total size is still unknown. */
+  fraction: number | null;
+  /** Whichever file most recently reported, for a bit of texture. */
+  file: string | null;
+};
+
+export type AsrMessage = AsrReady | AsrResult | AsrError | AsrProgress;
 
 /** "auto" tries WebGPU and falls back; the explicit values force one backend.
  *
@@ -109,18 +120,68 @@ let model: PreTrainedModel | null = null;
 let loading: Promise<AsrReady> | null = null;
 let loadedDevice: AsrDevice | null = null;
 
+/**
+ * Turn transformers.js's per-file callbacks into one overall figure.
+ *
+ * The graph is 123 MB and the first load is the longest the app ever makes
+ * anyone wait, with nothing to look at. The library offers a "progress_total"
+ * status that has already done the aggregating; the per-file tally is a
+ * fallback, because a progress bar that silently stops moving is worse than
+ * no progress bar at all.
+ */
+function reportProgress() {
+  const files = new Map<string, { loaded: number; total: number }>();
+
+  return (info: {
+    status: string;
+    file?: string;
+    loaded?: number;
+    total?: number;
+  }) => {
+    if (info.status === "progress_total") {
+      post(info.loaded ?? 0, info.total ?? 0, null);
+      return;
+    }
+    if (info.status !== "progress" || !info.file) return;
+
+    files.set(info.file, {
+      loaded: info.loaded ?? 0,
+      total: info.total ?? 0,
+    });
+    let loaded = 0;
+    let total = 0;
+    for (const entry of files.values()) {
+      loaded += entry.loaded;
+      total += entry.total;
+    }
+    post(loaded, total, info.file);
+  };
+
+  function post(loaded: number, total: number, file: string | null) {
+    const message: AsrProgress = {
+      type: "progress",
+      loaded,
+      total,
+      fraction: total > 0 ? Math.min(1, loaded / total) : null,
+      file,
+    };
+    self.postMessage(message);
+  }
+}
+
 async function load(requested: AsrDevice): Promise<AsrReady> {
   const started = performance.now();
+  const progress_callback = reportProgress();
 
   [processor, vocab] = await Promise.all([
-    AutoProcessor.from_pretrained(MODEL_ID),
+    AutoProcessor.from_pretrained(MODEL_ID, { progress_callback }),
     loadVocab(),
   ]);
 
   // dtype "q8" is what resolves the filename to model_quantized.onnx, which is
   // the only graph we ship — the fp32 export puts its weights in an external
   // .onnx.data file that transformers.js cannot load.
-  const options = { dtype: "q8" } as const;
+  const options = { dtype: "q8", progress_callback } as const;
 
   let device: string = requested;
   let fallbackReason: string | undefined;

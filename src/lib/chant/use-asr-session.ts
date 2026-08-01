@@ -19,11 +19,21 @@ const FRAME_SAMPLES = 1024;
 
 export type SessionSource = "mic" | File;
 
+export type StartOptions = { deviceId?: string };
+
 export type SessionPhase =
   | { kind: "idle" }
   | { kind: "starting"; step: string }
   | { kind: "running"; device: string; source: string }
   | { kind: "failed"; message: string };
+
+export type LoadProgress = {
+  loaded: number;
+  total: number;
+  /** 0..1, or null while the total size is still unknown. */
+  fraction: number | null;
+  file: string | null;
+};
 
 /**
  * Feed a recording to the tracker at the speed it was recorded.
@@ -71,6 +81,7 @@ export function useAsrSession(
   onTick: (tick: TrackerTick) => void,
 ) {
   const [phase, setPhase] = useState<SessionPhase>({ kind: "idle" });
+  const [progress, setProgress] = useState<LoadProgress | null>(null);
 
   const workerRef = useRef<Worker | null>(null);
   const captureRef = useRef<MicCapture | null>(null);
@@ -128,8 +139,9 @@ export function useAsrSession(
   }, [stop]);
 
   const start = useCallback(
-    async (source: SessionSource) => {
+    async (source: SessionSource, { deviceId }: StartOptions = {}) => {
       setPhase({ kind: "starting", step: "loading model" });
+      setProgress(null);
       try {
         const worker = new Worker(
           new URL("../../workers/asr.worker.ts", import.meta.url),
@@ -142,6 +154,17 @@ export function useAsrSession(
             const message = event.data;
             if (message.type === "ready") {
               resolve(message.device);
+              return;
+            }
+            if (message.type === "progress") {
+              if (mountedRef.current) {
+                setProgress({
+                  loaded: message.loaded,
+                  total: message.total,
+                  fraction: message.fraction,
+                  file: message.file,
+                });
+              }
               return;
             }
             if (message.type === "result") {
@@ -168,6 +191,7 @@ export function useAsrSession(
         });
 
         if (!mountedRef.current || workerRef.current !== worker) return;
+        setProgress(null);
 
         setPhase({
           kind: "starting",
@@ -197,7 +221,7 @@ export function useAsrSession(
           const capture = await MicCapture.start(
             (frame) => push(frame.samples),
             () => {},
-            { processing: false },
+            { processing: false, deviceId },
           );
           captureRef.current = capture;
           if (!mountedRef.current) {
@@ -237,6 +261,7 @@ export function useAsrSession(
 
   return {
     phase,
+    progress,
     start,
     stop,
     get dropped() {

@@ -35,7 +35,45 @@ export type CaptureOptions = {
    * so Chunk 3 can measure the difference instead of guessing.
    */
   processing?: boolean;
+
+  /**
+   * Which input to record from. Omit for the system default.
+   *
+   * Not `exact`, deliberately. Devices disappear — a headset is unplugged
+   * between listing and starting — and an exact constraint then throws
+   * OverconstrainedError instead of falling back, which reads to the user as
+   * "the microphone is broken" rather than "that one is gone".
+   */
+  deviceId?: string;
 };
+
+export type AudioInput = { deviceId: string; label: string };
+
+/**
+ * The microphones the browser will admit to having.
+ *
+ * Labels are empty until the page has been granted microphone permission at
+ * least once — the browser withholds them because the list of attached
+ * hardware is itself identifying. Callers get a numbered placeholder rather
+ * than a row of blanks, and a second call after permission fills in the real
+ * names.
+ */
+export async function listAudioInputs(): Promise<AudioInput[]> {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) {
+    return [];
+  }
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices
+    .filter((device) => device.kind === "audioinput")
+    // A blank deviceId is what browsers report before permission has been
+    // granted. It cannot be passed back as a constraint, so offering it would
+    // be offering a choice that does nothing.
+    .filter((device) => device.deviceId && device.deviceId !== "default")
+    .map((device, index) => ({
+      deviceId: device.deviceId,
+      label: device.label || `Microphone ${index + 1}`,
+    }));
+}
 
 type WorkletMessage =
   | { type: "ready"; sampleRate: number }
@@ -70,7 +108,7 @@ export class MicCapture {
   static async start(
     onFrame: (frame: CaptureFrame) => void,
     onInfo: (info: CaptureInfo) => void,
-    { processing = false }: CaptureOptions = {},
+    { processing = false, deviceId }: CaptureOptions = {},
   ): Promise<MicCapture> {
     if (typeof navigator === "undefined" || !navigator.mediaDevices) {
       // Almost always the cause: served over plain http from a LAN address.
@@ -86,6 +124,7 @@ export class MicCapture {
         noiseSuppression: processing,
         autoGainControl: processing,
         channelCount: 1,
+        ...(deviceId ? { deviceId } : {}),
       },
       video: false,
     });

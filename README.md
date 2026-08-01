@@ -142,6 +142,21 @@ mic → mono         →    sliding window       →    fuzzy match → line
   the display at the end of every line, which is exactly where windows are
   weakest (the tail of the test recording scores 0.65 with a margin of 0.06
   and is entirely correct).
+- **The highlight runs slightly ahead of the model, on purpose.** Every
+  position reported is already old: the window's audio ends the moment it is
+  taken, the model then spends ~930 ms on it, and the highlight stands still
+  until the next result lands. So the screen is behind by the inference time
+  and drifts a further half-interval behind between updates. The fix is *not*
+  "highlight the next line" — a line is ~6 s of chanting against under 2 s of
+  lag, so that would overshoot for most of every line. Instead the tempo is
+  measured in normalised characters per second from where consecutive windows
+  actually landed, and the highlight walks that many characters forward.
+  Usually it stays inside the current line and only advances the progress bar;
+  near a boundary it crosses early, which is when a reader wants it to. It is
+  a display adjustment applied to the position the state machine *accepted*,
+  never to the raw match — otherwise a refused jump would drag the screen
+  across the chant anyway. Toggleable, because it is a hypothesis about what
+  feels right and only chanting at it will settle that.
 - **It would rather look stale than wrong.** A bad window holds the line
   instead of blanking it; four in a row give the lock up but leave the last
   known line on screen; silence pauses without losing the place, and only
