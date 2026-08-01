@@ -51,6 +51,8 @@ export default function ChantingScreen() {
    *  romanisation is what most people here actually read from. Neither is
    *  the obviously correct default, so it is a button. */
   const [devanagariLeads, setDevanagariLeads] = useState(false);
+  /** Set when the last position was settled by what was on screen. */
+  const [settledByView, setSettledByView] = useState(false);
   const [devices, setDevices] = useState<AudioInput[]>([]);
   const [deviceId, setDeviceId] = useState("");
 
@@ -58,11 +60,13 @@ export default function ChantingScreen() {
     flat,
     useCallback(
       (tick) => {
+        const matched = tick.state === "matched";
         const progress =
-          tick.state === "matched" && tick.result
-            ? progressThroughLine(tick.result, flat)
-            : 0;
+          matched && tick.result ? progressThroughLine(tick.result, flat) : 0;
         setState((previous) => follow(previous, tick, progress));
+        // Worth saying out loud: it is the one answer that came from
+        // somewhere other than the audio.
+        if (matched) setSettledByView(tick.result?.chosenByView ?? false);
       },
       [flat],
     ),
@@ -78,6 +82,8 @@ export default function ChantingScreen() {
 
   const verseRefs = useRef<(HTMLLIElement | null)[]>([]);
   const lastScrolledTo = useRef<number | null>(null);
+
+
 
   useEffect(() => {
     if (!autoScroll || displayIndex === null) return;
@@ -186,6 +192,47 @@ export default function ChantingScreen() {
       }))
       .filter((group) => group.lines.length > 0);
   }, [verses, matches]);
+
+  // --- what the reader can see -----------------------------------------------
+  //
+  // Several lines of this chant open identically — 3 and 33 both begin
+  // "namaste astu" — so a window of just those syllables fits both and the
+  // audio cannot separate them. Where someone has scrolled is real evidence
+  // about which they mean, and at that moment it is the only evidence there
+  // is. It settles ties only; see matcher.ts.
+  const setInView = session.setInView;
+  useEffect(() => {
+    const nodes = verseRefs.current;
+    const visible = new Set<number>();
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const index = nodes.indexOf(entry.target as HTMLLIElement);
+          if (index < 0) continue;
+          // A verse box covers every line in it, so mark them all.
+          for (let i = 0; i < nodes.length; i++) {
+            if (nodes[i] !== entry.target) continue;
+            if (entry.isIntersecting) visible.add(i);
+            else visible.delete(i);
+          }
+        }
+        setInView(visible.size ? visible : null);
+      },
+      // A sliver counts: a line half off the bottom of the screen is still
+      // one the reader can see and might be about to chant.
+      { threshold: 0.1 },
+    );
+
+    const seen = new Set<Element>();
+    for (const node of nodes) {
+      if (node && !seen.has(node)) {
+        seen.add(node);
+        observer.observe(node);
+      }
+    }
+    return () => observer.disconnect();
+  }, [setInView, shownVerses]);
 
   const toggleFullScreen = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen();
@@ -523,6 +570,9 @@ export default function ChantingScreen() {
           {current
             ? `line ${current.sequence} of ${lines.length}`
             : "tap any line to set the position by hand"}
+          {settledByView && running
+            ? " · matched what you were looking at"
+            : ""}
           {running && session.phase.kind === "running"
             ? ` · ${session.phase.device} · ${session.phase.source}`
             : ""}

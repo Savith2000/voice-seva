@@ -259,11 +259,16 @@ export function useAsrSession(
     [flat, stop],
   );
 
+  const setInView = useCallback((lines: Iterable<number> | null) => {
+    trackerRef.current?.setInView(lines);
+  }, []);
+
   return {
     phase,
     progress,
     start,
     stop,
+    setInView,
     get dropped() {
       return trackerRef.current?.dropped ?? 0;
     },

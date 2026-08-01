@@ -36,7 +36,40 @@ export type MatchResult = {
   spanLines: number[];
   /** The normalised text actually searched for. */
   query: string;
+  /**
+   * True when two places fitted about equally well and what was on screen
+   * decided between them. Worth surfacing: it is the one answer here that
+   * depends on something other than the audio.
+   */
+  chosenByView: boolean;
 };
+
+export type MatchOptions = {
+  /**
+   * Line indices currently visible on screen, if anything is.
+   *
+   * Used *only* to break a tie, never to overrule evidence. Several lines of
+   * this chant genuinely begin the same way — 3 and 33 both open "namaste
+   * astu", and 29 opens "namaste ast" — so a window of just those syllables
+   * fits all of them equally well and the matcher has nothing in the audio to
+   * separate them with. Where someone has scrolled is real information about
+   * which they mean, and it is the only information available at that moment.
+   *
+   * The failure this prevents is specific and nasty: chanting the opening of
+   * line 33 from line 26, having the matcher pick line 3, and being scrolled
+   * back to the top of a chant you are three quarters through.
+   */
+  inView?: Iterable<number> | null;
+  /**
+   * How close a rival has to be, in score, before the viewport is allowed to
+   * decide. Small on purpose — this is a tie-break, and a wide window would
+   * turn the scroll position into an override that quietly beats the audio.
+   */
+  tieWithin?: number;
+};
+
+/** Default for {@link MatchOptions.tieWithin}. */
+export const TIE_WITHIN = 0.08;
 
 /**
  * Best alignment of `query` against any substring of `flat.text`.
@@ -48,7 +81,11 @@ export type MatchResult = {
  * O(query × chant) — about 65,000 cells for a five-second window against
  * Anuvaka 1, which is nothing next to the ~885 ms the model itself takes.
  */
-export function match(raw: string, flat: FlatChant): MatchResult | null {
+export function match(
+  raw: string,
+  flat: FlatChant,
+  { inView = null, tieWithin = TIE_WITHIN }: MatchOptions = {},
+): MatchResult | null {
   const query = normalize(raw);
   const text = flat.text;
   if (!query || !text) return null;
@@ -99,6 +136,34 @@ export function match(raw: string, flat: FlatChant): MatchResult | null {
     if (prev[j] < bestDistance) {
       bestDistance = prev[j];
       bestEnd = j;
+    }
+  }
+
+  // Where two places fit about equally well, let the screen decide.
+  //
+  // Deliberately after the winner is known rather than folded into the search:
+  // this may only move the answer to a line that was *already* within
+  // `tieWithin` of the best, so the audio still decides whenever it has an
+  // opinion, and a scroll can never drag the position somewhere the recording
+  // does not support.
+  let chosenByView = false;
+  const visible = inView ? new Set(inView) : null;
+  if (visible && visible.size > 0 && !visible.has(flat.lineAt[bestEnd - 1])) {
+    const limit = bestDistance + tieWithin * m;
+    let viewEnd = -1;
+    let viewDistance = Infinity;
+    for (let j = 1; j <= n; j++) {
+      if (prev[j] > limit) continue;
+      if (!visible.has(flat.lineAt[j - 1])) continue;
+      if (prev[j] < viewDistance) {
+        viewDistance = prev[j];
+        viewEnd = j;
+      }
+    }
+    if (viewEnd > 0) {
+      bestEnd = viewEnd;
+      bestDistance = viewDistance;
+      chosenByView = true;
     }
   }
 
@@ -155,6 +220,7 @@ export function match(raw: string, flat: FlatChant): MatchResult | null {
     margin: runnerUp ? score - runnerUp.score : score,
     spanLines,
     query,
+    chosenByView,
   };
 }
 

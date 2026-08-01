@@ -218,6 +218,22 @@ mic → mono         →    sliding window       →    fuzzy match → line
 
   If jump latency needs attacking again, do it with a recording of someone
   actually jumping lines, not with a simulation.
+- **What is on screen breaks ties the audio cannot.** Lines 3 and 33 both open
+  `namaste astu`, and 29 opens `namaste ast` — so a window of just those
+  syllables fits all three about equally and there is nothing in the recording
+  to separate them. Where someone has scrolled is real evidence about which
+  they mean, and at that moment it is the only evidence there is. It prevents
+  a specific and nasty failure: chanting the opening of line 33 while three
+  quarters of the way down, having the matcher pick line 3, and being scrolled
+  back to the top.
+
+  It may **only break a tie**, never overrule evidence: the re-rank runs after
+  the winner is known and can only move the answer to a line already within
+  0.08 of the best score, so the audio still decides whenever it has an
+  opinion and a scroll can never drag the position somewhere the recording
+  does not support. Every one of the fifteen real transcripts is unmoved by
+  scrolling anywhere in the chant, and there is a test that fails if that
+  changes. When it does decide, the screen says so.
 - **It would rather look stale than wrong.** A bad window holds the line
   instead of blanking it; four in a row give the lock up but leave the last
   known line on screen; silence pauses without losing the place, and only

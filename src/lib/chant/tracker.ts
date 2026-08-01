@@ -138,6 +138,8 @@ export class SlidingWindowTracker {
   /** Smoothed inference time, and the pacing derived from it. */
   private averageInferenceMs: number | null = null;
   private pacingMs: number;
+  /** Lines currently on screen, used only to break a tie. See matcher.ts. */
+  private inView: number[] | null = null;
   /** Windows dropped because inference was still running. Worth surfacing. */
   private droppedWhileBusy = 0;
 
@@ -171,6 +173,17 @@ export class SlidingWindowTracker {
 
   get dropped(): number {
     return this.droppedWhileBusy;
+  }
+
+  /**
+   * Tell the matcher what the reader can see.
+   *
+   * Pushed in rather than pulled, because the tracker runs in a loop and the
+   * viewport changes with every scroll — reading it at match time would mean
+   * the loop reaching into the DOM.
+   */
+  setInView(lines: Iterable<number> | null): void {
+    this.inView = lines ? [...lines] : null;
   }
 
   /** Current gap between window starts, after duty-cycle protection. */
@@ -268,7 +281,7 @@ export class SlidingWindowTracker {
         audioSeconds,
         state: "matched",
         transcript: text,
-        result: match(text, this.flat),
+        result: match(text, this.flat, { inView: this.inView }),
         inferenceMs,
       });
     } catch {

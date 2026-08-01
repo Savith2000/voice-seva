@@ -379,6 +379,56 @@ test("a transcription that throws does not wedge the loop", async () => {
   assert.ok(ticks.some((t) => t.state === "matched"));
 });
 
+// --- what the reader can see ------------------------------------------------
+
+test("the viewport reaches the matcher", () => {
+  // Lines 3 and 33 both open "namaste astu", so the audio cannot separate
+  // them and whatever is on screen decides. This covers the hop from
+  // setInView to the match call; matcher.test.ts covers the rule itself.
+  const seen: (number | null)[] = [];
+  const clock = 0;
+  const tracker = new SlidingWindowTracker(
+    flat,
+    async () => ({ text: "नमस्ते अस्तु", inferenceMs: 20 }),
+    (tick) => {
+      if (tick.state === "matched") {
+        seen.push(tick.result ? tick.result.line.sequence : null);
+      }
+    },
+    { now: () => clock },
+  );
+
+  tracker.setInView([30, 31, 32]);
+  fill(tracker);
+  return Promise.resolve()
+    .then(() => Promise.resolve())
+    .then(() => {
+      assert.deepEqual(seen, [33], `matched line ${seen[0]} looking at the end`);
+    });
+});
+
+test("clearing the viewport goes back to the audio's own answer", () => {
+  const clock = 0;
+  const seen: number[] = [];
+  const tracker = new SlidingWindowTracker(
+    flat,
+    async () => ({ text: "नमस्ते अस्तु", inferenceMs: 20 }),
+    (tick) => {
+      if (tick.state === "matched" && tick.result) seen.push(tick.result.line.sequence);
+    },
+    { now: () => clock },
+  );
+
+  tracker.setInView(null);
+  fill(tracker);
+  return Promise.resolve()
+    .then(() => Promise.resolve())
+    .then(() => {
+      assert.equal(seen.length, 1);
+      assert.notEqual(seen[0], undefined);
+    });
+});
+
 // --- the window itself ------------------------------------------------------
 
 test("the window settles at exactly five seconds and never grows", async () => {

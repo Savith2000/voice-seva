@@ -201,6 +201,96 @@ test("a phrase unique to one line reports a wide margin", () => {
   assert.ok(result.margin > 0.3, `margin was only ${result.margin}`);
 });
 
+// --- what is on screen breaks ties ------------------------------------------
+
+// Line 3 and line 33 both open "namaste astu"; line 29 opens "namaste ast".
+// A window of just those syllables fits all three about equally, and there is
+// nothing in the audio to separate them.
+const AMBIGUOUS_OPENING = "नमस्ते अस्तु";
+
+test("the ambiguous opening really is ambiguous", () => {
+  // If this ever stops being true the tests below stop testing anything.
+  const plain = match(AMBIGUOUS_OPENING, flat)!;
+  assert.ok(plain.margin < 0.1, `margin ${plain.margin} — no longer a tie`);
+  assert.ok([3, 29, 33].includes(plain.line.sequence));
+});
+
+test("a tie is settled by the line the reader is looking at", () => {
+  // The failure this prevents: chanting the opening of line 33 while three
+  // quarters of the way down the chant, and being thrown back to line 3.
+  const atTheEnd = match(AMBIGUOUS_OPENING, flat, { inView: [30, 31, 32] })!;
+  assert.equal(atTheEnd.line.sequence, 33);
+  assert.equal(atTheEnd.chosenByView, true);
+
+  const atTheTop = match(AMBIGUOUS_OPENING, flat, { inView: [0, 1, 2, 3] })!;
+  assert.equal(atTheTop.line.sequence, 3);
+});
+
+test("the viewport cannot overrule evidence, only settle a tie", () => {
+  // The whole safety of the idea. A full line is unambiguous, and no amount
+  // of scrolling elsewhere may drag the position off it.
+  const line5 = lineBySequence(flat, 5)!;
+  const result = match(line5.devanagari, flat, { inView: [30, 31, 32] })!;
+  assert.equal(result.line.sequence, 5);
+  assert.equal(result.chosenByView, false);
+  assert.equal(result.score, 1);
+});
+
+test("a rival just outside the tie window is left alone", () => {
+  // tieWithin is deliberately narrow. Widening it would turn the scroll
+  // position into an override that quietly beats the audio.
+  const result = match(AMBIGUOUS_OPENING, flat, {
+    inView: [30, 31, 32],
+    tieWithin: 0,
+  })!;
+  // With no tolerance at all only an exact tie can move, so this either stays
+  // put or moves to something scoring identically.
+  const moved = match(AMBIGUOUS_OPENING, flat, { inView: [30, 31, 32] })!;
+  assert.ok(result.score >= moved.score - 1e-9);
+});
+
+test("looking at the line the audio already chose changes nothing", () => {
+  const plain = match(AMBIGUOUS_OPENING, flat)!;
+  const same = match(AMBIGUOUS_OPENING, flat, {
+    inView: [plain.lineIndex],
+  })!;
+  assert.equal(same.line.sequence, plain.line.sequence);
+  assert.equal(same.chosenByView, false);
+});
+
+test("an empty or absent viewport behaves exactly as before", () => {
+  const plain = match(AMBIGUOUS_OPENING, flat)!;
+  for (const inView of [null, undefined, [] as number[]]) {
+    const result = match(AMBIGUOUS_OPENING, flat, { inView })!;
+    assert.equal(result.line.sequence, plain.line.sequence);
+    assert.equal(result.chosenByView, false);
+  }
+});
+
+test("the reported span and score still describe the line that was chosen", () => {
+  const result = match(AMBIGUOUS_OPENING, flat, { inView: [30, 31, 32] })!;
+  assert.equal(flat.lineAt[result.end - 1], result.lineIndex);
+  assert.equal(result.spanLines[result.spanLines.length - 1], result.lineIndex);
+  assert.ok(result.score > 0.8, `score collapsed to ${result.score}`);
+});
+
+test("every real transcript is unmoved by the viewport", () => {
+  // Ordinary chanting is not ambiguous, so scrolling around must not disturb
+  // it. If it does, tieWithin is too wide.
+  for (const take of allTakes) {
+    const plain = match(take, flat)!;
+    for (const inView of [[0, 1, 2], [15, 16, 17], [30, 31, 32]]) {
+      const withView = match(take, flat, { inView })!;
+      assert.equal(
+        withView.line.sequence,
+        plain.line.sequence,
+        `"${take}" moved to line ${withView.line.sequence} when looking at ` +
+          `lines ${inView.map((i) => i + 1).join(", ")}`,
+      );
+    }
+  }
+});
+
 // --- degenerate input -------------------------------------------------------
 
 test("input that normalises to nothing returns null rather than a guess", () => {
