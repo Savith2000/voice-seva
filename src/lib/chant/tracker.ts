@@ -41,12 +41,20 @@ export const DEFAULT_INTERVAL_MS = 250;
 /**
  * How much of the transcript counts as "recent".
  *
- * Swept against simulated jumps: 30% notices marginally sooner (1.00 s vs
- * 1.25 s) but proposes three times as many jumps that are not happening, and
- * 50% is safer still but gives back most of the speed. 40% is where the curve
- * turns.
+ * Swept against simulated jumps, median time to notice one:
+ *
+ *   30%  1.00 s      40%  1.25 s      50%  slower again
+ *
+ * The cost of a shorter tail is discriminability. Over 3,177 windows of
+ * ordinary chanting, 30% proposed a jump that was not happening three times
+ * and 40% once — but every one of those was medium confidence, and a tail
+ * proposal can only ever propose. Corroboration refused all of them, and
+ * `follow.test.ts` pins that end to end rather than trusting it.
+ *
+ * So the extra proposals cost nothing that reaches the screen, and 30% is
+ * the faster of two safe options.
  */
-export const RECENT_FRACTION = 0.4;
+export const RECENT_FRACTION = 0.3;
 
 /** Never match a tail shorter than this; a stub matches everywhere. */
 export const MIN_RECENT_CHARS = 8;
@@ -110,8 +118,8 @@ export type MatchedTick = TickBase & {
    *
    * It is strictly less discriminative than the full window, so it is only
    * ever allowed to *propose* — see follow.ts. Measured over 3,177 windows of
-   * ordinary chanting it proposed a jump that was not happening once, at
-   * medium confidence, which corroboration then refused.
+   * ordinary chanting it proposed a jump that was not happening three times,
+   * all at medium confidence, and corroboration refused every one.
    */
   recent: MatchResult | null;
   inferenceMs: number;

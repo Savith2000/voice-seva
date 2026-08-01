@@ -348,6 +348,78 @@ test("a jump is followed within a couple of seconds of chanting the new line", (
   );
 });
 
+test("chanting straight through never lands the screen on the wrong line", () => {
+  // The counter-test for the tail. A shorter tail notices jumps sooner and is
+  // less discriminative, so it proposes jumps that are not happening — three
+  // times in 3,177 windows at a realistic error rate. What matters is not the
+  // proposal count but whether any of them survive corroboration and reach
+  // the screen, so this chants the whole anuvaka through the real reducer at
+  // four windows a second and counts landings that are wrong.
+  //
+  // The noise here goes to 20%, double the model's measured error rate: if
+  // the tail is going to mislead, this is where it shows.
+  const CPS = 5.5;
+  const WINDOW = Math.round(5 * CPS);
+  const STEP = Math.max(1, Math.round(0.25 * CPS));
+
+  const degrade = (text: string, rate: number, seed: number) => {
+    let s = seed;
+    const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const SUBS: Record<string, string> = {
+      "क": "ग", "त": "द", "स": "श", "प": "ब", "न": "म", "र": "ल",
+    };
+    let out = "";
+    for (const ch of text) {
+      if (rnd() < rate) {
+        if (rnd() < 0.5) continue;
+        out += SUBS[ch] ?? ch;
+      } else out += ch;
+    }
+    return out;
+  };
+
+  for (const noise of [0, 0.1, 0.2]) {
+    let state = INITIAL;
+    let at = 0;
+    const wrong: string[] = [];
+
+    for (let end = WINDOW; end <= flat.text.length; end += STEP) {
+      const truth = flat.lineAt[end - 1];
+      const text = degrade(flat.text.slice(end - WINDOW, end), noise, 1000 + end);
+      at += 250;
+      const before = state.lineIndex;
+      state = follow(
+        state,
+        {
+          at,
+          rms: 0.2,
+          audioSeconds: 5,
+          state: "matched",
+          transcript: text,
+          result: match(text, flat),
+          recent: matchRecent(text, flat),
+          inferenceMs: 60,
+        },
+        0.5,
+        0.5,
+      );
+      const landed = state.lineIndex;
+      if (state.kind !== "locked" || landed === null || landed === before) {
+        continue;
+      }
+      if (Math.abs(landed - truth) > 1) {
+        wrong.push(`line ${truth + 1} -> ${landed + 1}`);
+      }
+    }
+
+    assert.deepEqual(
+      wrong,
+      [],
+      `at ${noise * 100}% noise the screen jumped wrongly: ${wrong.join(", ")}`,
+    );
+  }
+});
+
 test("a single tail proposal never moves the screen, however confident", () => {
   // The tail is less discriminative than the full window — over 3,177 windows
   // of ordinary chanting it proposed a jump that was not happening once. It
