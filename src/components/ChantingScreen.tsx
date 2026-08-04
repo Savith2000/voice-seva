@@ -1057,6 +1057,60 @@ const CSS = `
 .vs-model{font-size:13px; line-height:1.65; color:var(--ink2); text-align:right; font-style:italic}
 .vs-modelnote{margin-top:4px}
 
+/* ---------------------------------------------------------------------------
+   THE PAGE BEING SET
+
+   One authored moment, and it belongs to this world rather than to the web's:
+   a page is composed text-block first and apparatus after. The sheet is laid,
+   the impression lands on it, and only then do the margins compose around the
+   text — measure drawing in from the spine edge, gloss and seal from the outer
+   edge, colophon last.
+
+   That order is the argument. Most pages animate their chrome in first and let
+   the content arrive last; here the scripture IS the page and everything else
+   is marginalia, so the marginalia wait.
+
+   Blur is doing real work rather than decorating: type resolving out of a soft
+   field is how an impression looks as it meets paper, and it is the one
+   material that says "printed" instead of "moved". It is bounded to one region
+   and 560 ms, and it never runs again.
+
+   Nothing here gates on JavaScript and no animation fills forwards, so a sheet
+   that fails to load leaves every element at its ordinary visible value rather
+   than hiding the page. 820 ms end to end, and the Listen control is live from
+   the first frame — this is an Operate surface and no one waits on it.
+   --------------------------------------------------------------------------- */
+@keyframes vs-sheet{from{opacity:0; transform:scaleX(.86)} to{opacity:1; transform:scaleX(1)}}
+@keyframes vs-lay{from{background:var(--page)} to{background:var(--paper)}}
+@keyframes vs-impress{
+  from{opacity:0; transform:translateY(8px); filter:blur(3px)}
+  to{opacity:1; transform:none; filter:blur(0)}
+}
+@keyframes vs-compose-in{from{opacity:0; transform:translateX(-7px)} to{opacity:1; transform:none}}
+@keyframes vs-compose-out{from{opacity:0; transform:translateX(7px)} to{opacity:1; transform:none}}
+@keyframes vs-settle{from{opacity:0; transform:translateY(5px)} to{opacity:1; transform:none}}
+
+.vs-stage{--ease:cubic-bezier(.16,1,.3,1)}
+.vs-hr{animation:vs-sheet 460ms var(--ease) backwards}
+.vs-window{animation:vs-lay 460ms var(--ease) backwards}
+.vs-scroll{animation:vs-impress 560ms var(--ease) 140ms backwards}
+.vs-head{animation:vs-settle 420ms var(--ease) 260ms backwards}
+.vs-measure{animation:vs-compose-in 420ms var(--ease) 320ms backwards}
+.vs-margin{animation:vs-compose-out 420ms var(--ease) 360ms backwards}
+.vs-colophon{animation:vs-settle 420ms var(--ease) 400ms backwards}
+
+/* The audience skews older and this is a devotional instrument, so the
+   preference is honoured completely — not softened to a shorter version of the
+   same movement. The state disc stops breathing too; a pulse someone did not
+   ask for is the thing this setting exists to turn off. */
+@media (prefers-reduced-motion: reduce){
+  .vs-hr, .vs-window, .vs-scroll, .vs-head,
+  .vs-measure, .vs-margin, .vs-colophon{animation:none}
+  .vs-disc{animation:none !important}
+  .vs-clip{scroll-behavior:auto}
+  .vs-scroll, .vs-prog i, .vs-tick, .vs-leadtext{transition:none}
+}
+
 @media (max-width:1240px){
   .vs-stage{padding:26px 32px 22px}
   .vs-middle{grid-template-columns:58px 1fr 250px; gap:26px}
