@@ -799,6 +799,12 @@ export default function ChantingScreen() {
  * an underline pinned to the bottom of the container would sit under the wrong
  * row entirely.
  *
+ * The mark travels only WITHIN a row. A row that is gaining it places it
+ * outright, because it still holds the transform from the last time it was
+ * selected — so animating the arrival meant fading in and sliding across from
+ * a stale position at once, two motions with no cause the reader could see.
+ * Namakam to Chamakam is a change of line, not a journey along one.
+ *
  * Deliberately no dependency array. Any selection change re-renders this
  * subtree anyway, and enumerating the inputs is the bug I already shipped once
  * on the scroll placement — the list looks complete and silently rots. Reading
@@ -806,22 +812,38 @@ export default function ChantingScreen() {
  */
 function useSlider() {
   const ref = useRef<HTMLElement | null>(null);
+  /** Did this group hold the mark on the previous measure? */
+  const held = useRef(false);
 
   const measure = useCallback(() => {
     const box = ref.current;
     if (!box) return;
     const on = box.querySelector<HTMLElement>('[data-on="true"]');
-    // No selection in this group — the other work's row owns the mark. It
-    // fades rather than sliding, because a line cannot travel between two
-    // rows without crossing text that has nothing to do with either.
+
+    // No selection here — the other row owns the mark. Gone, not faded.
     if (!on) {
+      box.setAttribute("data-jump", "");
       box.style.setProperty("--o", "0");
+      held.current = false;
       return;
     }
+
+    // Arriving in a row that did not have it: place the mark, do not fly it in.
+    const arriving = !held.current;
+    if (arriving) box.setAttribute("data-jump", "");
+
     box.style.setProperty("--o", "1");
     box.style.setProperty("--x", `${on.offsetLeft}px`);
     box.style.setProperty("--y", `${on.offsetTop + on.offsetHeight}px`);
     box.style.setProperty("--w", `${on.offsetWidth}px`);
+
+    if (arriving) {
+      // Commit the placement while transitions are still off, so the next
+      // move inside this row animates from where the mark actually is.
+      void box.offsetWidth;
+      box.removeAttribute("data-jump");
+      held.current = true;
+    }
   }, []);
 
   useLayoutEffect(measure);
@@ -1196,16 +1218,21 @@ const CSS = `
 
    Width eases a touch faster than position, so the line settles into its new
    length just after it arrives rather than stretching the whole way — a rule
-   that resizes while travelling reads as rubber, and this world is ink. --- */
+   that resizes while travelling reads as rubber, and this world is ink.
+
+   It travels only within a row. Moving between Namakam and Chamakam is a
+   change of line rather than a journey along one, so the mark is simply
+   somewhere else: data-jump suppresses the transition for exactly that
+   frame. --------------------------------------------------------------- */
 .vs-navrow::after, .vs-v::after{
   content:""; position:absolute; left:0; top:0;
   width:var(--w,0); height:2px; background:var(--saffron-full);
   opacity:var(--o,0);
   transform:translate(var(--x,0), var(--y,0));
-  transition:transform 420ms var(--ease), width 340ms var(--ease),
-             opacity 260ms var(--ease);
+  transition:transform 420ms var(--ease), width 340ms var(--ease);
   pointer-events:none;
 }
+.vs-navrow[data-jump]::after, .vs-v[data-jump]::after{transition:none}
 .vs-v::after{height:1.5px}
 
 /* Spoken, not shown — the stack above is hidden from assistive tech. */
