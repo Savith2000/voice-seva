@@ -1,58 +1,147 @@
 "use client";
 
-// Chunk 9: the actual interface, as opposed to the instruments.
+// The chanting screen — a page of a printed book, not an application window.
 //
-// Every design decision here is about calm. The screen is looked at by someone
-// mid-recitation who cannot stop to interpret it, so: one line is bright and
-// the rest are legible but quiet, scrolling is slow and only when needed, and
-// the status text says what is happening in words rather than numbers. When
-// the app is unsure it says so and holds still — a screen that guesses is
-// worse than one that admits it is lost, because a wrong line pulls someone
-// out of the chant and a stale one does not.
+// Design direction C, chosen 2026-08-04 from three built alternatives; the
+// reasoning and the two rejected directions are in design/direction-approved.md
+// and the working pages are in design/design-demos/. Read those before
+// reshaping any of this, because most of what looks arbitrary here is load
+// bearing.
+//
+// The idea it is built on is emptiness as a vessel. The reading window holds
+// nothing of its own — it is drawn only as a slightly lighter field of unprinted
+// paper between two rules. The chanter fills it: the active line is inked from
+// left to right by their own voice, word by word, at the progress the tracker
+// reports. A person reciting scripture is filling exactly such a vessel, so the
+// screen should hold rather than perform.
+//
+// Everything else follows from the page metaphor. The measure down the left is
+// the fore-edge of a book, telling you where you are in a text whose length is
+// already fixed. The meaning sits in the outer margin as a gloss beside the
+// verse it glosses. The emblem is set at the foot of that margin as a printer's
+// seal rather than as a logo in a navigation bar. The controls are a colophon
+// along the bottom, and they withdraw after ten seconds of stillness — present
+// when wanted, gone while chanting.
+//
+// Three inks, as a book is printed: ink for the received text, SSIO blue for
+// every piece of apparatus, and saffron for the voice alone. Full-chroma brand
+// orange is spent on exactly two marks — the progress rule and the following
+// disc — and nothing else in the product wears it.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import { DEVANAGARI_STACK } from "@/components/ChantLineView";
 import { listAudioInputs, type AudioInput } from "@/lib/audio/capture";
 import { allLines, flatten, type ChantLine } from "@/lib/chant/chant";
-import { chant } from "@/lib/chant/chant-data";
-import { INITIAL, follow, statusLine, type FollowState } from "@/lib/chant/follow";
+import { chant, works } from "@/lib/chant/chant-data";
+import { INITIAL, follow, pin, type FollowState } from "@/lib/chant/follow";
 import { progressThroughLine } from "@/lib/chant/matcher";
 import { useAsrSession } from "@/lib/chant/use-asr-session";
 
-const FONT_STEPS = [0.85, 1, 1.2, 1.45, 1.75] as const;
-const DEFAULT_FONT_STEP = 1;
+/** Three steps of text size, plainly named. */
+const SIZES = [0.86, 1, 1.18] as const;
+const SIZE_NAMES = ["Small", "Medium", "Large"] as const;
+
+const ROMAN = [
+  "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI",
+  "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX",
+] as const;
 
 /**
- * Strip IAST diacritics so search works the way people type.
+ * Light is a dimmer, not a mode switch.
  *
- * The transliteration is "mṛtyuñjayāya", and nobody hunting for a line
- * mid-recitation is going to produce ṛ or ñ. Decomposing and dropping the
- * combining marks makes "mrtyunjayaya" find it — and "sivo", and "namaste".
- *
- * Applied only to the romanised side. NFD decomposes Devanagari too, and
- * dropping its combining marks would delete every matra and turn the text
- * into a row of bare consonants.
+ * A light page genuinely reads better at three metres — positive polarity gives
+ * better acuity for small complex glyphs, and Devanagari carrying svara marks
+ * is exactly that case. But a full white screen at five in the morning is a
+ * lamp pointed at the reciter's face, and that is a functional cost rather than
+ * a matter of taste. So all three are real, and the sheet inverting to ink
+ * changes only the polarity of the paper: the composition, the measure, the
+ * vessel and the seal are identical.
  */
-function foldDiacritics(text: string): string {
-  return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+const LIGHTS = {
+  day: {
+    "--page": "#F6F1E7", "--paper": "#FCF8F0",
+    "--ink": "#1F1810", "--ink2": "#544A3D", "--ink3": "#6B6052",
+    "--blue": "#0C5098", "--rule": "rgba(12,80,152,.30)", "--rule-soft": "rgba(12,80,152,.16)",
+    "--saffron": "#96450A", "--saffron-full": "#EE7900", "--saffron-pale": "rgba(238,121,0,.20)",
+  },
+  lamp: {
+    "--page": "#E8E1D3", "--paper": "#F1EBDE",
+    "--ink": "#221B12", "--ink2": "#5C5245", "--ink3": "#6F6456",
+    "--blue": "#0C5098", "--rule": "rgba(12,80,152,.32)", "--rule-soft": "rgba(12,80,152,.17)",
+    "--saffron": "#9C4A05", "--saffron-full": "#EE7900", "--saffron-pale": "rgba(238,121,0,.22)",
+  },
+  dawn: {
+    "--page": "#131110", "--paper": "#1C1917",
+    "--ink": "#EDE6D8", "--ink2": "#A99C88", "--ink3": "#9C907D",
+    "--blue": "#8FB3DC", "--rule": "rgba(143,179,220,.34)", "--rule-soft": "rgba(143,179,220,.18)",
+    "--saffron": "#EE9A45", "--saffron-full": "#EE7900", "--saffron-pale": "rgba(238,154,69,.24)",
+  },
+} as const;
+
+type Light = keyof typeof LIGHTS;
+type Lead = "dev" | "ia";
+
+/** Quiet this long and the marginalia withdraw. */
+const STILL_AFTER_MS = 10_000;
+
+/**
+ * A printed group up to this many lines is kept whole; longer ones read in twos.
+ *
+ * Four, because the closing salutation of Namakam anuvaka 1 is four lines and
+ * is chanted as one breath — splitting it would put a break where a reciter
+ * does not take one.
+ */
+const HELD_TOGETHER = 4;
+
+const STATE_WORDS = {
+  following: { word: "Following.", sub: "Your voice is being tracked line by line." },
+  holding: { word: "Holding position…", sub: "Still on the last line it was sure of." },
+  locating: { word: "Locating chanting position…", sub: "It can hear you. It has not found the line yet." },
+  idle: { word: "Not listening.", sub: "The microphone is off. Nothing is being heard." },
+} as const;
+
+type Condition = keyof typeof STATE_WORDS;
+
+function conditionOf(state: FollowState, running: boolean): Condition {
+  if (!running) return "idle";
+  if (state.kind === "locked") return state.holding ? "holding" : "following";
+  if (state.kind === "searching") return "locating";
+  return "idle";
 }
 
 export default function ChantingScreen() {
   const flat = useMemo(() => flatten(chant), []);
   const lines = useMemo(() => allLines(chant), []);
+  const grouped = useMemo(() => works(), []);
+
+  /** Which section each line belongs to, and where each section starts. */
+  const { sectionOf, sectionStart } = useMemo(() => {
+    const of: number[] = [];
+    const start: number[] = [];
+    let n = 0;
+    chant.anuvakas.forEach((section, index) => {
+      start.push(n);
+      for (let i = 0; i < section.lines.length; i++) of.push(index);
+      n += section.lines.length;
+    });
+    return { sectionOf: of, sectionStart: start };
+  }, []);
 
   const [state, setState] = useState<FollowState>(INITIAL);
+  const [lead, setLead] = useState<Lead>("dev");
+  const [light, setLight] = useState<Light>("lamp");
+  const [size, setSize] = useState(1);
+  const [showGloss, setShowGloss] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
-  const [fontStep, setFontStep] = useState(DEFAULT_FONT_STEP);
-  const [query, setQuery] = useState("");
-  const [showMeaning, setShowMeaning] = useState(true);
-  /** Which script gets the large size. Devanagari is the source; the
-   *  romanisation is what most people here actually read from. Neither is
-   *  the obviously correct default, so it is a button. */
-  const [devanagariLeads, setDevanagariLeads] = useState(false);
-  /** Set when the last position was settled by what was on screen. */
-  const [settledByView, setSettledByView] = useState(false);
+  const [still, setStill] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [devices, setDevices] = useState<AudioInput[]>([]);
   const [deviceId, setDeviceId] = useState("");
 
@@ -60,13 +149,11 @@ export default function ChantingScreen() {
     flat,
     useCallback(
       (tick) => {
-        const matched = tick.state === "matched";
         const progress =
-          matched && tick.result ? progressThroughLine(tick.result, flat) : 0;
+          tick.state === "matched" && tick.result
+            ? progressThroughLine(tick.result, flat)
+            : 0;
         setState((previous) => follow(previous, tick, progress));
-        // Worth saying out loud: it is the one answer that came from
-        // somewhere other than the audio.
-        if (matched) setSettledByView(tick.result?.chosenByView ?? false);
       },
       [flat],
     ),
@@ -74,576 +161,903 @@ export default function ChantingScreen() {
 
   const running = session.phase.kind === "running";
   const starting = session.phase.kind === "starting";
+  const condition = conditionOf(state, running || starting);
 
-  const displayIndex = state.lineIndex;
-  const displayProgress = state.progress;
+  // Before anything has been heard the page still has to be a page, so it opens
+  // on the first line rather than on nothing.
+  const active = state.lineIndex ?? 0;
+  const section = chant.anuvakas[sectionOf[active] ?? 0];
+  const sectionIndex = sectionOf[active] ?? 0;
+  const withinSection = active - (sectionStart[sectionIndex] ?? 0);
 
-  // --- scrolling -------------------------------------------------------------
+  // --- the scroll ----------------------------------------------------------
+  //
+  // The reading area is a real scroll container, and the fade belongs to the
+  // container rather than to the content moving through it. scrollIntoView is
+  // deliberately not used: it walks up and scrolls every ancestor it can find,
+  // which fights the page's own layout.
 
-  const verseRefs = useRef<(HTMLLIElement | null)[]>([]);
-  const lastScrolledTo = useRef<number | null>(null);
-
-
-
-  useEffect(() => {
-    if (!autoScroll || displayIndex === null) return;
-    // Only scroll when the line actually changes. Re-centring on every window
-    // would mean the page creeping under the reader once a second, which is
-    // more distracting than not scrolling at all.
-    if (lastScrolledTo.current === displayIndex) return;
-    lastScrolledTo.current = displayIndex;
-    verseRefs.current[displayIndex]?.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-    });
-  }, [displayIndex, autoScroll]);
-
-  // --- manual control --------------------------------------------------------
-
-  /** Put the position somewhere by hand, and treat it as a firm lock.
-   *
-   * Requirement 1.6: the user must be able to correct the app. A correction
-   * that the next window immediately overrules would be worse than none, so
-   * this lands as a locked position and the ordinary "jumping needs
-   * corroboration" rule then protects it. */
-  const selectLine = useCallback((index: number) => {
-    lastScrolledTo.current = null;
-    setState((previous) => ({
-      ...previous,
-      kind: "locked",
-      lineIndex: index,
-      progress: 0,
-      confidence: "high",
-      holding: !previous.heardAt,
-      misses: 0,
-      candidate: null,
-    }));
-  }, []);
+  const clipRef = useRef<HTMLDivElement | null>(null);
+  const stackRef = useRef<HTMLDivElement | null>(null);
+  const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const followedRef = useRef<number | null>(null);
 
   /**
-   * The verses, each holding its own lines.
+   * Bring the tracked line to the anchor.
    *
-   * A verse is two half-lines separated by a danda, which is how the book
-   * sets it and how it is chanted — so showing them together means the whole
-   * unit is in front of you rather than half of it. Fifteen of the eighteen
-   * are exactly two lines; the three that are not (the opening invocation,
-   * verse 10, and the closing salutation) really are single lines, which is
-   * why this groups by verse rather than by pairs. Blind pairs would put the
-   * invocation and the first half of verse 2 in the same box.
+   * The reading area is a real scroll container. It used to be a fixed window
+   * with the whole stack translated under it by transform, which animated
+   * beautifully and could not be scrolled by hand at all — no wheel, no
+   * trackpad, no touch, no keyboard, no scrollbar. The only way to move was to
+   * click a line, which is exactly the wrong affordance for a reader who wants
+   * to glance ahead. Native overflow gets all of that for free, and
+   * scroll-behavior does the smoothing.
    */
-  const verses = useMemo(() => {
-    const out: { verse: number; lines: ChantLine[] }[] = [];
-    for (const line of lines) {
-      const last = out[out.length - 1];
-      if (last && last.verse === line.verse) last.lines.push(line);
-      else out.push({ verse: line.verse, lines: [line] });
-    }
-    return out;
-  }, [lines]);
+  const place = useCallback(
+    (smooth = true) => {
+      const clip = clipRef.current;
+      const node = lineRefs.current[active];
+      if (!clip || !node || !autoScroll) return;
+      // Centre the UNIT, not the line. Centring the line puts the other half of
+      // the couplet above the fade, so the reader sees half of the thing they
+      // are chanting — which is the failure the unit grouping exists to fix.
+      const unit = node.closest<HTMLElement>(".vs-unit") ?? node;
+      const target =
+        unit.offsetTop + unit.offsetHeight / 2 - clip.clientHeight * 0.5;
+      clip.scrollTo({
+        top: Math.max(0, target),
+        behavior: smooth ? "smooth" : "auto",
+      });
+    },
+    [active, autoScroll],
+  );
 
-  const matches = useMemo(() => {
-    const raw = query.trim();
-    if (!raw) return null;
-    const needle = foldDiacritics(raw);
-    return lines.filter(
-      (line) =>
-        foldDiacritics(line.transliteration).includes(needle) ||
-        line.devanagari.includes(raw) ||
-        String(line.sequence) === raw,
-    );
-  }, [query, lines]);
+  // Follow only when the position actually moves. Re-anchoring on every render
+  // would drag the page back the instant anyone scrolled away to look ahead.
+  useEffect(() => {
+    if (followedRef.current === active) return;
+    followedRef.current = active;
+    place();
+  }, [active, place]);
 
-  // --- microphones -----------------------------------------------------------
+  // Watch the stack rather than trying to list everything that could move it.
+  //
+  // Changing script or text size re-flows every one of the 303 lines, so every
+  // offset the placement depends on changes at once. Naming those inputs as
+  // effect dependencies looks right and silently rots: it left the reader
+  // parked sixty lines above the line the tracker was actually on, with the
+  // heading and the gloss both correctly reporting somewhere the screen was
+  // not showing. Observing the content covers the cases nobody thought to
+  // list, including a webfont finishing loading after first paint.
+  useEffect(() => {
+    const stack = stackRef.current;
+    if (!stack) return;
+    const observer = new ResizeObserver(() => place(false));
+    observer.observe(stack);
+    return () => observer.disconnect();
+  }, [place]);
 
+  // --- what the reader can see ---------------------------------------------
+  //
+  // Several lines of this chant genuinely open the same way, and Namakam
+  // anuvaka 11 repeats a refrain verbatim — after normalisation those two lines
+  // are identical, so no amount of audio can separate them. Where someone has
+  // scrolled is real evidence about which they mean, and at that moment it is
+  // the only evidence there is. It settles ties only; see matcher.ts.
+  const setInView = session.setInView;
+  useEffect(() => {
+    const clip = clipRef.current;
+    if (!clip) return;
+    const report = () => {
+      const top = clip.scrollTop;
+      const bottom = top + clip.clientHeight;
+      const visible = new Set<number>();
+      lineRefs.current.forEach((node, index) => {
+        if (!node) return;
+        if (node.offsetTop + node.offsetHeight > top && node.offsetTop < bottom) {
+          visible.add(index);
+        }
+      });
+      setInView(visible.size ? visible : null);
+    };
+    report();
+    clip.addEventListener("scroll", report, { passive: true });
+    return () => clip.removeEventListener("scroll", report);
+  }, [setInView]);
+
+  // --- marginalia withdraw while chanting, return on any movement -----------
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const wake = () => {
+      setStill(false);
+      clearTimeout(timer);
+      timer = setTimeout(() => setStill(true), STILL_AFTER_MS);
+    };
+    const events = ["mousemove", "keydown", "pointerdown", "wheel"] as const;
+    events.forEach((name) => window.addEventListener(name, wake, { passive: true }));
+    wake();
+    return () => {
+      clearTimeout(timer);
+      events.forEach((name) => window.removeEventListener(name, wake));
+    };
+  }, []);
+
+  // --- microphones ----------------------------------------------------------
   const refreshDevices = useCallback(async () => {
     try {
       setDevices(await listAudioInputs());
     } catch {
-      // Enumeration is a convenience; a failure here must not stop anyone
-      // from chanting on the default input.
+      // Enumeration is a convenience; failing it must not stop anyone chanting.
     }
   }, []);
 
   useEffect(() => {
-    // Deferred, as elsewhere in this codebase: enumeration resolves into a
-    // setState, and React objects to one being reachable synchronously from
-    // an effect body.
+    // Deferred: enumeration resolves into a setState, and React objects to one
+    // being reachable synchronously from an effect body.
     queueMicrotask(() => void refreshDevices());
-    // Labels stay blank until permission is granted, and the set changes when
-    // a headset is plugged in mid-session.
     navigator.mediaDevices?.addEventListener("devicechange", refreshDevices);
     return () =>
       navigator.mediaDevices?.removeEventListener("devicechange", refreshDevices);
   }, [refreshDevices]);
 
   useEffect(() => {
-    // Real names arrive only once a stream has been opened.
     if (running) queueMicrotask(() => void refreshDevices());
   }, [running, refreshDevices]);
 
-  /** Verses to show: all of them, or only those a search touched. */
-  const shownVerses = useMemo(() => {
-    if (!matches) return verses;
-    const wanted = new Set(matches.map((line) => line.sequence));
-    return verses
-      .map((group) => ({
-        ...group,
-        lines: group.lines.filter((line) => wanted.has(line.sequence)),
-      }))
-      .filter((group) => group.lines.length > 0);
-  }, [verses, matches]);
-
-  // --- what the reader can see -----------------------------------------------
-  //
-  // Several lines of this chant open identically — 3 and 33 both begin
-  // "namaste astu" — so a window of just those syllables fits both and the
-  // audio cannot separate them. Where someone has scrolled is real evidence
-  // about which they mean, and at that moment it is the only evidence there
-  // is. It settles ties only; see matcher.ts.
-  const setInView = session.setInView;
-  useEffect(() => {
-    const nodes = verseRefs.current;
-    const visible = new Set<number>();
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const index = nodes.indexOf(entry.target as HTMLLIElement);
-          if (index < 0) continue;
-          // A verse box covers every line in it, so mark them all.
-          for (let i = 0; i < nodes.length; i++) {
-            if (nodes[i] !== entry.target) continue;
-            if (entry.isIntersecting) visible.add(i);
-            else visible.delete(i);
-          }
-        }
-        setInView(visible.size ? visible : null);
-      },
-      // A sliver counts: a line half off the bottom of the screen is still
-      // one the reader can see and might be about to chant.
-      { threshold: 0.1 },
-    );
-
-    const seen = new Set<Element>();
-    for (const node of nodes) {
-      if (node && !seen.has(node)) {
-        seen.add(node);
-        observer.observe(node);
-      }
-    }
-    return () => observer.disconnect();
-  }, [setInView, shownVerses]);
+  /** Put the position somewhere by hand — and have it stick.
+   *
+   * This overrules the audio rather than competing with it: see `pinned` in
+   * follow.ts. Tapping a line is a statement about where the reader is, and the
+   * window arriving right after a tap is the least trustworthy one there is,
+   * because the five seconds it describes are mostly the line just left. */
+  const selectLine = useCallback((index: number) => {
+    setState((previous) => pin(previous, index, performance.now()));
+  }, []);
 
   const toggleFullScreen = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen();
     else void document.documentElement.requestFullscreen();
   }, []);
 
-  const scale = FONT_STEPS[fontStep];
+  // --- the reading unit ----------------------------------------------------
+  //
+  // What goes big together, because it is chanted together.
+  //
+  // Namakam is set in couplets and the page prints them that way, so the unit
+  // is simply the printed group: the opening invocation stands alone, the
+  // verses are pairs, and the closing salutation runs to four lines that are
+  // one breath and must not be broken.
+  //
+  // Chamakam is not couplets. It is a litany, and the page prints ||N|| only
+  // at the END of a whole anuvaka — so taking the printed group literally there
+  // yields one block of ten "ca me" clauses, which is not a thing anyone reads
+  // as a unit. Anything longer than a held-together group gets read in twos.
+  const units = useMemo(() => {
+    const printed: { section: number; verse: number; indices: number[] }[] = [];
+    lines.forEach((line, index) => {
+      const owner = sectionOf[index];
+      const last = printed[printed.length - 1];
+      if (last && last.verse === line.verse && last.section === owner) {
+        last.indices.push(index);
+      } else {
+        printed.push({ section: owner, verse: line.verse, indices: [index] });
+      }
+    });
 
-  const current: ChantLine | null =
-    displayIndex === null ? null : lines[displayIndex];
+    const out: {
+      key: string;
+      verse: number;
+      indices: number[];
+      opens: number | null;
+    }[] = [];
+    let lastSection = -1;
+    for (const group of printed) {
+      const key = `${group.section}:${group.verse}`;
+      // The first unit of a section carries it, so the scroll can print a
+      // heading there. Without one, 303 lines run together and nothing on the
+      // paper says where Namakam ends and Chamakam begins.
+      const opens = group.section !== lastSection ? group.section : null;
+      lastSection = group.section;
+      if (group.indices.length <= HELD_TOGETHER) {
+        out.push({ key, verse: group.verse, indices: group.indices, opens });
+        continue;
+      }
+      for (let i = 0; i < group.indices.length; i += 2) {
+        out.push({
+          key: `${key}:${i}`,
+          verse: group.verse,
+          indices: group.indices.slice(i, i + 2),
+          opens: i === 0 ? opens : null,
+        });
+      }
+    }
+    return out;
+  }, [lines, sectionOf]);
+
+  /** The measure shows the section you are in, not all 303 lines.
+   *
+   * The fore-edge of a book shows the whole book because a book is one object.
+   * At three hundred lines a stroke per line stops being a fore-edge and starts
+   * being a barcode, so the measure holds the current section and the row of
+   * numerals across the head carries position within the work. The composition
+   * is unchanged; only what it counts has moved up a level. */
+  const measureLines = useMemo(() => {
+    const start = sectionStart[sectionIndex] ?? 0;
+    return section.lines.map((_, i) => start + i);
+  }, [section, sectionIndex, sectionStart]);
+
+  const current: ChantLine | undefined = lines[active];
+  const scale = SIZES[size];
+
+  const glossVerse = useMemo(() => {
+    if (!current) return null;
+    const owner = sectionOf[active];
+    const same = lines
+      .map((line, index) => ({ line, index }))
+      .filter(({ line, index }) => sectionOf[index] === owner && line.verse === current.verse);
+    if (same.length === 0) return null;
+    return {
+      first: same[0].line.sequence,
+      last: same[same.length - 1].line.sequence,
+      meaning: current.meaning,
+    };
+  }, [current, active, lines, sectionOf]);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-neutral-950 text-neutral-100">
-      {/* --- header ---------------------------------------------------- */}
-      <header className="sticky top-0 z-10 border-b border-neutral-800 bg-neutral-950/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-          <div className="mr-auto min-w-0">
-            <h1 className="truncate text-sm font-medium">
-              {chant.name.english}
-            </h1>
-            <p className="truncate font-mono text-xs text-neutral-500">
-              {chant.anuvakas[0].title.english} &middot; {lines.length} lines
-            </p>
+    <div
+      className="vs-stage"
+      data-light={light}
+      data-lead={lead}
+      data-still={still ? "yes" : "no"}
+      style={{ ...LIGHTS[light], "--scale": scale } as unknown as React.CSSProperties}
+    >
+      <style>{CSS}</style>
+
+      {/* --- running head ------------------------------------------------- */}
+      <header className="vs-head">
+        <div className="vs-work">
+          <Link href="/" className="vs-lib" title="Chant library">
+            ← All chants
+          </Link>
+          <div className="vs-title">
+            <span className="vs-sa" lang="sa">
+              {chant.name.devanagari}
+            </span>
+            <span className="vs-ia">{chant.name.english}</span>
           </div>
 
-          <Status state={state} running={running} starting={starting} />
+          <div className="vs-nav">
+            {grouped.map((group) => (
+              <div className="vs-navrow" key={group.work || "all"}>
+                <span className="vs-lbl">{group.work || "Sections"}</span>
+                {group.sections.map((entry) => {
+                  const index = chant.anuvakas.indexOf(entry);
+                  const here = index === sectionIndex;
+                  const label =
+                    entry.kind === "anuvaka" && entry.number
+                      ? ROMAN[entry.number]
+                      : entry.kind === "rudra-mantras"
+                        ? "Rudra"
+                        : "Śānti";
+                  return (
+                    <button
+                      type="button"
+                      key={entry.id}
+                      onClick={() => selectLine(sectionStart[index])}
+                      className={here ? "vs-here" : ""}
+                      title={entry.title.english}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
 
-          <div className="flex items-center gap-2">
+        <div className="vs-state">
+          <div className="vs-mark" data-condition={condition}>
+            <div className="vs-disc" />
+          </div>
+          <div>
+            <div className="vs-word">
+              {starting ? "Starting…" : STATE_WORDS[condition].word}
+            </div>
+            <div className="vs-sub">
+              {starting
+                ? "Opening the microphone and waking the model."
+                : STATE_WORDS[condition].sub}
+            </div>
             <button
               type="button"
+              className="vs-act"
+              disabled={starting}
               onClick={
                 running || starting
                   ? () => void session.stop()
                   : () => void session.start("mic", { deviceId: deviceId || undefined })
               }
-              disabled={starting}
-              className="rounded-full border border-neutral-700 px-4 py-1.5 font-mono text-xs uppercase tracking-widest hover:border-neutral-500 disabled:opacity-40"
             >
-              {running ? "pause" : starting ? "starting…" : "listen"}
+              {running ? "Pause listening" : "Begin listening"}
             </button>
+          </div>
+        </div>
+      </header>
 
+      {starting && session.progress ? (
+        <div className="vs-loading">
+          <span>
+            Bringing the voice model onto this device
+            {session.progress.fraction !== null
+              ? ` — ${Math.round(session.progress.fraction * 100)}%`
+              : "…"}
+          </span>
+          <div className="vs-bar">
+            <i
+              style={{
+                width:
+                  session.progress.fraction === null
+                    ? "33%"
+                    : `${session.progress.fraction * 100}%`,
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {session.phase.kind === "failed" ? (
+        <p className="vs-failed">{session.phase.message}</p>
+      ) : null}
+
+      {/* --- measure | vessel | margin ------------------------------------ */}
+      <div className="vs-middle">
+        <nav className="vs-measure" aria-label={`Position in ${section.title.english}`}>
+          <div className="vs-cap">{withinSection + 1}</div>
+          <div className="vs-stack">
+            {measureLines.map((index) => (
+              <button
+                type="button"
+                key={index}
+                className={`vs-trow ${index === active ? "vs-now" : index < active ? "vs-done" : ""}`}
+                onClick={() => selectLine(index)}
+                title={`Line ${lines[index].sequence}`}
+                aria-label={`Line ${lines[index].sequence}`}
+              >
+                <span className="vs-tick" />
+              </button>
+            ))}
+          </div>
+          <div className="vs-foot">{section.lines.length}</div>
+        </nav>
+
+        <section className="vs-vessel">
+          <div className="vs-hr" />
+          <div className="vs-window">
+            <div className="vs-clip" ref={clipRef} tabIndex={0}>
+              <div className="vs-scroll" ref={stackRef}>
+                {units.map((group) => {
+                  // The unit is what goes big, not the single line. A couplet
+                  // is chanted as one thing, so showing half of it large and
+                  // half small breaks the object the reader is holding.
+                  const here = group.indices.includes(active);
+                  const opening =
+                    group.opens === null ? null : chant.anuvakas[group.opens];
+                  return (
+                    <div key={`w-${group.key}`}>
+                    {opening ? (
+                      <div
+                        className="vs-divider"
+                        data-work-start={
+                          opening.kind !== "anuvaka" || opening.number === 1
+                            ? "yes"
+                            : "no"
+                        }
+                      >
+                        <span>{opening.title.english}</span>
+                      </div>
+                    ) : null}
+                    <div
+                      className={`vs-unit ${here ? "vs-open" : ""}`}
+                      data-lines={group.indices.length}
+                      key={group.key}
+                    >
+                      {group.indices.map((index) => (
+                        <Line
+                          key={lines[index].sequence}
+                          line={lines[index]}
+                          lead={lead}
+                          big={here}
+                          current={index === active}
+                          near={!here && Math.abs(index - active) <= 3}
+                          progress={index === active ? state.progress : 0}
+                          onSelect={() => selectLine(index)}
+                          register={(node) => {
+                            lineRefs.current[index] = node;
+                          }}
+                        />
+                      ))}
+                    </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <div className="vs-hr" />
+        </section>
+
+        <aside className="vs-margin">
+          {showGloss && glossVerse ? (
+            <div className="vs-gloss">
+              <div className="vs-lbl">Meaning</div>
+              <div className="vs-ref">
+                {section.title.english} · Verse {ROMAN[current?.verse ?? 0] ?? current?.verse}
+                {" · "}
+                {glossVerse.first === glossVerse.last
+                  ? `Line ${glossVerse.first}`
+                  : `Lines ${glossVerse.first}–${glossVerse.last}`}
+              </div>
+              {glossVerse.meaning ? (
+                <div className="vs-en">{glossVerse.meaning}</div>
+              ) : (
+                <div className="vs-none">
+                  No translation is loaded. A translation is an interpretation
+                  rather than a transcription — it needs a named edition rather
+                  than being filled in from memory.
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          <div className="vs-seal">
+            <div className="vs-sealrow">
+              <div className="vs-who">
+                Sri Sathya Sai
+                <br />
+                International Organisation
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/ssio-logo.png" alt="" width={62} height={62} />
+            </div>
+            <div className="vs-values">
+              Truth · Right Conduct · Peace · Love · Non-violence
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      {/* Honest about a feature that is not built rather than a dead label.
+          The constraint is real: section splitting is solved for the editions
+          we control and not in general, so a long multi-section upload would
+          be silently mis-chunked — which looks like a working import until
+          someone chants from it. */}
+      {showImport ? (
+        <div className="vs-import">
+          <div>
+            <strong>Adding your own chant is not ready yet.</strong> When it
+            arrives it will be a beta: one section at a time, a short PDF, and
+            text you can check before you chant from it. Splitting a long
+            recitation into its sections reliably is the unsolved part — a
+            wrongly split chant reads as a working one until you are mid-verse
+            and the screen is somewhere else.
+          </div>
+          <button type="button" onClick={() => setShowImport(false)}>
+            Close
+          </button>
+        </div>
+      ) : null}
+
+      {/* --- colophon ------------------------------------------------------ */}
+      <footer className="vs-colophon">
+        <div className="vs-ctrls">
+          <Control label="Script leads">
+            <Choice on={lead === "dev"} onClick={() => setLead("dev")} devanagari>
+              देवनागरी
+            </Choice>
+            <Choice on={lead === "ia"} onClick={() => setLead("ia")}>
+              IAST
+            </Choice>
+          </Control>
+
+          <Control label="Meaning">
+            <Choice on={showGloss} onClick={() => setShowGloss(true)}>
+              In margin
+            </Choice>
+            <Choice on={!showGloss} onClick={() => setShowGloss(false)}>
+              Hidden
+            </Choice>
+          </Control>
+
+          <Control label="Text size">
+            {SIZE_NAMES.map((name, index) => (
+              <Choice key={name} on={size === index} onClick={() => setSize(index)}>
+                {name}
+              </Choice>
+            ))}
+          </Control>
+
+          <Control label="Light">
+            {(["day", "lamp", "dawn"] as const).map((name) => (
+              <Choice key={name} on={light === name} onClick={() => setLight(name)}>
+                {name === "dawn" ? "Before dawn" : name === "day" ? "Day" : "Lamp"}
+              </Choice>
+            ))}
+          </Control>
+
+          <Control label="Scrolling">
+            <Choice on={autoScroll} onClick={() => setAutoScroll(true)}>
+              Auto
+            </Choice>
+            <Choice on={!autoScroll} onClick={() => setAutoScroll(false)}>
+              By hand
+            </Choice>
+          </Control>
+
+          <Control label="Microphone">
             {devices.length > 0 ? (
               <select
                 value={deviceId}
                 onChange={(event) => setDeviceId(event.target.value)}
                 disabled={running || starting}
-                title="Microphone"
-                className="max-w-40 truncate rounded-full border border-neutral-800 bg-neutral-950 px-3 py-1 font-mono text-xs text-neutral-400 outline-none hover:border-neutral-600 disabled:opacity-40"
+                className="vs-select"
               >
-                <option value="">default mic</option>
+                <option value="">System default</option>
                 {devices.map((device) => (
                   <option key={device.deviceId} value={device.deviceId}>
                     {device.label}
                   </option>
                 ))}
               </select>
-            ) : null}
+            ) : (
+              <span>System default</span>
+            )}
+          </Control>
 
-            {/* Which script is the big one. A segmented control rather than
-                a labelled switch, because the two options say themselves. */}
-            <div
-              className="flex items-center rounded-full border border-neutral-800"
-              role="group"
-              aria-label="Which script to read from"
-            >
-              <button
-                type="button"
-                onClick={() => setDevanagariLeads(false)}
-                aria-pressed={!devanagariLeads}
-                title="Romanised text large"
-                className={`rounded-l-full px-3 py-1 text-xs transition-colors ${
-                  devanagariLeads
-                    ? "text-neutral-600 hover:text-neutral-400"
-                    : "bg-neutral-800 text-neutral-100"
-                }`}
-              >
-                A
-              </button>
-              <button
-                type="button"
-                onClick={() => setDevanagariLeads(true)}
-                aria-pressed={devanagariLeads}
-                title="Devanagari large"
-                lang="sa"
-                style={{ fontFamily: DEVANAGARI_STACK }}
-                className={`rounded-r-full px-3 py-1 text-xs transition-colors ${
-                  devanagariLeads
-                    ? "bg-neutral-800 text-neutral-100"
-                    : "text-neutral-600 hover:text-neutral-400"
-                }`}
-              >
-                अ
-              </button>
-            </div>
+          <Control label="Full screen">
+            <Choice on={false} onClick={toggleFullScreen}>
+              Enter
+            </Choice>
+          </Control>
 
-            <IconToggle
-              on={autoScroll}
-              onClick={() => setAutoScroll((v) => !v)}
-              title="Auto-scroll"
-            >
-              scroll
-            </IconToggle>
-
-
-            <IconToggle
-              on={showMeaning}
-              onClick={() => setShowMeaning((v) => !v)}
-              title="Show meaning"
-            >
-              meaning
-            </IconToggle>
-
-            <div className="flex items-center rounded-full border border-neutral-800">
-              <button
-                type="button"
-                onClick={() => setFontStep((s) => Math.max(0, s - 1))}
-                disabled={fontStep === 0}
-                className="px-2.5 py-1 font-mono text-xs text-neutral-400 hover:text-neutral-100 disabled:opacity-30"
-                aria-label="Smaller text"
-              >
-                A&minus;
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setFontStep((s) => Math.min(FONT_STEPS.length - 1, s + 1))
-                }
-                disabled={fontStep === FONT_STEPS.length - 1}
-                className="px-2.5 py-1 font-mono text-xs text-neutral-400 hover:text-neutral-100 disabled:opacity-30"
-                aria-label="Larger text"
-              >
-                A+
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={toggleFullScreen}
-              className="rounded-full border border-neutral-800 px-3 py-1 font-mono text-xs text-neutral-400 hover:text-neutral-100"
-            >
-              full
-            </button>
-          </div>
+          <Control label="Library">
+            <Choice on={showImport} onClick={() => setShowImport((on) => !on)}>
+              Add a chant · PDF
+            </Choice>
+          </Control>
         </div>
 
-        {starting && session.progress ? (
-          <div className="border-t border-neutral-900 px-4 py-2">
-            <div className="mx-auto max-w-4xl">
-              <div className="flex items-baseline justify-between font-mono text-xs text-neutral-500">
-                <span>
-                  Downloading the speech model
-                  {session.progress.fraction !== null
-                    ? ` — ${Math.round(session.progress.fraction * 100)}%`
-                    : "…"}
-                </span>
-                <span className="text-neutral-700">
-                  {formatMb(session.progress.loaded)}
-                  {session.progress.total > 0
-                    ? ` / ${formatMb(session.progress.total)}`
-                    : ""}
-                </span>
-              </div>
-              <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-neutral-800">
-                <div
-                  className={`h-full rounded-full bg-emerald-500 ${
-                    session.progress.fraction === null
-                      ? "w-1/3 animate-pulse"
-                      : "transition-[width] duration-300"
-                  }`}
-                  style={
-                    session.progress.fraction === null
-                      ? undefined
-                      : { width: `${session.progress.fraction * 100}%` }
-                  }
-                />
-              </div>
-              <p className="mt-1 font-mono text-xs text-neutral-700">
-                Happens once &mdash; the browser keeps it cached afterwards.
-              </p>
-            </div>
+        <div className="vs-model">
+          Voice model · downloaded once, then kept on this device
+          <div className="vs-modelnote">
+            {running && session.phase.kind === "running"
+              ? `Listening · ${session.phase.device}. No audio leaves this device.`
+              : "No audio leaves this device."}
           </div>
-        ) : null}
-
-        {session.phase.kind === "failed" ? (
-          <p className="border-t border-red-900/50 bg-red-950/30 px-4 py-2 text-center font-mono text-xs text-red-300">
-            {session.phase.message}
-          </p>
-        ) : null}
-      </header>
-
-      {/* --- search ------------------------------------------------------ */}
-      <div className="mx-auto w-full max-w-4xl px-4 pt-4">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Find a line — type any words, then pick it below"
-          className="w-full rounded-lg border border-neutral-800 bg-neutral-900/60 px-3 py-2 text-sm outline-none placeholder:text-neutral-600 focus:border-neutral-600"
-        />
-        {matches && matches.length === 0 ? (
-          <p className="mt-2 font-mono text-xs text-neutral-600">no matches</p>
-        ) : null}
-      </div>
-
-      {/* --- the script -------------------------------------------------- */}
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
-        <ol className="flex flex-col gap-6">
-          {shownVerses.map((group) => {
-            // The verse is the visual unit; the line inside it is the
-            // position. Scrolling by verse is calmer than scrolling by
-            // half-line, and it keeps the second half of a couplet on screen
-            // while the first is being chanted.
-            const holdsActive = group.lines.some(
-              (line) => lines.indexOf(line) === displayIndex,
-            );
-            return (
-              <li
-                key={group.verse}
-                ref={(node) => {
-                  for (const line of group.lines) {
-                    verseRefs.current[lines.indexOf(line)] = node;
-                  }
-                }}
-                className={`rounded-lg px-4 py-3 transition-colors ${
-                  holdsActive
-                    ? "bg-emerald-950/40 ring-1 ring-emerald-800/50"
-                    : ""
-                }`}
-              >
-                {group.lines.map((line) => {
-                  const index = lines.indexOf(line);
-                  const active = index === displayIndex;
-                  const primary = devanagariLeads ? "devanagari" : "translit";
-                  return (
-                    <div
-                      key={line.sequence}
-                      onClick={() => selectLine(index)}
-                      className={`-mx-2 flex cursor-pointer gap-4 rounded px-2 py-1.5 transition-colors ${
-                        active ? "" : "hover:bg-neutral-900/50"
-                      }`}
-                    >
-                      <span
-                        className={`w-7 shrink-0 pt-1 text-right font-mono text-xs ${
-                          active ? "text-emerald-500" : "text-neutral-700"
-                        }`}
-                      >
-                        {line.sequence}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        {primary === "devanagari" ? (
-                          <>
-                            <p
-                              lang="sa"
-                              className={`leading-loose ${
-                                active ? "text-neutral-50" : "text-neutral-400"
-                              }`}
-                              style={{
-                                fontFamily: DEVANAGARI_STACK,
-                                fontSize: `${scale * 1.5}rem`,
-                              }}
-                            >
-                              {line.devanagari}
-                            </p>
-                            <p
-                              lang="sa-Latn"
-                              className={`mt-1 leading-snug ${
-                                active ? "text-neutral-400" : "text-neutral-600"
-                              }`}
-                              style={{ fontSize: `${scale * 0.95}rem` }}
-                            >
-                              {line.transliteration}
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p
-                              lang="sa-Latn"
-                              className={`leading-snug ${
-                                active ? "text-neutral-50" : "text-neutral-400"
-                              }`}
-                              style={{ fontSize: `${scale * 1.5}rem` }}
-                            >
-                              {line.transliteration}
-                            </p>
-                            <p
-                              lang="sa"
-                              className={`mt-1 leading-loose ${
-                                active ? "text-neutral-400" : "text-neutral-600"
-                              }`}
-                              style={{
-                                fontFamily: DEVANAGARI_STACK,
-                                fontSize: `${scale}rem`,
-                              }}
-                            >
-                              {line.devanagari}
-                            </p>
-                          </>
-                        )}
-                        {showMeaning && line.meaning ? (
-                          <p
-                            className="mt-2 leading-relaxed text-neutral-500"
-                            style={{ fontSize: `${scale * 0.85}rem` }}
-                          >
-                            {line.meaning}
-                          </p>
-                        ) : null}
-                        {active ? (
-                          <span
-                            className="mt-2 block h-0.5 rounded-full bg-emerald-600/70 transition-all duration-700"
-                            style={{
-                              width: `${Math.round(displayProgress * 100)}%`,
-                            }}
-                          />
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                })}
-              </li>
-            );
-          })}
-        </ol>
-
-        {showMeaning && !lines.some((line) => line.meaning) ? (
-          <p className="mt-8 rounded-lg border border-neutral-900 px-4 py-3 font-mono text-xs leading-relaxed text-neutral-600">
-            No translation is loaded. The source PDF has none, and a
-            translation is an interpretation rather than a transcription &mdash;
-            it needs a named edition rather than being filled in from memory.
-          </p>
-        ) : null}
-      </main>
-
-      {/* --- footer ------------------------------------------------------ */}
-      <footer className="sticky bottom-0 border-t border-neutral-800 bg-neutral-950/95 px-4 py-2 backdrop-blur">
-        <p className="mx-auto max-w-4xl truncate font-mono text-xs text-neutral-600">
-          {current
-            ? `line ${current.sequence} of ${lines.length}`
-            : "tap any line to set the position by hand"}
-          {settledByView && running
-            ? " · matched what you were looking at"
-            : ""}
-          {running && session.phase.kind === "running"
-            ? ` · ${session.phase.device} · ${session.phase.source}`
-            : ""}
-        </p>
+        </div>
       </footer>
     </div>
   );
 }
 
-function formatMb(bytes: number): string {
-  return `${(bytes / 1_000_000).toFixed(0)} MB`;
-}
-
-function Status({
-  state,
-  running,
-  starting,
+/** One line of the received text. */
+function Line({
+  line,
+  lead,
+  big,
+  current,
+  near,
+  progress,
+  onSelect,
+  register,
 }: {
-  state: FollowState;
-  running: boolean;
-  starting: boolean;
+  line: ChantLine;
+  lead: Lead;
+  /** This line's unit is the one being chanted — set large. */
+  big: boolean;
+  /** This exact line is where the tracker says the voice is — carries the ink. */
+  current: boolean;
+  near: boolean;
+  progress: number;
+  onSelect: () => void;
+  register: (node: HTMLDivElement | null) => void;
 }) {
-  const label = starting
-    ? "Starting…"
-    : !running
-      ? "Paused."
-      : statusLine(state);
+  const primary = lead === "dev" ? line.devanagari : line.transliteration;
+  const secondary = lead === "dev" ? line.transliteration : line.devanagari;
 
-  // Amber for "unsure", not red. Nothing has gone wrong when the app is
-  // looking for its place; it is doing what it was asked to do.
-  const tone =
-    !running || starting
-      ? "bg-neutral-700"
-      : state.kind === "locked" && !state.holding
-        ? "bg-emerald-500"
-        : state.kind === "idle"
-          ? "bg-neutral-700"
-          : "bg-amber-500";
+  // The ink is laid word by word, never glyph by glyph: a Devanagari cluster
+  // must not be cut in half, and the word boundary is the only joint that is
+  // safe in both scripts. It also survives a line that wraps.
+  // The word index is worked out up front rather than counted during the map.
+  // A counter mutated inside render is a different value on every pass, which
+  // React now rejects outright — and rightly, since the ink would drift.
+  const words = useMemo(
+    () =>
+      primary
+        .split(/(\s+)/)
+        .reduce<{ text: string; gap: boolean; spoken: number }[]>((sofar, text) => {
+          const gap = /^\s*$/.test(text);
+          const previous = sofar.length ? sofar[sofar.length - 1].spoken : -1;
+          return [...sofar, { text, gap, spoken: gap ? previous : previous + 1 }];
+        }, []),
+    [primary],
+  );
+
+  const total = words.filter((w) => !w.gap).length;
+  const position = progress * total;
+  const reached = Math.max(0, Math.min(total - 1, Math.floor(position)));
 
   return (
-    <span className="flex items-center gap-2 font-mono text-xs text-neutral-400">
-      <span className={`h-2 w-2 shrink-0 rounded-full ${tone}`} />
-      {label}
-    </span>
+    <div
+      ref={register}
+      className={`vs-ln ${big ? "vs-big" : ""} ${current ? "vs-current" : ""} ${near ? "vs-near" : ""}`}
+      onClick={onSelect}
+    >
+      <div
+        className="vs-leadtext"
+        data-lead-text=""
+        lang={lead === "dev" ? "sa" : "sa-Latn"}
+      >
+        {words.map((word, index) => {
+          if (word.gap) return word.text;
+          if (!current) return <span key={index}>{word.text}</span>;
+          const inked = word.spoken < reached;
+          const now = word.spoken === reached;
+          return (
+            <span
+              key={index}
+              className={inked ? "vs-inked" : now ? "vs-nowword" : undefined}
+              style={
+                now
+                  ? ({
+                      "--wp": `${((position - reached) * 100).toFixed(1)}%`,
+                    } as unknown as React.CSSProperties)
+                  : undefined
+              }
+            >
+              {word.text}
+            </span>
+          );
+        })}
+      </div>
+
+      {/* The second script is shown for the whole unit — reading half a couplet
+          romanised and half not would be worse than showing neither. The
+          progress rule belongs only to the line actually being chanted. */}
+      {big ? (
+        <div className="vs-second" lang={lead === "dev" ? "sa-Latn" : "sa"}>
+          {secondary}
+        </div>
+      ) : null}
+      {current ? (
+        <div className="vs-prog">
+          <i style={{ width: `${Math.round(progress * 100)}%` }} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
-function IconToggle({
+function Control({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="vs-ctrl">
+      <span className="vs-k">{label}</span>
+      <span className="vs-v">{children}</span>
+    </div>
+  );
+}
+
+function Choice({
   on,
   onClick,
-  title,
+  devanagari,
   children,
 }: {
   on: boolean;
   onClick: () => void;
-  title: string;
+  devanagari?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={title}
       aria-pressed={on}
-      className={`rounded-full border px-3 py-1 font-mono text-xs transition-colors ${
-        on
-          ? "border-neutral-600 text-neutral-200"
-          : "border-neutral-800 text-neutral-600"
-      }`}
+      className={`${on ? "vs-on" : ""} ${devanagari ? "vs-dev" : ""}`}
     >
       {children}
     </button>
   );
 }
+
+// Kept beside the markup rather than in globals.css: this is one page's
+// composition, not a site-wide system, and the palette is driven by inline
+// custom properties above so nothing here needs to know which light is on.
+const CSS = `
+.vs-stage{
+  --dev: var(--font-devanagari, "Kohinoor Devanagari","ITF Devanagari","Devanagari Sangam MN","Devanagari MT","Noto Serif Devanagari",serif);
+  --book: "Iowan Old Style","Palatino","Palatino Linotype","Hoefler Text",Charter,Georgia,serif;
+  --marg: "Helvetica Neue",Helvetica,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  height:100dvh; min-height:640px; display:flex; flex-direction:column;
+  padding:22px 60px 18px; gap:0;
+  background:var(--page); color:var(--ink);
+  font-family:var(--marg); font-size:16px;
+  transition:background .5s ease, color .5s ease;
+  overflow:hidden;
+}
+.vs-stage button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left;padding:0}
+
+.vs-head{display:flex; align-items:flex-start; gap:48px; padding-bottom:10px; border-bottom:1px solid var(--rule)}
+.vs-work{flex:1; min-width:0}
+.vs-lib{display:block; font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--blue); margin-bottom:6px; opacity:.85}
+.vs-lib:hover{opacity:1}
+.vs-title{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap}
+.vs-sa{font-family:var(--dev); font-size:21px; line-height:1.5}
+.vs-ia{font-family:var(--book); font-size:17px; font-style:italic; color:var(--ink2)}
+.vs-nav{margin-top:6px; display:flex; flex-direction:column; gap:2px}
+.vs-navrow{display:flex; align-items:baseline; gap:0; font-size:14px; flex-wrap:wrap}
+.vs-lbl{font-size:12px; letter-spacing:.15em; text-transform:uppercase; color:var(--ink2); margin-right:14px; min-width:74px}
+.vs-navrow button{color:var(--blue); opacity:.5; padding:0 7px 2px}
+.vs-navrow button:hover{opacity:.9}
+.vs-navrow button.vs-here{color:var(--ink); opacity:1; font-weight:600; border-bottom:2px solid var(--saffron-full)}
+
+.vs-state{width:290px; flex:none; display:flex; gap:13px; align-items:flex-start}
+.vs-mark{width:21px;height:21px;flex:none;margin-top:3px;position:relative}
+.vs-disc{position:absolute;inset:0;border-radius:50%}
+[data-condition="idle"] .vs-disc{border:1.5px solid var(--ink3)}
+[data-condition="locating"] .vs-disc{border:1.5px dashed var(--blue); animation:vsturn 5.5s linear infinite}
+[data-condition="following"] .vs-disc{background:var(--saffron-full); animation:vsbreathe 4.4s ease-in-out infinite}
+[data-condition="holding"] .vs-disc{background:var(--saffron-pale); border:1.5px solid var(--saffron-full)}
+@keyframes vsturn{to{transform:rotate(360deg)}}
+@keyframes vsbreathe{0%,100%{transform:scale(.78);opacity:.85}50%{transform:scale(1);opacity:1}}
+.vs-word{font-family:var(--book); font-size:20px; line-height:1.25}
+.vs-sub{font-size:13px; color:var(--ink2); margin-top:4px; line-height:1.5}
+.vs-act{font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--blue); margin-top:8px; border-bottom:1px solid var(--rule); padding-bottom:2px}
+.vs-act:disabled{opacity:.45; cursor:default}
+
+.vs-loading{padding:10px 0 0; font-size:13px; color:var(--ink2)}
+.vs-bar{height:1.5px; background:var(--rule-soft); margin-top:6px; position:relative}
+.vs-bar i{position:absolute; left:0; top:0; bottom:0; background:var(--blue); opacity:.6; transition:width .3s}
+.vs-failed{padding:10px 0 0; font-size:13px; color:#B3261E}
+
+.vs-middle{flex:1; min-height:0; display:grid; grid-template-columns:70px 1fr 290px; gap:40px; padding:14px 0 0}
+
+.vs-measure{display:flex; flex-direction:column; min-height:0}
+.vs-cap{font-size:12px; letter-spacing:.15em; color:var(--ink2); text-align:right; margin-bottom:10px}
+.vs-stack{flex:1; display:flex; flex-direction:column; gap:5px; min-height:0}
+.vs-trow{flex:1; display:flex; align-items:center; justify-content:flex-end; min-height:5px}
+.vs-tick{height:1.5px; background:var(--blue); opacity:.38; width:12px; transition:width .3s, opacity .3s, background .3s; display:block}
+.vs-trow.vs-done .vs-tick{opacity:.72; width:18px}
+.vs-trow.vs-now .vs-tick{opacity:1; width:40px; height:2.5px; background:var(--saffron-full)}
+.vs-trow:hover .vs-tick{opacity:.9; width:24px}
+.vs-foot{font-size:12px; color:var(--ink2); text-align:right; margin-top:10px}
+
+.vs-vessel{display:flex; flex-direction:column; min-width:0}
+.vs-hr{height:1px; background:var(--rule); flex:none}
+.vs-window{flex:1; min-height:0; position:relative; background:var(--paper); transition:background .5s ease}
+/* A real scroll container. It was a transform under a fixed window, which
+   could not be scrolled by hand at all — no wheel, no trackpad, no touch, no
+   keyboard, no scrollbar. Native overflow gets every one of those free. */
+.vs-clip{position:absolute; inset:0; overflow-y:auto; overscroll-behavior:contain;
+  scroll-behavior:smooth;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 10%,#000 88%,transparent 100%);
+          mask-image:linear-gradient(to bottom,transparent 0,#000 10%,#000 88%,transparent 100%)}
+.vs-clip:focus-visible{outline:1px solid var(--blue); outline-offset:-1px}
+.vs-clip::-webkit-scrollbar{width:9px}
+.vs-clip::-webkit-scrollbar-track{background:transparent}
+.vs-clip::-webkit-scrollbar-thumb{background:var(--rule); border-radius:5px}
+/* the tail of padding is what lets the last line reach the anchor */
+.vs-scroll{padding:18px 30px 46vh}
+.vs-unit{padding:11px 0}
+/* Where one section ends and the next begins. A rule the full width of the
+   paper, so it cannot be mistaken for the thin progress rule under a line,
+   with the section named on it — scrolling through 303 lines otherwise gives
+   no sense of having crossed anything. A new WORK is a heavier statement than
+   a new anuvaka within one, so it gets weight and space rather than a
+   different colour. */
+.vs-divider{
+  display:flex; align-items:center; gap:14px;
+  margin:26px 0 18px; color:var(--blue);
+  font-size:12px; letter-spacing:.18em; text-transform:uppercase;
+}
+.vs-divider::before, .vs-divider::after{content:""; height:1px; background:var(--rule); flex:1}
+.vs-divider::before{flex:0 0 22px}
+.vs-divider span{flex:none; opacity:.85}
+.vs-divider[data-work-start="yes"]{margin:40px 0 26px; font-weight:600; font-size:13px}
+.vs-divider[data-work-start="yes"]::before,
+.vs-divider[data-work-start="yes"]::after{height:2px; background:var(--rule)}
+.vs-scroll > div:first-child .vs-divider{margin-top:0}
+.vs-ln{cursor:pointer; padding:2px 0}
+.vs-leadtext{font-size:calc(25px * var(--scale)); line-height:1.9; color:var(--ink3); transition:color .45s ease, font-size .3s ease}
+.vs-ln.vs-near .vs-leadtext{color:var(--ink2)}
+[data-lead="dev"] .vs-leadtext{font-family:var(--dev)}
+[data-lead="ia"]  .vs-leadtext{font-family:var(--book); line-height:1.6}
+[data-lead="dev"] .vs-second{font-family:var(--book); font-style:italic}
+[data-lead="ia"]  .vs-second{font-family:var(--dev)}
+
+/* The UNIT goes big, not the line. A couplet is chanted as one thing, so
+   setting half of it large and half small breaks the object being read. */
+.vs-ln.vs-big{padding:6px 0 0}
+.vs-ln.vs-big .vs-leadtext{font-size:calc(44px * var(--scale)); line-height:1.85; color:var(--ink)}
+[data-lead="ia"] .vs-ln.vs-big .vs-leadtext{font-size:calc(41px * var(--scale)); line-height:1.55}
+/* A group held together because it is one breath — the closing salutation runs
+   to four lines — is set smaller so the whole of it is on the paper at once.
+   Sized by how many lines it has rather than by measuring after layout, which
+   is deterministic and cannot disagree with itself between renders. */
+.vs-unit[data-lines="3"] .vs-ln.vs-big .vs-leadtext{font-size:calc(35px * var(--scale))}
+.vs-unit[data-lines="4"] .vs-ln.vs-big .vs-leadtext{font-size:calc(29px * var(--scale)); line-height:1.75}
+
+.vs-inked{color:var(--saffron)}
+.vs-nowword{
+  background-image:linear-gradient(90deg,
+    var(--saffron) 0 calc(var(--wp,0%) - 4px),
+    var(--ink) calc(var(--wp,0%) + 9px) 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.vs-second{display:block; margin-top:6px; font-size:calc(19px * var(--scale)); line-height:1.9; color:var(--ink2)}
+.vs-prog{display:block; margin-top:11px; height:2px; background:var(--rule-soft); position:relative}
+.vs-prog i{position:absolute; left:0; top:0; bottom:0; background:var(--saffron-full); transition:width .3s linear}
+
+.vs-margin{min-height:0; position:relative; display:flex; flex-direction:column}
+.vs-gloss{flex:1; min-height:0}
+.vs-gloss .vs-lbl{display:block; margin-bottom:9px; min-width:0}
+.vs-ref{font-family:var(--book); font-size:16px; color:var(--ink2); margin-bottom:9px}
+.vs-en{font-family:var(--book); font-size:18px; line-height:1.62}
+.vs-none{font-family:var(--book); font-size:15px; line-height:1.6; color:var(--ink2); font-style:italic}
+.vs-seal{margin-top:auto; text-align:right}
+.vs-sealrow{display:flex; align-items:center; gap:14px; justify-content:flex-end}
+.vs-seal img{width:62px;height:62px;display:block;flex:none}
+.vs-who{font-size:12px; line-height:1.6; letter-spacing:.12em; text-transform:uppercase; color:var(--blue)}
+.vs-values{margin-top:9px; font-family:var(--book); font-style:italic; font-size:13px; color:var(--ink2)}
+
+.vs-import{
+  flex:none; margin-top:14px; padding:13px 16px;
+  border:1px solid var(--rule); background:var(--paper);
+  display:flex; gap:20px; align-items:flex-start; justify-content:space-between;
+  font-family:var(--book); font-size:15px; line-height:1.6; color:var(--ink2);
+}
+.vs-import strong{color:var(--ink); font-weight:600}
+.vs-import button{
+  flex:none; font-family:var(--marg); font-size:13px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--blue);
+}
+.vs-colophon{flex:none; margin-top:12px; padding-top:10px; border-top:1px solid var(--rule);
+  display:grid; grid-template-columns:1fr 290px; gap:40px; align-items:end;
+  transition:opacity .45s ease, transform .45s ease}
+[data-still="yes"] .vs-colophon{opacity:0; transform:translateY(6px); pointer-events:none}
+.vs-ctrls{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px 26px}
+.vs-ctrl{font-size:13px; line-height:1.5}
+.vs-k{display:block; letter-spacing:.15em; text-transform:uppercase; color:var(--ink2); margin-bottom:3px; font-size:12px}
+.vs-v{display:flex; gap:10px; align-items:baseline; flex-wrap:wrap}
+.vs-v button, .vs-v span{font-size:14px; color:var(--ink2)}
+.vs-v button:hover{color:var(--ink)}
+.vs-v button.vs-on{color:var(--ink); border-bottom:1.5px solid var(--saffron-full); padding-bottom:1px}
+.vs-v .vs-dev{font-family:var(--dev)}
+.vs-select{font:inherit; font-size:14px; color:var(--ink2); background:none; border:0; border-bottom:1px solid var(--rule); max-width:150px}
+.vs-model{font-size:12px; line-height:1.6; color:var(--ink2); text-align:right}
+.vs-modelnote{margin-top:4px}
+
+@media (max-width:1240px){
+  .vs-stage{padding:26px 32px 22px}
+  .vs-middle{grid-template-columns:58px 1fr 250px; gap:26px}
+  .vs-ctrls{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .vs-colophon{grid-template-columns:1fr 250px; gap:26px}
+}
+@media (max-width:960px){
+  .vs-stage{height:auto; min-height:100dvh; overflow:auto; padding:20px 16px 26px}
+  .vs-head{flex-direction:column; gap:18px}
+  .vs-state{width:auto}
+  .vs-middle{display:block; padding-top:18px}
+  .vs-measure{display:none}
+  .vs-window{height:46dvh; min-height:290px}
+  .vs-scroll{padding:0 14px}
+  .vs-leadtext{font-size:calc(20px * var(--scale)) !important}
+  .vs-ln.vs-big .vs-leadtext{font-size:calc(30px * var(--scale)) !important}
+  .vs-margin{margin-top:22px}
+  .vs-seal{text-align:left}
+  .vs-sealrow{justify-content:flex-start}
+  .vs-colophon{grid-template-columns:1fr; gap:18px}
+  .vs-ctrls{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vs-model{text-align:left}
+}
+`;
