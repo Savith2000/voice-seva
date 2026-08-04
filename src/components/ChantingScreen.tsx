@@ -100,14 +100,25 @@ const STILL_AFTER_MS = 10_000;
  */
 const HELD_TOGETHER = 4;
 
+/**
+ * What the screen says it is doing.
+ *
+ * Kept short and close to the same length on purpose. These are stacked in one
+ * grid cell, so the block is permanently as tall as the longest of them —
+ * "Locating chanting position…" wrapped to a second line and reserved 44 px
+ * that four of the five states never used.
+ */
 const STATE_WORDS = {
   following: { word: "Following.", sub: "Your voice is being tracked line by line." },
-  holding: { word: "Holding position…", sub: "Still on the last line it was sure of." },
-  locating: { word: "Locating chanting position…", sub: "It can hear you. It has not found the line yet." },
+  holding: { word: "Holding your place.", sub: "Still on the last line it was sure of." },
+  locating: { word: "Finding your place…", sub: "It can hear you, but has not found the line yet." },
+  starting: { word: "Starting…", sub: "Opening the microphone and waking the model." },
   idle: { word: "Not listening.", sub: "The microphone is off. Nothing is being heard." },
 } as const;
 
 type Condition = keyof typeof STATE_WORDS;
+
+const SHOWN: Condition[] = ["idle", "starting", "locating", "following", "holding"];
 
 function conditionOf(state: FollowState, running: boolean): Condition {
   if (!running) return "idle";
@@ -162,6 +173,8 @@ export default function ChantingScreen() {
   const running = session.phase.kind === "running";
   const starting = session.phase.kind === "starting";
   const condition = conditionOf(state, running || starting);
+  /** The one value the whole block reads from, so nothing can disagree. */
+  const shows: Condition = starting ? "starting" : condition;
 
   // Before anything has been heard the page still has to be a page, so it opens
   // on the first line rather than on nothing.
@@ -465,17 +478,32 @@ export default function ChantingScreen() {
           </div>
         </div>
 
-        <div className="vs-state">
-          <InkWell condition={condition} level={session.level} />
-          <div>
-            <div className="vs-word" key={`w-${condition}-${starting}`}>
-              {starting ? "Starting…" : STATE_WORDS[condition].word}
+        {/* Every state is in the DOM at once, stacked in a single grid cell.
+            The block is therefore always the height of the tallest and NOTHING
+            below it moves — which was the actual complaint. The control used to
+            travel 44 px between states, and no easing curve rescues a button
+            that relocates out from under the hand reaching for it. */}
+        <div className="vs-state" data-shows={shows}>
+          <InkWell shows={shows} level={session.level} />
+          <div className="vs-txt">
+            <div className="vs-says">
+              {SHOWN.map((key) => (
+                <div
+                  className="vs-say"
+                  key={key}
+                  data-on={key === shows}
+                  aria-hidden={key !== shows}
+                >
+                  <div className="vs-word">{STATE_WORDS[key].word}</div>
+                  <div className="vs-sub">{STATE_WORDS[key].sub}</div>
+                </div>
+              ))}
             </div>
-            <div className="vs-sub" key={`s-${condition}-${starting}`}>
-              {starting
-                ? "Opening the microphone and waking the model."
-                : STATE_WORDS[condition].sub}
-            </div>
+            {/* The stack is hidden from assistive tech; this is the one voice
+                that speaks, and only when the state actually changes. */}
+            <p className="vs-sr" role="status">
+              {STATE_WORDS[shows].word} {STATE_WORDS[shows].sub}
+            </p>
             <button
               type="button"
               className="vs-act"
@@ -486,7 +514,14 @@ export default function ChantingScreen() {
                   : () => void session.start("mic", { deviceId: deviceId || undefined })
               }
             >
-              {running ? "Pause listening" : "Begin listening"}
+              <span className="vs-says vs-labels">
+                <span className="vs-say" data-on={!running} aria-hidden={running}>
+                  Begin listening
+                </span>
+                <span className="vs-say" data-on={running} aria-hidden={!running}>
+                  Pause listening
+                </span>
+              </span>
             </button>
           </div>
         </div>
@@ -766,12 +801,13 @@ export default function ChantingScreen() {
  * across.
  */
 function InkWell({
-  condition,
+  shows,
   level,
 }: {
-  condition: Condition;
+  shows: Condition;
   level: { current: number };
 }) {
+  const condition = shows === "starting" ? "locating" : shows;
   const inkRef = useRef<SVGRectElement | null>(null);
 
   useEffect(() => {
@@ -1052,13 +1088,36 @@ const CSS = `
 .vs-act:hover:not(:disabled){color:var(--ink); border-bottom-color:var(--blue)}
 .vs-act:active:not(:disabled){transform:translateY(1px)}
 
-/* The words. Three of them used to swap in the same frame, which is most of
-   what "clunky" was: the mark, the state and the sub-line all cut at once.
-   Keying them on the condition remounts them, so each settles in rather than
-   appearing. */
-.vs-word, .vs-sub{animation:vs-say 380ms var(--ease) backwards}
-.vs-sub{animation-delay:60ms}
-@keyframes vs-say{from{opacity:0; transform:translateY(-4px)} to{opacity:1; transform:none}}
+/* ---- the words -----------------------------------------------------------
+   Every state is rendered and stacked in one grid cell, and only opacity and
+   transform change between them. Two consequences, and the first is the whole
+   point:
+
+   The cell is sized by the tallest state, so the block never reflows and the
+   control below it never moves. Cross-fading text that also changes the height
+   of its container is not a cross-fade, it is a jump with a fade painted over
+   it — the eye tracks the movement and ignores the opacity entirely.
+
+   And because nothing remounts, an interrupted change reverses from wherever
+   it had reached rather than restarting. Pressing the control twice quickly
+   used to fight itself.
+   -------------------------------------------------------------------------- */
+.vs-txt{flex:1; min-width:0}
+.vs-says{display:grid}
+.vs-say{
+  grid-area:1 / 1; opacity:0; transform:translateY(-5px);
+  transition:opacity 400ms var(--ease), transform 400ms var(--ease);
+  pointer-events:none;
+}
+.vs-say[data-on="true"]{opacity:1; transform:none; pointer-events:auto}
+/* Leaving is quicker than arriving, so the two never read as a dissolve
+   between two equally-present things. */
+.vs-say:not([data-on="true"]){transition-duration:220ms}
+.vs-labels{justify-items:start}
+
+/* Spoken, not shown — the stack above is hidden from assistive tech. */
+.vs-sr{position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0}
 .vs-word{font-family:var(--book); font-size:20px; line-height:1.25}
 .vs-sub{font-size:13px; color:var(--ink2); margin-top:4px; line-height:1.5}
 .vs-act{font-size:15px; font-style:italic; color:var(--blue); margin-top:8px; border-bottom:1px solid var(--rule); padding-bottom:2px}
@@ -1244,7 +1303,7 @@ const CSS = `
   .vs-hr, .vs-window, .vs-scroll, .vs-head,
   .vs-measure, .vs-margin, .vs-colophon{animation:none}
   .vs-well, .vs-draw{animation:none !important}
-  .vs-word, .vs-sub{animation:none}
+  .vs-say{transition:opacity 200ms linear}
   .vs-draw{opacity:1; stroke-dashoffset:15}
   .vs-clip{scroll-behavior:auto}
   .vs-scroll, .vs-prog i, .vs-tick, .vs-leadtext{transition:none}
