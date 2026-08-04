@@ -60,6 +60,13 @@ tools/chant-import/uv.lock
 tools/chant-import/decoded.json
 tools/chant-import/fonts/
 
+# Installed agent skills: 36 MB of third-party payload fetched by `npx skills
+# add`, and reinstallable from skills-lock.json, which stays tracked because it
+# is the record of what was pinned. .claude/skills is only symlinks into it —
+# ignored by path so .claude/settings.json can still be committed.
+.agents/
+.claude/skills/
+
 # Source chant PDFs. These are publishers' editions — whether to redistribute
 # one is the owner's call, not a side effect of committing the importer. The
 # decoded text lives in src/data/chants/ because the app needs it; the book
