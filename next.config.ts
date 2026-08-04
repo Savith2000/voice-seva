@@ -22,6 +22,24 @@ const nextConfig: NextConfig = {
    * which is exactly the shape of a public model download.
    */
   async headers() {
+    // OFF by default. Set VOICE_SEVA_ISOLATE=1 to try it.
+    //
+    // It was on for two commits and it broke the worker on every machine it
+    // met — a Surface and a Mac — while every test here passed. The tests
+    // passed because headless Chromium has no GPU adapter, so all of them took
+    // the WASM path; the WebGPU path, which is what a real machine actually
+    // uses, was never exercised with these headers once. ONNX Runtime fetches
+    // its backend from cdn.jsdelivr.net and spawns nested workers from it, and
+    // cross-origin isolation is precisely what stops that.
+    //
+    // The threading win behind this is real and still worth having — without
+    // isolation the WASM backend is pinned to a single core by ORT itself. But
+    // it costs nothing to be slow and everything to be broken, so it does not
+    // come back on until ONNX Runtime's binaries are served from this origin
+    // and someone has watched a real GPU-capable browser start a session with
+    // it enabled.
+    if (process.env.VOICE_SEVA_ISOLATE !== "1") return [];
+
     return [
       {
         source: "/:path*",

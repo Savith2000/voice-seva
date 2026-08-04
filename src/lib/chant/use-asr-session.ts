@@ -221,8 +221,33 @@ export function useAsrSession(
               resolvers().delete(message.id);
             }
           });
-          worker.addEventListener("error", (event) =>
-            reject(new Error(event.message || "worker failed")),
+          // "worker failed" was all this used to say, and it is the least
+          // useful sentence in the app: it fires for a module that would not
+          // parse, a network fetch the browser refused, a backend that could
+          // not initialise, and a genuine bug, and it distinguishes none of
+          // them. On a device that cannot be attached to a debugger, that
+          // sentence is the entire diagnosis.
+          //
+          // An ErrorEvent from a worker carries a filename and a line even when
+          // `message` is empty — which is exactly what happens when the failure
+          // is a cross-origin load the browser will not describe. Say so
+          // explicitly rather than shrugging, because "blocked or unreachable"
+          // points at a policy or a network and "message" points at code.
+          worker.addEventListener("error", (event) => {
+            const where = event.filename
+              ? ` (${event.filename}${event.lineno ? `:${event.lineno}` : ""})`
+              : "";
+            const detail =
+              event.message ||
+              (event.error instanceof Error ? event.error.message : "") ||
+              "the worker could not start — its script or one of its resources " +
+                "was blocked or unreachable";
+            reject(new Error(`${detail}${where}`));
+          });
+          // Fires when a posted message cannot be deserialised. Distinct from
+          // "error", and silently dropping it turns a real fault into a hang.
+          worker.addEventListener("messageerror", () =>
+            reject(new Error("the worker sent a message that could not be read")),
           );
           worker.postMessage({ type: "load", device: "auto" } satisfies AsrRequest);
         });
