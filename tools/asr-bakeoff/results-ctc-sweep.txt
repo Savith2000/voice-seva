@@ -1,0 +1,59 @@
+###### window 3s
+model                   stability    discrim    params     int8   verdict
+------------------------------------------------------------------------------------------------
+vak-san                     0.196      0.851       94M    94 MB   GO
+vak-hin                     0.229      0.875       94M    94 MB   MARGINAL
+###### window 5s
+model                   stability    discrim    params     int8   verdict
+------------------------------------------------------------------------------------------------
+vak-san                     0.095      0.798       94M    94 MB   GO
+vak-hin                     0.134      0.797       94M    94 MB   GO
+###### window 8s
+model                   stability    discrim    params     int8   verdict
+------------------------------------------------------------------------------------------------
+vak-san                     0.094      0.475       94M    94 MB   MARGINAL
+vak-hin                     0.107      0.444       94M    94 MB   MARGINAL
+###### second recording: voicememo-test.m4a
+WINDOW STABILITY
+==============================================================================
+stability      — same audio, window nudged. LOW is good (<0.20).
+discriminability — different points in the chant. HIGH is good
+                   (>0.50), or the matcher cannot tell them apart.
+int8           — rough browser download at 1 byte per weight.
+
+model                   stability    discrim    params     int8   verdict
+------------------------------------------------------------------------------------------------
+vak-san                     0.131      0.241       94M    94 MB   NO — everything transcribes alike, nothing to match on
+vak-hin                     0.143      0.250       94M    94 MB   NO — everything transcribes alike, nothing to match on
+mms-hin                     0.245      0.329      965M   965 MB   NO — everything transcribes alike, nothing to match on
+###### TTS repeated takes (cross-check on the other protocol)
+  tts-130.wav  (0.03s)
+    raw   नमस्त रुद्र मन्य उत्तो ेश्वे नमन नमस्ते अस्तु धंड ने बाहुद्यामुतते नमन
+    norm  ननस्तरुद्रनन्यउत्तोेस्वेनननननस्तेअस्तुदडनेबहुद्यनुततेननन
+
+  tts-155.wav  (0.02s)
+    raw   नमस्ते रुद्र मन्य उत्तोेश्वे नमन नमस्ते अस्तुधंड ने बाहुद्यामुतते नमन
+    norm  ननस्तेरुद्रनन्यउत्तोेस्वेनननननस्तेअस्तुदडनेबहुद्यनुततेननन
+
+  tts-205.wav  (0.02s)
+    raw   नमस्ते रुद्र मन्य उत्तर तेश्वे नमक नमस्ते अस्तुधंड ने बाहुद्यामुत्ते नमक
+    norm  ननस्तेरुद्रनन्यउत्तरतेस्वेननकननस्तेअस्तुदडनेबहुद्यनुत्तेननक
+
+  tts-235.wav  (0.02s)
+    raw   नमस्ते रुद्र मन उत्तो केश्वी नमक नमस्ते अस्तु धं ने बाहुद्यामुत्ते नमक
+    norm  ननस्तेरुद्रननउत्तोकेस्विननकननस्तेअस्तुदनेबहुद्यनुत्तेननक
+
+
+==============================================================================
+CONSISTENCY  (mean pairwise character error rate between takes)
+==============================================================================
+Lower is better. This measures whether the model repeats itself,
+NOT whether it is correct. Correctness is not required.
+
+model                       raw     norm  script(s)              verdict
+----------------------------------------------------------------------------------------------------
+vak-san                   0.117    0.120   Devanagari            GO — errors repeat, the matcher can absorb them
+vak-hin                   0.099    0.101   Devanagari            GO — errors repeat, the matcher can absorb them
+
+! = the model changed writing system between takes. Normalisation
+    cannot fix this; pin the language instead.
