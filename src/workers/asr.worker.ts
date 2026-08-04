@@ -31,8 +31,23 @@ import {
 type Vocab = { tokens: string[]; blankId: number };
 let vocab: Vocab | null = null;
 
+/**
+ * Where the model's own files live, built the same way the library builds it.
+ *
+ * Derived from `env` rather than hardcoded so this cannot drift from where
+ * AutoProcessor and AutoModelForCTC are actually fetching from — the vocab
+ * coming from one place and the weights from another is a failure that would
+ * decode cleanly and be wrong.
+ */
+function modelBase(): string {
+  const path = env.remotePathTemplate
+    .replace("{model}", MODEL_ID)
+    .replace("{revision}", "main");
+  return `${env.remoteHost}${path}`.replace(/\/$/, "");
+}
+
 async function loadVocab(): Promise<Vocab> {
-  const base = `${env.localModelPath}${MODEL_ID}`;
+  const base = modelBase();
   const [vocabJson, tokenizerConfig] = await Promise.all([
     fetch(`${base}/vocab.json`).then((r) => r.json()),
     fetch(`${base}/tokenizer_config.json`).then((r) => r.json()),
@@ -57,14 +72,27 @@ async function loadVocab(): Promise<Vocab> {
   return { tokens, blankId };
 }
 
-// Served out of public/models/, not fetched from the Hub. There is no ONNX
-// build of this model on the Hub — we made one (tools/asr-bakeoff/export_onnx.py),
-// so there is nothing remote to fall back to.
-env.allowLocalModels = true;
-env.allowRemoteModels = false;
-env.localModelPath = "/models/";
+// Fetched from the Hub, not served out of public/models/.
+//
+// It used to be the other way round, because there was no ONNX build of this
+// model on the Hub — we made one with tools/asr-bakeoff/export_onnx.py. That
+// export now lives at the repo below, so there is somewhere remote to load
+// from, and it has to be remote: the fp16 graph is 190 MB and the int8 one is
+// 123 MB, while GitHub hard-refuses any file over 100 MiB and Vercel's Hobby
+// tier caps a whole deployment at 100 MB. The weights could never travel with
+// the source, which is why public/models/ is gitignored — so a deployed build
+// had no model at all and would have failed the moment anyone pressed Listen.
+//
+// Local loading is off rather than left on as a fallback. With it on, every
+// file would be requested from this origin first, 404, and only then go to the
+// Hub — and, worse, development would quietly work while production did not.
+// That divergence is the exact shape of the bug this change exists to fix.
+//
+// The audio still never leaves the device. Fetching a model is not sending one.
+env.allowLocalModels = false;
+env.allowRemoteModels = true;
 
-const MODEL_ID = "vak-san";
+const MODEL_ID = "Savith/vak-san-onnx";
 
 export type AsrReady = {
   type: "ready";
