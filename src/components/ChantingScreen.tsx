@@ -466,14 +466,12 @@ export default function ChantingScreen() {
         </div>
 
         <div className="vs-state">
-          <div className="vs-mark" data-condition={condition}>
-            <div className="vs-disc" />
-          </div>
+          <InkWell condition={condition} level={session.level} />
           <div>
-            <div className="vs-word">
+            <div className="vs-word" key={`w-${condition}-${starting}`}>
               {starting ? "Starting…" : STATE_WORDS[condition].word}
             </div>
-            <div className="vs-sub">
+            <div className="vs-sub" key={`s-${condition}-${starting}`}>
               {starting
                 ? "Opening the microphone and waking the model."
                 : STATE_WORDS[condition].sub}
@@ -748,6 +746,88 @@ export default function ChantingScreen() {
   );
 }
 
+/**
+ * The state mark: a well that the voice fills with ink.
+ *
+ * It replaced four unrelated CSS rules — two drawing a border, two a background
+ * — with nothing interpolating between them, which is why pressing the control
+ * felt like something breaking rather than something starting.
+ *
+ * Each condition is now a state of one material. Idle is a dry ring. Starting
+ * draws a stroke once around the rim, and that stroke is honest: the model
+ * really is arriving. Following floods the well and then lets the level ride
+ * the microphone. Holding pales the ink and lets it recede to a stain at the
+ * rim — the voice has stopped but the position is kept, which is exactly what
+ * that state means.
+ *
+ * The level is written straight to a CSS custom property from an animation
+ * frame. It never passes through React: a setState at fifteen hertz would
+ * re-render three hundred lines of scripture to move a mark twenty-one pixels
+ * across.
+ */
+function InkWell({
+  condition,
+  level,
+}: {
+  condition: Condition;
+  level: { current: number };
+}) {
+  const inkRef = useRef<SVGRectElement | null>(null);
+
+  useEffect(() => {
+    const node = inkRef.current;
+    if (!node) return;
+
+    // Only while there is something to show, and never while the tab is
+    // hidden — an unwatched loop is just heat.
+    if (condition !== "following" && condition !== "holding") {
+      node.style.setProperty("--ink", "0");
+      return;
+    }
+
+    // The bowl is 23 px across, so the bottom fifth of it is a sliver a few
+    // pixels tall — a true 0..1 mapping spends most of its range where nothing
+    // can be read. Listening therefore starts at a floor rather than at empty,
+    // which is also the honest reading: the instrument IS attending, even in a
+    // silence, and the voice rides above that rather than creating it.
+    const FLOOR = 0.3;
+    let frame = 0;
+    const draw = () => {
+      if (!document.hidden) {
+        const ink = FLOOR + level.current * (1 - FLOOR);
+        node.style.setProperty("--ink", ink.toFixed(3));
+      }
+      frame = requestAnimationFrame(draw);
+    };
+    frame = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(frame);
+  }, [condition, level]);
+
+  return (
+    <span className="vs-mark" data-condition={condition} aria-hidden="true">
+      <svg viewBox="0 0 24 24" className="vs-well">
+        <defs>
+          <clipPath id="vs-bowl">
+            <circle cx="12" cy="12" r="9.4" />
+          </clipPath>
+        </defs>
+        {/* The ink, clipped to the bowl and rising from its floor.
+            The clip must live on a parent that does NOT move: a transform on
+            the clipped element takes its clip with it, so translating the same
+            node that carries clipPath slides the ink straight out of the bowl
+            and leaves a blob hanging below the rim. */}
+        <g clipPath="url(#vs-bowl)">
+          <rect ref={inkRef} className="vs-ink" x="0" y="0" width="24" height="24" />
+        </g>
+        {/* the rim */}
+        <circle className="vs-rim" cx="12" cy="12" r="9.4" />
+        {/* the stroke that draws itself while the model arrives */}
+        <circle className="vs-draw" cx="12" cy="12" r="9.4" />
+      </svg>
+    </span>
+  );
+}
+
 /** One line of the received text. */
 function Line({
   line,
@@ -914,14 +994,71 @@ const CSS = `
 .vs-navrow button.vs-here{color:var(--ink); opacity:1; font-weight:600; border-bottom:2px solid var(--saffron-full)}
 
 .vs-state{width:290px; flex:none; display:flex; gap:13px; align-items:flex-start}
-.vs-mark{width:21px;height:21px;flex:none;margin-top:3px;position:relative}
-.vs-disc{position:absolute;inset:0;border-radius:50%}
-[data-condition="idle"] .vs-disc{border:1.5px solid var(--ink3)}
-[data-condition="locating"] .vs-disc{border:1.5px dashed var(--blue); animation:vsturn 5.5s linear infinite}
-[data-condition="following"] .vs-disc{background:var(--saffron-full); animation:vsbreathe 4.4s ease-in-out infinite}
-[data-condition="holding"] .vs-disc{background:var(--saffron-pale); border:1.5px solid var(--saffron-full)}
+/* ---- the ink well -------------------------------------------------------
+   One material in four states, where there used to be four unrelated rules
+   with nothing between them. Everything below interpolates, so no change is
+   ever a cut. --------------------------------------------------------------- */
+.vs-mark{width:23px;height:23px;flex:none;margin-top:2px;display:block}
+.vs-well{width:100%;height:100%;overflow:visible;display:block;
+  transition:transform 420ms var(--ease)}
+.vs-rim{fill:none; stroke:var(--ink3); stroke-width:1.5;
+  transition:stroke 520ms var(--ease), opacity 520ms var(--ease)}
+
+/* The ink. --ink is written from an animation frame, 0 at the floor of the
+   bowl and 1 at its lip; the fill is a full square clipped to the circle, so
+   the surface of the ink is always a straight line across a round vessel. */
+.vs-ink{--ink:0; fill:var(--saffron-full);
+  transform-box:view-box;
+  transform:translateY(calc((1 - var(--ink)) * 100%));
+  transition:fill 520ms var(--ease), opacity 520ms var(--ease)}
+.vs-draw{fill:none; stroke:var(--blue); stroke-width:1.6; stroke-linecap:round;
+  /* 2πr, so the dash is the circumference and the offset is a full lap */
+  stroke-dasharray:59; stroke-dashoffset:59; opacity:0;
+  transform-origin:50% 50%}
+
+[data-condition="idle"] .vs-ink{opacity:0}
+[data-condition="idle"] .vs-rim{stroke:var(--ink3)}
+
+/* Arriving. The stroke is real progress — the model genuinely is loading —
+   so it laps rather than pulses, and it stops the instant listening begins. */
+[data-condition="locating"] .vs-rim{stroke:var(--blue); opacity:.35}
+[data-condition="locating"] .vs-ink{opacity:0}
+[data-condition="locating"] .vs-draw{opacity:1;
+  animation:vs-lap 1.5s cubic-bezier(.62,0,.38,1) infinite, vsturn 3s linear infinite}
+
+/* Listening. The ink is at the level the room actually is, and the whole well
+   breathes underneath it so the mark is alive even in a silence. */
+[data-condition="following"] .vs-rim{stroke:var(--saffron-full)}
+[data-condition="following"] .vs-ink{opacity:1}
+[data-condition="following"] .vs-well{animation:vsbreathe 4.4s ease-in-out infinite}
+
+/* Held. The ink pales and settles: the voice stopped, the place is kept. */
+[data-condition="holding"] .vs-rim{stroke:var(--saffron-full); opacity:.75}
+[data-condition="holding"] .vs-ink{opacity:.34; fill:var(--saffron-full)}
+
 @keyframes vsturn{to{transform:rotate(360deg)}}
-@keyframes vsbreathe{0%,100%{transform:scale(.78);opacity:.85}50%{transform:scale(1);opacity:1}}
+@keyframes vsbreathe{0%,100%{transform:scale(.93)}50%{transform:scale(1)}}
+@keyframes vs-lap{
+  0%{stroke-dashoffset:59}
+  55%{stroke-dashoffset:0}
+  100%{stroke-dashoffset:-59}
+}
+
+/* Pressing it. The nib is put to the paper before any ink moves — 90 ms, the
+   shortest thing on the page, because acknowledgement that arrives late reads
+   as latency rather than as response. */
+.vs-act:active .vs-mark, .vs-state:has(.vs-act:active) .vs-well{transform:scale(.86)}
+.vs-act{transition:color 260ms var(--ease), border-color 260ms var(--ease)}
+.vs-act:hover:not(:disabled){color:var(--ink); border-bottom-color:var(--blue)}
+.vs-act:active:not(:disabled){transform:translateY(1px)}
+
+/* The words. Three of them used to swap in the same frame, which is most of
+   what "clunky" was: the mark, the state and the sub-line all cut at once.
+   Keying them on the condition remounts them, so each settles in rather than
+   appearing. */
+.vs-word, .vs-sub{animation:vs-say 380ms var(--ease) backwards}
+.vs-sub{animation-delay:60ms}
+@keyframes vs-say{from{opacity:0; transform:translateY(-4px)} to{opacity:1; transform:none}}
 .vs-word{font-family:var(--book); font-size:20px; line-height:1.25}
 .vs-sub{font-size:13px; color:var(--ink2); margin-top:4px; line-height:1.5}
 .vs-act{font-size:15px; font-style:italic; color:var(--blue); margin-top:8px; border-bottom:1px solid var(--rule); padding-bottom:2px}
@@ -1106,7 +1243,9 @@ const CSS = `
 @media (prefers-reduced-motion: reduce){
   .vs-hr, .vs-window, .vs-scroll, .vs-head,
   .vs-measure, .vs-margin, .vs-colophon{animation:none}
-  .vs-disc{animation:none !important}
+  .vs-well, .vs-draw{animation:none !important}
+  .vs-word, .vs-sub{animation:none}
+  .vs-draw{opacity:1; stroke-dashoffset:15}
   .vs-clip{scroll-behavior:auto}
   .vs-scroll, .vs-prog i, .vs-tick, .vs-leadtext{transition:none}
 }
