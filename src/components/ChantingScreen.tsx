@@ -55,23 +55,21 @@ const ROMAN = [
 ] as const;
 
 /**
- * Light is a dimmer, not a mode switch.
+ * Two polarities of the same page.
  *
  * A light page genuinely reads better at three metres — positive polarity gives
  * better acuity for small complex glyphs, and Devanagari carrying svara marks
  * is exactly that case. But a full white screen at five in the morning is a
  * lamp pointed at the reciter's face, and that is a functional cost rather than
- * a matter of taste. So all three are real, and the sheet inverting to ink
- * changes only the polarity of the paper: the composition, the measure, the
- * vessel and the seal are identical.
+ * a matter of taste. So both are real, and the sheet inverting to ink changes
+ * only the polarity of the paper: the composition, the measure, the vessel and
+ * the seal are identical.
+ *
+ * A third, brighter step existed and is gone. Its paper was near-white, which
+ * is the one setting nobody using this at dawn would ever reach for, and it
+ * made the choice a three-way when it is really a question with two answers.
  */
 const LIGHTS = {
-  day: {
-    "--page": "#F6F1E7", "--paper": "#FCF8F0",
-    "--ink": "#1F1810", "--ink2": "#544A3D", "--ink3": "#6B6052",
-    "--blue": "#0C5098", "--rule": "rgba(12,80,152,.30)", "--rule-soft": "rgba(12,80,152,.16)",
-    "--saffron": "#96450A", "--saffron-full": "#EE7900", "--saffron-pale": "rgba(238,121,0,.20)",
-  },
   lamp: {
     "--page": "#E8E1D3", "--paper": "#F1EBDE",
     "--ink": "#221B12", "--ink2": "#5C5245", "--ink3": "#6F6456",
@@ -720,10 +718,13 @@ export default function ChantingScreen() {
             ))}
           </Control>
 
-          <Control label="Light">
-            {(["day", "lamp", "dawn"] as const).map((name) => (
+          {/* Named for what a reader already knows rather than for the scene
+              they are in. "Lamp" and "Before dawn" described the hour; these
+              describe the setting, which is the thing being chosen. */}
+          <Control label="Appearance">
+            {(["lamp", "dawn"] as const).map((name) => (
               <Choice key={name} on={light === name} onClick={() => setLight(name)}>
-                {name === "dawn" ? "Before dawn" : name === "day" ? "Day" : "Lamp"}
+                {name === "dawn" ? "Dark mode" : "Light mode"}
               </Choice>
             ))}
           </Control>
@@ -763,7 +764,7 @@ export default function ChantingScreen() {
             </Choice>
           </Control>
 
-          <Control label="Library">
+          <Control label="Library" note="Coming soon">
             <Choice on={showImport} onClick={() => setShowImport((on) => !on)}>
               Add a chant · PDF
             </Choice>
@@ -1052,7 +1053,16 @@ function Line({
   );
 }
 
-function Control({ label, children }: { label: string; children: React.ReactNode }) {
+function Control({
+  label,
+  note,
+  children,
+}: {
+  label: string;
+  /** Set when the control is present but the thing behind it is not yet. */
+  note?: string;
+  children: React.ReactNode;
+}) {
   const ref = useSlider();
   return (
     <div className="vs-ctrl">
@@ -1060,6 +1070,7 @@ function Control({ label, children }: { label: string; children: React.ReactNode
       <span className="vs-v" ref={ref as React.RefObject<HTMLSpanElement>}>
         {children}
       </span>
+      {note ? <span className="vs-note">{note}</span> : null}
     </div>
   );
 }
@@ -1363,6 +1374,7 @@ const CSS = `
 [data-still="yes"] .vs-colophon{opacity:0; transform:translateY(6px); pointer-events:none}
 .vs-ctrls{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px 26px}
 .vs-ctrl{font-size:13px; line-height:1.5}
+.vs-note{display:block; font-size:12px; font-style:italic; color:var(--ink3); margin-top:2px}
 .vs-k{display:block; color:var(--ink2); margin-bottom:2px; font-size:13px; font-style:italic}
 .vs-v{display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; position:relative}
 .vs-v button, .vs-v span{font-size:15px; color:var(--ink2)}
