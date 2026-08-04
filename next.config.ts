@@ -22,6 +22,18 @@ const nextConfig: NextConfig = {
    * which is exactly the shape of a public model download.
    */
   async headers() {
+    // Set VOICE_SEVA_ISOLATE=0 to turn this off without touching code.
+    //
+    // Cross-origin isolation changes how the browser loads *everything*, and
+    // ONNX Runtime responds by switching to its threaded WASM build — a
+    // different binary, fetched from a different place, spawning nested
+    // workers. That is a lot of new behaviour to buy with two lines of config,
+    // and it cannot be exercised on a machine that takes the WebGPU path
+    // anyway. So it stays reversible: if a device fails to start its worker,
+    // one environment variable puts it back to the way that was merely slow,
+    // instead of needing a code change and a redeploy to find out.
+    if (process.env.VOICE_SEVA_ISOLATE === "0") return [];
+
     return [
       {
         source: "/:path*",
