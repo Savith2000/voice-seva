@@ -66,6 +66,7 @@ tools/chant-import/fonts/
 # ignored by path so .claude/settings.json can still be committed.
 .agents/
 .claude/skills/
+.codex/
 
 # Source chant PDFs. These are publishers' editions — whether to redistribute
 # one is the owner's call, not a side effect of committing the importer. The

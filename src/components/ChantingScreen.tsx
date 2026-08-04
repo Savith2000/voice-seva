@@ -417,7 +417,16 @@ export default function ChantingScreen() {
       <header className="vs-head">
         <div className="vs-work">
           <Link href="/" className="vs-lib" title="Chant library">
-            ← All chants
+            <svg viewBox="0 0 13 9" fill="none" aria-hidden="true">
+              <path
+                d="M12.2 4.5H1M4.6 1 1 4.5 4.6 8"
+                stroke="currentColor"
+                strokeWidth="1.1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            All chants
           </Link>
           <div className="vs-title">
             <span className="vs-sa" lang="sa">
@@ -590,7 +599,6 @@ export default function ChantingScreen() {
         <aside className="vs-margin">
           {showGloss && glossVerse ? (
             <div className="vs-gloss">
-              <div className="vs-lbl">Meaning</div>
               <div className="vs-ref">
                 {section.title.english} · Verse {ROMAN[current?.verse ?? 0] ?? current?.verse}
                 {" · "}
@@ -877,7 +885,10 @@ const CSS = `
 .vs-stage{
   --dev: var(--font-devanagari, "Kohinoor Devanagari","ITF Devanagari","Devanagari Sangam MN","Devanagari MT","Noto Serif Devanagari",serif);
   --book: "Iowan Old Style","Palatino","Palatino Linotype","Hoefler Text",Charter,Georgia,serif;
-  --marg: "Helvetica Neue",Helvetica,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  /* Marginalia are set in the text family, as they are in a book. There is no
+     sans on this page: hierarchy comes from size, italic and colour, which is
+     how a printed page has always done it. */
+  --marg: var(--book);
   height:100dvh; min-height:640px; display:flex; flex-direction:column;
   padding:22px 60px 18px; gap:0;
   background:var(--page); color:var(--ink);
@@ -889,14 +900,15 @@ const CSS = `
 
 .vs-head{display:flex; align-items:flex-start; gap:48px; padding-bottom:10px; border-bottom:1px solid var(--rule)}
 .vs-work{flex:1; min-width:0}
-.vs-lib{display:block; font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--blue); margin-bottom:6px; opacity:.85}
+.vs-lib{display:inline-flex; align-items:center; gap:7px; font-size:15px; font-style:italic; color:var(--blue); margin-bottom:5px; opacity:.9}
+.vs-lib svg{width:13px; height:9px; flex:none; overflow:visible}
 .vs-lib:hover{opacity:1}
 .vs-title{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap}
 .vs-sa{font-family:var(--dev); font-size:21px; line-height:1.5}
 .vs-ia{font-family:var(--book); font-size:17px; font-style:italic; color:var(--ink2)}
 .vs-nav{margin-top:6px; display:flex; flex-direction:column; gap:2px}
 .vs-navrow{display:flex; align-items:baseline; gap:0; font-size:14px; flex-wrap:wrap}
-.vs-lbl{font-size:12px; letter-spacing:.15em; text-transform:uppercase; color:var(--ink2); margin-right:14px; min-width:74px}
+.vs-lbl{font-size:14px; font-style:italic; color:var(--ink2); margin-right:14px; min-width:80px}
 .vs-navrow button{color:var(--blue); opacity:.5; padding:0 7px 2px}
 .vs-navrow button:hover{opacity:.9}
 .vs-navrow button.vs-here{color:var(--ink); opacity:1; font-weight:600; border-bottom:2px solid var(--saffron-full)}
@@ -912,7 +924,7 @@ const CSS = `
 @keyframes vsbreathe{0%,100%{transform:scale(.78);opacity:.85}50%{transform:scale(1);opacity:1}}
 .vs-word{font-family:var(--book); font-size:20px; line-height:1.25}
 .vs-sub{font-size:13px; color:var(--ink2); margin-top:4px; line-height:1.5}
-.vs-act{font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--blue); margin-top:8px; border-bottom:1px solid var(--rule); padding-bottom:2px}
+.vs-act{font-size:15px; font-style:italic; color:var(--blue); margin-top:8px; border-bottom:1px solid var(--rule); padding-bottom:2px}
 .vs-act:disabled{opacity:.45; cursor:default}
 
 .vs-loading{padding:10px 0 0; font-size:13px; color:var(--ink2)}
@@ -923,14 +935,14 @@ const CSS = `
 .vs-middle{flex:1; min-height:0; display:grid; grid-template-columns:70px 1fr 290px; gap:40px; padding:14px 0 0}
 
 .vs-measure{display:flex; flex-direction:column; min-height:0}
-.vs-cap{font-size:12px; letter-spacing:.15em; color:var(--ink2); text-align:right; margin-bottom:10px}
+.vs-cap{font-size:13px; color:var(--ink2); text-align:right; margin-bottom:10px; font-variant-numeric:oldstyle-nums}
 .vs-stack{flex:1; display:flex; flex-direction:column; gap:5px; min-height:0}
 .vs-trow{flex:1; display:flex; align-items:center; justify-content:flex-end; min-height:5px}
 .vs-tick{height:1.5px; background:var(--blue); opacity:.38; width:12px; transition:width .3s, opacity .3s, background .3s; display:block}
 .vs-trow.vs-done .vs-tick{opacity:.72; width:18px}
 .vs-trow.vs-now .vs-tick{opacity:1; width:40px; height:2.5px; background:var(--saffron-full)}
 .vs-trow:hover .vs-tick{opacity:.9; width:24px}
-.vs-foot{font-size:12px; color:var(--ink2); text-align:right; margin-top:10px}
+.vs-foot{font-size:13px; color:var(--ink2); text-align:right; margin-top:10px; font-variant-numeric:oldstyle-nums}
 
 .vs-vessel{display:flex; flex-direction:column; min-width:0}
 .vs-hr{height:1px; background:var(--rule); flex:none}
@@ -955,18 +967,27 @@ const CSS = `
    no sense of having crossed anything. A new WORK is a heavier statement than
    a new anuvaka within one, so it gets weight and space rather than a
    different colour. */
+/* The RULE carries the weight, not the words.
+   A section head that shouts competes with the scripture it introduces, and
+   the reader needs it in peripheral vision while scrolling, not in the centre
+   of attention while chanting. So the label stays quiet and italic in the text
+   colour, and a new work is marked by a heavier, wider rule instead of louder
+   type. */
 .vs-divider{
-  display:flex; align-items:center; gap:14px;
-  margin:26px 0 18px; color:var(--blue);
-  font-size:12px; letter-spacing:.18em; text-transform:uppercase;
+  display:flex; align-items:center; gap:13px;
+  margin:30px 0 20px; color:var(--ink2);
+  font-size:14px; font-style:italic; letter-spacing:.01em;
 }
-.vs-divider::before, .vs-divider::after{content:""; height:1px; background:var(--rule); flex:1}
-.vs-divider::before{flex:0 0 22px}
-.vs-divider span{flex:none; opacity:.85}
-.vs-divider[data-work-start="yes"]{margin:40px 0 26px; font-weight:600; font-size:13px}
+.vs-divider::before, .vs-divider::after{content:""; height:1px; background:var(--rule-soft); flex:1}
+.vs-divider::before{flex:0 0 18px}
+.vs-divider span{flex:none}
+.vs-divider[data-work-start="yes"]{margin:46px 0 28px; color:var(--ink)}
 .vs-divider[data-work-start="yes"]::before,
-.vs-divider[data-work-start="yes"]::after{height:2px; background:var(--rule)}
-.vs-scroll > div:first-child .vs-divider{margin-top:0}
+.vs-divider[data-work-start="yes"]::after{height:1px; background:var(--rule)}
+.vs-divider[data-work-start="yes"]::before{flex:0 0 44px}
+/* The first section is already named by the running head two inches above it.
+   Printing it again is the page captioning itself. */
+.vs-scroll > div:first-child .vs-divider{display:none}
 .vs-ln{cursor:pointer; padding:2px 0}
 .vs-leadtext{font-size:calc(25px * var(--scale)); line-height:1.9; color:var(--ink3); transition:color .45s ease, font-size .3s ease}
 .vs-ln.vs-near .vs-leadtext{color:var(--ink2)}
@@ -1007,7 +1028,7 @@ const CSS = `
 .vs-seal{margin-top:auto; text-align:right}
 .vs-sealrow{display:flex; align-items:center; gap:14px; justify-content:flex-end}
 .vs-seal img{width:62px;height:62px;display:block;flex:none}
-.vs-who{font-size:12px; line-height:1.6; letter-spacing:.12em; text-transform:uppercase; color:var(--blue)}
+.vs-who{font-size:12px; line-height:1.7; letter-spacing:.11em; text-transform:uppercase; color:var(--blue); font-variant-numeric:oldstyle-nums}
 .vs-values{margin-top:9px; font-family:var(--book); font-style:italic; font-size:13px; color:var(--ink2)}
 
 .vs-import{
@@ -1018,8 +1039,7 @@ const CSS = `
 }
 .vs-import strong{color:var(--ink); font-weight:600}
 .vs-import button{
-  flex:none; font-family:var(--marg); font-size:13px; letter-spacing:.14em;
-  text-transform:uppercase; color:var(--blue);
+  flex:none; font-size:15px; font-style:italic; color:var(--blue);
 }
 .vs-colophon{flex:none; margin-top:12px; padding-top:10px; border-top:1px solid var(--rule);
   display:grid; grid-template-columns:1fr 290px; gap:40px; align-items:end;
@@ -1027,14 +1047,14 @@ const CSS = `
 [data-still="yes"] .vs-colophon{opacity:0; transform:translateY(6px); pointer-events:none}
 .vs-ctrls{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px 26px}
 .vs-ctrl{font-size:13px; line-height:1.5}
-.vs-k{display:block; letter-spacing:.15em; text-transform:uppercase; color:var(--ink2); margin-bottom:3px; font-size:12px}
+.vs-k{display:block; color:var(--ink2); margin-bottom:2px; font-size:13px; font-style:italic}
 .vs-v{display:flex; gap:10px; align-items:baseline; flex-wrap:wrap}
-.vs-v button, .vs-v span{font-size:14px; color:var(--ink2)}
+.vs-v button, .vs-v span{font-size:15px; color:var(--ink2)}
 .vs-v button:hover{color:var(--ink)}
 .vs-v button.vs-on{color:var(--ink); border-bottom:1.5px solid var(--saffron-full); padding-bottom:1px}
 .vs-v .vs-dev{font-family:var(--dev)}
-.vs-select{font:inherit; font-size:14px; color:var(--ink2); background:none; border:0; border-bottom:1px solid var(--rule); max-width:150px}
-.vs-model{font-size:12px; line-height:1.6; color:var(--ink2); text-align:right}
+.vs-select{font:inherit; font-size:15px; color:var(--ink2); background:none; border:0; border-bottom:1px solid var(--rule); max-width:150px}
+.vs-model{font-size:13px; line-height:1.65; color:var(--ink2); text-align:right; font-style:italic}
 .vs-modelnote{margin-top:4px}
 
 @media (max-width:1240px){
