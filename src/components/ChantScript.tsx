@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import ChantLineView from "@/components/ChantLineView";
 import { chant } from "@/lib/chant/chant-data";
 import { allLines, flatten } from "@/lib/chant/chant";
-import { cer } from "@/lib/chant/normalize";
+import { closestPair } from "@/lib/chant/closest-pair";
 
 /**
  * Chunk 4's instrument: does the imported chant render?
@@ -26,17 +26,21 @@ export default function ChantScript() {
 
   // The counterpart to consistency: if two lines look the same after
   // normalisation, no amount of model stability can separate them.
+  //
+  // The nested loop this replaced was fine at one anuvaka's 33 lines and is not
+  // at 303 — 45,753 Levenshtein matrices on mount, which the page wore as a
+  // visible hitch. closestPair prunes with length and q-gram bounds that are
+  // exact, so the answer is unchanged; see closest-pair.ts.
   const closest = useMemo(() => {
-    let worst = { a: 0, b: 0, score: 1 };
-    for (let i = 0; i < lines.length; i++) {
-      for (let j = i + 1; j < lines.length; j++) {
-        const score = cer(lines[i].normalized, lines[j].normalized);
-        if (score < worst.score) {
-          worst = { a: lines[i].sequence, b: lines[j].sequence, score };
-        }
-      }
-    }
-    return worst;
+    const found = closestPair(lines.map((line) => line.normalized));
+    if (!found) return null;
+    return {
+      a: lines[found.a].sequence,
+      b: lines[found.b].sequence,
+      score: found.score,
+      compared: found.compared,
+      total: found.total,
+    };
   }, [lines]);
 
   const flat = useMemo(() => flatten(chant), []);
@@ -57,11 +61,19 @@ export default function ChantScript() {
       </div>
 
       <p className="font-mono text-xs leading-relaxed text-neutral-600">
-        {chant.name.english} &middot; {lines.length} lines,{" "}
-        {flat.text.length} normalised characters &middot; closest pair{" "}
-        <span className="text-neutral-400">{closest.score.toFixed(3)}</span>{" "}
-        (lines {closest.a}/{closest.b}), against the model&apos;s own 0.095
-        stability
+        {chant.name.english} &middot; {chant.anuvakas.length} sections,{" "}
+        {lines.length} lines, {flat.text.length} normalised characters
+        {closest ? (
+          <>
+            {" "}
+            &middot; closest pair{" "}
+            <span className="text-neutral-400">{closest.score.toFixed(3)}</span>{" "}
+            (lines {closest.a}/{closest.b}, measured{" "}
+            {closest.compared.toLocaleString()} of{" "}
+            {closest.total.toLocaleString()} pairs), against the model&apos;s own
+            0.095 stability
+          </>
+        ) : null}
         <br />
         source: {chant.source.edition}
       </p>
