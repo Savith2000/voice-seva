@@ -92,14 +92,15 @@ reframing:
 *anuvaka* (section), *verse*, *svara* (pitch accent), *Namakam* / *Chamakam*,
 *seva* (selfless service).
 
-**Explicitly undecided, and not to be invented:**
+**Settled by the owner, recorded as their decision:**
 
-- **The speech model's licence is unverified.** Recorded in the project handoff
-  as an open item and still open. Public distribution is now the stated
-  destination, so this is **blocking**, not theoretical.
-- **Redistribution rights for the source edition's text** have not been
-  established. The decoded text ships in the app; the PDF itself does not, and
-  it carries a metadata flag requesting that text not be extracted.
+- **Licensing is accepted as fine.** The owner has reviewed the speech model's
+  licence and the source edition's redistribution question and treats both as
+  logistics they are handling. Written here as a stated position rather than as
+  an independently verified fact, so a later reader knows which it is and does
+  not re-open it as though nobody had decided.
+
+**Explicitly undecided, and not to be invented:**
 - **Whether user-uploaded PDFs ship at all**, and on what terms. Intended as a
   clearly-labelled beta, narrowly scoped, because splitting an arbitrary
   recitation into its sections reliably is unsolved.
