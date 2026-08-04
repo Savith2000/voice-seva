@@ -32,6 +32,7 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -450,7 +451,7 @@ export default function ChantingScreen() {
 
           <div className="vs-nav">
             {grouped.map((group) => (
-              <div className="vs-navrow" key={group.work || "all"}>
+              <NavRow key={group.work || "all"}>
                 <span className="vs-lbl">{group.work || "Sections"}</span>
                 {group.sections.map((entry) => {
                   const index = chant.anuvakas.indexOf(entry);
@@ -467,13 +468,14 @@ export default function ChantingScreen() {
                       key={entry.id}
                       onClick={() => selectLine(sectionStart[index])}
                       className={here ? "vs-here" : ""}
+                      data-on={here}
                       title={entry.title.english}
                     >
                       {label}
                     </button>
                   );
                 })}
-              </div>
+              </NavRow>
             ))}
           </div>
         </div>
@@ -782,6 +784,72 @@ export default function ChantingScreen() {
 }
 
 /**
+ * One underline per group of choices, that travels instead of teleporting.
+ *
+ * It used to be a `border-bottom` on whichever button was selected — and a
+ * border belongs to one element, so when the choice changed the line did not
+ * move, it simply appeared somewhere else. There was nothing to animate. The
+ * only fix is a single mark that outlives the selection.
+ *
+ * This measures the active child and publishes its box to the container as
+ * custom properties; one `::after` per group reads them and eases across.
+ *
+ * Positioned with translate on BOTH axes rather than `left`/`bottom`, because
+ * these rows wrap: on a narrow screen the numerals run onto a second line, and
+ * an underline pinned to the bottom of the container would sit under the wrong
+ * row entirely.
+ *
+ * Deliberately no dependency array. Any selection change re-renders this
+ * subtree anyway, and enumerating the inputs is the bug I already shipped once
+ * on the scroll placement — the list looks complete and silently rots. Reading
+ * two offsets off a handful of small nodes is far cheaper than being wrong.
+ */
+function useSlider() {
+  const ref = useRef<HTMLElement | null>(null);
+
+  const measure = useCallback(() => {
+    const box = ref.current;
+    if (!box) return;
+    const on = box.querySelector<HTMLElement>('[data-on="true"]');
+    // No selection in this group — the other work's row owns the mark. It
+    // fades rather than sliding, because a line cannot travel between two
+    // rows without crossing text that has nothing to do with either.
+    if (!on) {
+      box.style.setProperty("--o", "0");
+      return;
+    }
+    box.style.setProperty("--o", "1");
+    box.style.setProperty("--x", `${on.offsetLeft}px`);
+    box.style.setProperty("--y", `${on.offsetTop + on.offsetHeight}px`);
+    box.style.setProperty("--w", `${on.offsetWidth}px`);
+  }, []);
+
+  useLayoutEffect(measure);
+
+  useEffect(() => {
+    const box = ref.current;
+    if (!box) return;
+    // A webfont landing after first paint changes every width underneath it.
+    void document.fonts?.ready.then(measure);
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [measure]);
+
+  return ref;
+}
+
+/** A row of anuvaka numerals, with the travelling underline. */
+function NavRow({ children }: { children: React.ReactNode }) {
+  const ref = useSlider();
+  return (
+    <div className="vs-navrow" ref={ref as React.RefObject<HTMLDivElement>}>
+      {children}
+    </div>
+  );
+}
+
+/**
  * The state mark: a well that the voice fills with ink.
  *
  * It replaced four unrelated CSS rules — two drawing a border, two a background
@@ -963,10 +1031,13 @@ function Line({
 }
 
 function Control({ label, children }: { label: string; children: React.ReactNode }) {
+  const ref = useSlider();
   return (
     <div className="vs-ctrl">
       <span className="vs-k">{label}</span>
-      <span className="vs-v">{children}</span>
+      <span className="vs-v" ref={ref as React.RefObject<HTMLSpanElement>}>
+        {children}
+      </span>
     </div>
   );
 }
@@ -987,6 +1058,7 @@ function Choice({
       type="button"
       onClick={onClick}
       aria-pressed={on}
+      data-on={on}
       className={`${on ? "vs-on" : ""} ${devanagari ? "vs-dev" : ""}`}
     >
       {children}
@@ -1023,11 +1095,12 @@ const CSS = `
 .vs-sa{font-family:var(--dev); font-size:21px; line-height:1.5}
 .vs-ia{font-family:var(--book); font-size:17px; font-style:italic; color:var(--ink2)}
 .vs-nav{margin-top:6px; display:flex; flex-direction:column; gap:2px}
-.vs-navrow{display:flex; align-items:baseline; gap:0; font-size:14px; flex-wrap:wrap}
+.vs-navrow{display:flex; align-items:baseline; gap:0; font-size:14px; flex-wrap:wrap; position:relative}
 .vs-lbl{font-size:14px; font-style:italic; color:var(--ink2); margin-right:14px; min-width:80px}
 .vs-navrow button{color:var(--blue); opacity:.5; padding:0 7px 2px}
 .vs-navrow button:hover{opacity:.9}
-.vs-navrow button.vs-here{color:var(--ink); opacity:1; font-weight:600; border-bottom:2px solid var(--saffron-full)}
+.vs-navrow button.vs-here{color:var(--ink); opacity:1; font-weight:600}
+.vs-navrow button[data-on="true"]{opacity:1}
 
 .vs-state{width:290px; flex:none; display:flex; gap:13px; align-items:flex-start}
 /* ---- the ink well -------------------------------------------------------
@@ -1114,6 +1187,26 @@ const CSS = `
    between two equally-present things. */
 .vs-say:not([data-on="true"]){transition-duration:220ms}
 .vs-labels{justify-items:start}
+
+/* ---- the travelling underline -------------------------------------------
+   One mark per group, moved to whichever choice is active, rather than a
+   border on the choice itself. A border cannot travel between elements; it
+   can only stop being drawn on one and start on another, which is exactly
+   what "it instantly transports" was.
+
+   Width eases a touch faster than position, so the line settles into its new
+   length just after it arrives rather than stretching the whole way — a rule
+   that resizes while travelling reads as rubber, and this world is ink. --- */
+.vs-navrow::after, .vs-v::after{
+  content:""; position:absolute; left:0; top:0;
+  width:var(--w,0); height:2px; background:var(--saffron-full);
+  opacity:var(--o,0);
+  transform:translate(var(--x,0), var(--y,0));
+  transition:transform 420ms var(--ease), width 340ms var(--ease),
+             opacity 260ms var(--ease);
+  pointer-events:none;
+}
+.vs-v::after{height:1.5px}
 
 /* Spoken, not shown — the stack above is hidden from assistive tech. */
 .vs-sr{position:absolute; width:1px; height:1px; padding:0; margin:-1px;
@@ -1244,10 +1337,10 @@ const CSS = `
 .vs-ctrls{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px 26px}
 .vs-ctrl{font-size:13px; line-height:1.5}
 .vs-k{display:block; color:var(--ink2); margin-bottom:2px; font-size:13px; font-style:italic}
-.vs-v{display:flex; gap:10px; align-items:baseline; flex-wrap:wrap}
+.vs-v{display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; position:relative}
 .vs-v button, .vs-v span{font-size:15px; color:var(--ink2)}
 .vs-v button:hover{color:var(--ink)}
-.vs-v button.vs-on{color:var(--ink); border-bottom:1.5px solid var(--saffron-full); padding-bottom:1px}
+.vs-v button.vs-on{color:var(--ink)}
 .vs-v .vs-dev{font-family:var(--dev)}
 .vs-select{font:inherit; font-size:15px; color:var(--ink2); background:none; border:0; border-bottom:1px solid var(--rule); max-width:150px}
 .vs-model{font-size:13px; line-height:1.65; color:var(--ink2); text-align:right; font-style:italic}
@@ -1304,6 +1397,7 @@ const CSS = `
   .vs-measure, .vs-margin, .vs-colophon{animation:none}
   .vs-well, .vs-draw{animation:none !important}
   .vs-say{transition:opacity 200ms linear}
+  .vs-navrow::after, .vs-v::after{transition:opacity 200ms linear}
   .vs-draw{opacity:1; stroke-dashoffset:15}
   .vs-clip{scroll-behavior:auto}
   .vs-scroll, .vs-prog i, .vs-tick, .vs-leadtext{transition:none}
