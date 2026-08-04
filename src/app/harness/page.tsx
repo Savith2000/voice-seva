@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import AsrTest from "@/components/AsrTest";
 import BenchPanel from "@/components/BenchPanel";
@@ -8,7 +9,34 @@ import MicCaptureTest from "@/components/MicCaptureTest";
 import MlSmokeTest from "@/components/MlSmokeTest";
 import TrackingTest from "@/components/TrackingTest";
 
+/**
+ * The instruments are for whoever is building this, not for whoever is chanting.
+ *
+ * Open in development always; in a production build only when the deployment
+ * explicitly asks for them. A visitor handed the live link should find a chant
+ * screen, not seven panels of dtype sweeps and raw matcher output — and the
+ * raw transcript on TrackingTest is the specific thing that must never greet a
+ * reciter, since the model is *allowed* to be wrong and seeing it be wrong
+ * would read as the app being broken.
+ *
+ * This makes the route unreachable, not absent: the panels are still compiled
+ * into the build behind a 404. Enough for a test deployment; if the harness
+ * should genuinely not ship, it needs excluding from the bundle rather than
+ * hiding behind a check.
+ *
+ * To turn it on for a deployment, set VOICE_SEVA_HARNESS=1 in that
+ * environment's variables.
+ */
+function harnessAllowed(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.VOICE_SEVA_HARNESS === "1"
+  );
+}
+
 export default function Home() {
+  if (!harnessAllowed()) notFound();
+
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-16">
       <header>

@@ -1,12 +1,11 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import ChantingScreen from "@/components/ChantingScreen";
-
-export const metadata: Metadata = {
-  title: "Sri Rudram · Voice Seva",
-  description: "Chant, and the script follows you.",
-};
+// /chant is where the app lived while the front door was a landing page.
+//
+// Kept as a redirect rather than deleted, because the link has already been
+// shared: a URL someone sent to a fellow devotee should not begin returning
+// 404 because the site was rearranged around them.
 
 export default function ChantPage() {
-  return <ChantingScreen />;
+  redirect("/");
 }

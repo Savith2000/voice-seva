@@ -16,6 +16,12 @@ const eslintConfig = defineConfig([
     // contains JS vendored inside pip packages (PyTorch ships a preact bundle),
     // which eslint will happily crawl and report on.
     "tools/**/.venv/**",
+    // Installed agent skills. Third-party payload fetched by `npx skills add`,
+    // gitignored, and not ours to lint or fix — it ships its own scripts using
+    // require() and other styles this config forbids. .claude/skills is only
+    // symlinks into .agents.
+    ".agents/**",
+    ".claude/skills/**",
   ]),
 ]);
 

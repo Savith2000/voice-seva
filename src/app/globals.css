@@ -1,10 +1,48 @@
 @import "tailwindcss";
 
+/* Shobhika — IIT Bombay's Sanskrit face, SIL Open Font License 1.1, no
+   Reserved Font Name (licence in public/fonts/Shobhika-OFL.txt). Self-hosted
+   and subset; nothing is fetched from a CDN, so this survives going offline.
+
+   It is here for one reason: the Vedic pitch marks. U+1CDA (VEDIC TONE DOUBLE
+   SVARITA) lives in the Vedic Extensions block, which no Devanagari font on
+   macOS covers, so it drew as an empty box. Shobhika has it — as a real named
+   glyph, DeerghaSvarita.dv — along with the other 40 assigned marks in
+   U+1CD0–U+1CF9, so a chant we add later cannot reintroduce the box.
+
+   Subset to the 62 codepoints Sri Rudram actually uses, plus danda, digits and
+   the whole Vedic Extensions block. GSUB/GPOS are kept whole: Devanagari needs
+   akhn/half/blwf/vatu/rphf/rkrf to build conjuncts, and losing them would break
+   ष्ट्र and ञ्ज in a way that looks almost right, which is worse than a box.
+
+   font-display is block, not swap: swapping means rendering the boxed system
+   font first and correcting it a moment later, in front of someone reciting. */
+@font-face {
+  font-family: "Shobhika";
+  src: url("/fonts/Shobhika-Regular.subset.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Shobhika";
+  src: url("/fonts/Shobhika-Bold.subset.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
 /* The dev harness is dark-only on purpose — it's an instrument, not the app.
    Real theming (warm dark, low-light temple use) is decided in Chunk 9. */
 :root {
   --background: #0a0a0a;
   --foreground: #ededed;
+
+  /* The Devanagari stack. System faces stay behind Shobhika as fallbacks —
+     they cover everything except the Vedic Extensions block. */
+  --font-devanagari: "Shobhika", "Kohinoor Devanagari", "Devanagari Sangam MN",
+    serif;
 }
 
 @theme inline {

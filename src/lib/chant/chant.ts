@@ -27,8 +27,32 @@ export type ChantLine = {
   normalized: string;
 };
 
+/**
+ * One printed section of a chant.
+ *
+ * Named for the anuvaka because that is what almost every section is, but a
+ * recitation also carries pieces that are not anuvakas at all — the Rudra
+ * mantras that follow Namakam, the Shanti mantras that close Chamakam. Those
+ * are chanted in sequence with everything else and so they live here too,
+ * distinguished by `kind` rather than pushed into a separate list that the
+ * scroll would then have to stitch back together.
+ */
 export type Anuvaka = {
-  number: number;
+  /**
+   * Position within its own work, 1..11 — or null for a section that is not
+   * numbered, like the closing mantras.
+   *
+   * Not unique on its own. **Namakam and Chamakam each number their anuvakas
+   * 1 to 11**, so anything that identifies a section by this alone will
+   * silently conflate two unrelated passages. Use `id`, or the pair with
+   * `work`.
+   */
+  number: number | null;
+  /** Which half of the recitation this belongs to. */
+  work?: string;
+  /** "anuvaka", or the sort of mantra group it is. */
+  kind?: string;
+  /** Unique across the whole chant. The safe key. */
   id: string;
   title: { english: string };
   note?: string;

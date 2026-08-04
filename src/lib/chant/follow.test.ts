@@ -21,6 +21,7 @@ import {
   PATIENCE,
   classify,
   follow,
+  pin,
   statusLine,
   type FollowState,
 } from "./follow.ts";
@@ -365,4 +366,59 @@ test("progress through the line climbs across the real take", () => {
     late.progress > early.progress,
     `${late.progress} did not advance on ${early.progress}`,
   );
+});
+
+
+// --- setting the position by hand ------------------------------------------
+//
+// The only input to this reducer that does not come from the audio, and so the
+// only one allowed to overrule it. Requirement 1.6.
+
+test("a hand-placed position is not undone by the next confident window", () => {
+  const lines = chant.anuvakas[0].lines;
+  // Chant line 5 while the reader has just tapped line 20. Line 5 is verbatim,
+  // so it arrives high-confidence — the exact case that used to win instantly.
+  const pinned = pin(INITIAL, 19, (clock += 1000));
+  assert.equal(pinned.lineIndex, 19);
+  assert.equal(pinned.pinned, true);
+
+  const elsewhere = heard(lines[4].devanagari);
+  assert.equal(classify(elsewhere.result), "high");
+
+  const after = follow(pinned, elsewhere, 0);
+  assert.equal(after.lineIndex, 19, "one confident window must not move a pin");
+  assert.equal(after.candidate?.lineIndex, 4, "but it should be remembered");
+});
+
+test("the audio still wins if it keeps disagreeing", () => {
+  const lines = chant.anuvakas[0].lines;
+  let state = pin(INITIAL, 19, (clock += 1000));
+  // Same distant line, over and over, past both the count and the clock.
+  for (let i = 0; i < CORROBORATION + 1; i++) {
+    state = follow(state, heard(lines[4].devanagari, (clock += CORROBORATION_MS)), 0);
+  }
+  assert.equal(state.lineIndex, 4, "a pin holds a position, it does not lock it");
+  assert.equal(state.pinned, false);
+});
+
+test("the pin lifts as soon as the audio agrees with it", () => {
+  const lines = chant.anuvakas[0].lines;
+  // Tap line 5, then chant line 5. The audio confirming the tap should return
+  // things to normal rather than leaving the screen stubborn.
+  let state = pin(INITIAL, 4, (clock += 1000));
+  state = follow(state, heard(lines[4].devanagari), 0);
+  assert.equal(state.pinned, false);
+  assert.equal(state.lineIndex, 4);
+
+  // ...and now an ordinary confident jump works immediately again.
+  state = follow(state, heard(lines[24].devanagari), 0);
+  assert.equal(state.lineIndex, 24);
+});
+
+test("a pin survives silence and poor windows", () => {
+  let state = pin(INITIAL, 19, (clock += 1000));
+  state = follow(state, quiet((clock += 500)), 0);
+  state = follow(state, heard("झझझ झझझ"), 0);
+  assert.equal(state.lineIndex, 19);
+  assert.equal(state.pinned, true, "nothing useful was heard, so nothing was settled");
 });

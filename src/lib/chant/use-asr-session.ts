@@ -76,6 +76,31 @@ async function replayFile(
   }
 }
 
+/**
+ * Turn a frame's RMS into something an eye can read.
+ *
+ * Raw RMS is unusable as a display value: chanting sits between roughly 0.02
+ * and 0.2, so a linear 0..1 mapping leaves the needle pinned near the floor.
+ * This lifts off the tracker's own silence threshold, compresses with a square
+ * root so ordinary recitation uses the middle of the range rather than the
+ * bottom, and then moves fast up and slow down.
+ *
+ * The asymmetry is the whole trick and it is borrowed from every level meter
+ * ever built: attack quickly so a syllable registers the instant it lands,
+ * release slowly so the mark settles between syllables instead of strobing at
+ * fifteen hertz. Symmetric smoothing gives you either a jitter or a lag; there
+ * is no value that gives you neither.
+ */
+const SILENCE = 0.005;
+const FULL = 0.14;
+
+function meter(previous: number, rms: number): number {
+  const lifted = Math.max(0, rms - SILENCE) / (FULL - SILENCE);
+  const target = Math.min(1, Math.sqrt(lifted));
+  const rate = target > previous ? 0.55 : 0.12;
+  return previous + (target - previous) * rate;
+}
+
 export function useAsrSession(
   flat: FlatChant,
   onTick: (tick: TrackerTick) => void,
@@ -99,6 +124,17 @@ export function useAsrSession(
   const nextIdRef = useRef(1);
   const mountedRef = useRef(true);
 
+  /**
+   * How loud the room is right now, 0..1 — a ref, never state.
+   *
+   * Frames arrive about fifteen times a second. Putting this in state would
+   * re-render a consumer holding three hundred lines of scripture fifteen times
+   * a second, to move one small mark. So it is published as a mutable ref and
+   * whoever wants it reads it from an animation frame and writes straight to
+   * the DOM, which keeps React out of the loop entirely.
+   */
+  const levelRef = useRef(0);
+
   // Held in a ref so a re-render of the consumer does not tear down the
   // session just to install a new closure. Assigned in an effect rather than
   // during render, which React forbids.
@@ -110,6 +146,7 @@ export function useAsrSession(
   const stop = useCallback(async () => {
     trackerRef.current?.stop();
     trackerRef.current = null;
+    levelRef.current = 0;
 
     // Anything still in flight will never be answered now.
     for (const { reject } of resolversRef.current.values()) {
@@ -219,7 +256,10 @@ export function useAsrSession(
 
         if (source === "mic") {
           const capture = await MicCapture.start(
-            (frame) => push(frame.samples),
+            (frame) => {
+              levelRef.current = meter(levelRef.current, frame.rms);
+              push(frame.samples);
+            },
             () => {},
             { processing: false, deviceId },
           );
@@ -269,6 +309,8 @@ export function useAsrSession(
     start,
     stop,
     setInView,
+    /** Live loudness, 0..1. Read it from an animation frame, not from render. */
+    level: levelRef,
     get dropped() {
       return trackerRef.current?.dropped ?? 0;
     },
