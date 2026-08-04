@@ -1,0 +1,2709 @@
+{
+  "id": "sri-rudram-saiveda",
+  "name": {
+    "devanagari": "श्री रुद्रम्",
+    "transliteration": "śrī rudram",
+    "english": "Sri Rudram — Namakam and Chamakam"
+  },
+  "source": {
+    "edition": "SaiVeda (www.saiveda.net), Roman Coloured Coding Script",
+    "file": "rudram-namakam-chamakam.pdf",
+    "note": "The Devanagari is GENERATED from this edition's romanised IAST layer, not decoded from its Devanagari font — that font is a legacy 8-bit face whose bytes read as Latin. Measured against the independently-verified Anuvaka 1 of the Sri Sathya Sai Trust edition: 0.0276 character error with accents, 0.0208 after normalisation, and every remaining difference is the two editions' anusvara/visarga convention rather than a decode error. See tools/chant-import/import_saiveda.py."
+  },
+  "generated_by": "tools/chant-import/import_saiveda.py",
+  "normalization": {
+    "implementation": "src/lib/chant/normalize.ts",
+    "deaspirate": true,
+    "note": "The normalized field is what the matcher sees."
+  },
+  "anuvakas": [
+    {
+      "number": 1,
+      "work": "namakam",
+      "kind": "anuvaka",
+      "id": "namakam-anuvaka-1",
+      "title": {
+        "english": "Namakam · Anuvāka 1"
+      },
+      "lines": [
+        {
+          "sequence": 1,
+          "verse": 1,
+          "devanagari": "ॐ नमो भगवते॑ रुद्रा॒य",
+          "transliteration": "oṃ namo bhagavate rudrāya",
+          "meaning": null,
+          "normalized": "ॐननोबगवतेरुद्रय"
+        },
+        {
+          "sequence": 2,
+          "verse": 2,
+          "devanagari": "ॐ नम॑स्ते रुद्र म॒न्यव॑ उ॒तो त॒ इष॑वे॒ नमः॑",
+          "transliteration": "oṃ namaste rudra manyava uto ta iṣave namaḥ",
+          "meaning": null,
+          "normalized": "ॐननस्तेरुद्रनन्यवउतोतइसवेनन"
+        },
+        {
+          "sequence": 3,
+          "verse": 2,
+          "devanagari": "नम॑स्ते अस्तु॒ धन्व॑ने बा॒हुभ्या॑मु॒त ते॒ नमः॑",
+          "transliteration": "namaste astu dhanvane bāhubhyāmuta te namaḥ",
+          "meaning": null,
+          "normalized": "ननस्तेअस्तुदन्वनेबहुब्यनुततेनन"
+        },
+        {
+          "sequence": 4,
+          "verse": 3,
+          "devanagari": "या त॒ इषु॑श् शि॒वत॑मा शि॒वम् ब॒भूव॑ ते॒ धनुः॑",
+          "transliteration": "yā ta iṣuś śivatamā śivam babhūva te dhanuḥ",
+          "meaning": null,
+          "normalized": "यतइसुस्सिवतनसिवन्बबुवतेदनु"
+        },
+        {
+          "sequence": 5,
+          "verse": 3,
+          "devanagari": "शि॒वा श॑र॒व्या॑ या तव॒ तया॑ नो रुद्र मृडय",
+          "transliteration": "śivā śaravyā yā tava tayā no rudra mṛḍaya",
+          "meaning": null,
+          "normalized": "सिवसरव्ययतवतयनोरुद्रनृडय"
+        },
+        {
+          "sequence": 6,
+          "verse": 4,
+          "devanagari": "या ते॑ रुद्र शि॒वा त॒नूरघो॒राऽपा॑पकाशिनी",
+          "transliteration": "yā te rudra śivā tanūraghorā'pāpakāśinī",
+          "meaning": null,
+          "normalized": "यतेरुद्रसिवतनुरगोरऽपपकसिनि"
+        },
+        {
+          "sequence": 7,
+          "verse": 4,
+          "devanagari": "तया॑ नस्त॒नुवा॒ शन्त॑मया॒ गिरि॑शन्ता॒भि चा॑कशीहि",
+          "transliteration": "tayā nastanuvā śantamayā giriśantābhi cākaśīhi",
+          "meaning": null,
+          "normalized": "तयनस्तनुवसन्तनयगिरिसन्तबिचकसिहि"
+        },
+        {
+          "sequence": 8,
+          "verse": 5,
+          "devanagari": "यामिषुं॑गिरिशन्त॒ हस्ते॒ बिभ॒र्ष्यस्त॑वे",
+          "transliteration": "yāmiṣuṃgiriśanta haste bibharṣyastave",
+          "meaning": null,
+          "normalized": "यनिसुनगिरिसन्तहस्तेबिबर्स्यस्तवे"
+        },
+        {
+          "sequence": 9,
+          "verse": 5,
+          "devanagari": "शि॒वां गि॑रित्र॒ तां कु॑रु॒ मा हिग्ं॑सीः॒ पुरु॑ष॒ञ् जग॑त्",
+          "transliteration": "śivāṃ giritra tāṃ kuru mā higṃsīḥ puruṣañ jagat",
+          "meaning": null,
+          "normalized": "सिवनगिरित्रतनकुरुनहिग्नसिपुरुसन्जगत्"
+        },
+        {
+          "sequence": 10,
+          "verse": 6,
+          "devanagari": "शि॒वेन॒ वच॑सा त्वा॒ गिरि॒शाच्छा॑ वदामसि",
+          "transliteration": "śivena vacasā tvā giriśācchā vadāmasi",
+          "meaning": null,
+          "normalized": "सिवेनवचसत्वगिरिसच्चवदनसि"
+        },
+        {
+          "sequence": 11,
+          "verse": 6,
+          "devanagari": "यथा॑ न॒स् सर्व॒मिज्जग॑दय॒क्ष्मग्ं सु॒मना॒ अस॑त्",
+          "transliteration": "yathā nas sarvamijjagadayakṣmagṃ sumanā asat",
+          "meaning": null,
+          "normalized": "यतनस्सर्वनिज्जगदयक्स्नग्नसुननअसत्"
+        },
+        {
+          "sequence": 12,
+          "verse": 7,
+          "devanagari": "अध्य॑वोचदधिव॒क्ता प्र॑थ॒मो दैव्यो॑ भि॒षक्",
+          "transliteration": "adhyavocadadhivaktā prathamo daivyo bhiṣak",
+          "meaning": null,
+          "normalized": "अद्यवोचददिवक्तप्रतनोदैव्योबिसक्"
+        },
+        {
+          "sequence": 13,
+          "verse": 7,
+          "devanagari": "अहीग्॑श्च॒ सर्वा᳚ञ्ज॒म्भय॒न्त्सर्वा᳚श्च यातुधा॒न्यः॑",
+          "transliteration": "ahīgśca sarvāñjambhayantsarvāśca yātudhānyaḥ",
+          "meaning": null,
+          "normalized": "अहिग्स्चसर्वन्जन्बयन्त्सर्वस्चयतुदन्य"
+        },
+        {
+          "sequence": 14,
+          "verse": 8,
+          "devanagari": "अ॒सौ यस्ता॒म्रो अ॑रु॒ण उ॒त ब॒भ्रुस् सु॑मं॒गलः॑",
+          "transliteration": "asau yastāmro aruṇa uta babhrus sumaṃgalaḥ",
+          "meaning": null,
+          "normalized": "असौयस्तन्रोअरुनउतबब्रुस्सुननगल"
+        },
+        {
+          "sequence": 15,
+          "verse": 8,
+          "devanagari": "ये चे॒माग्ंरु॒द्रा अ॒भितो॑ दि॒क्षु श्रि॒तास् स॑हस्र॒शोऽवै॑षा॒ग्ं॒हेड॑ ईमहे",
+          "transliteration": "ye cemāgṃrudrā abhito dikṣu śritās sahasraśo'vaiṣāgṃheḍa īmahe",
+          "meaning": null,
+          "normalized": "येचेनग्नरुद्रअबितोदिक्सुस्रितस्सहस्रसोऽवैसग्नहेडइनहे"
+        },
+        {
+          "sequence": 16,
+          "verse": 9,
+          "devanagari": "अ॒सौ यो॑ऽव॒सर्प॑ति॒ नील॑ग्रीवो॒ विलो॑हितः",
+          "transliteration": "asau yo'vasarpati nīlagrīvo vilohitaḥ",
+          "meaning": null,
+          "normalized": "असौयोऽवसर्पतिनिलग्रिवोविलोहित"
+        },
+        {
+          "sequence": 17,
+          "verse": 9,
+          "devanagari": "उ॒तैनं॑ गो॒पा अ॑दृश॒न्नदृ॑शन्नुदहा॒र्यः॑",
+          "transliteration": "utainaṃ gopā adṛśannadṛśannudahāryaḥ",
+          "meaning": null,
+          "normalized": "उतैननगोपअदृसन्नदृसन्नुदहर्य"
+        },
+        {
+          "sequence": 18,
+          "verse": 9,
+          "devanagari": "उ॒तैनं॒ विश्वा॑ भू॒तानि॒ स दृ॒ष्टो मृ॑डयाति नः",
+          "transliteration": "utainaṃ viśvā bhūtāni sa dṛṣṭo mṛḍayāti naḥ",
+          "meaning": null,
+          "normalized": "उतैननविस्वबुतनिसदृस्टोनृडयतिन"
+        },
+        {
+          "sequence": 19,
+          "verse": 10,
+          "devanagari": "नमो॑ अस्तु॒ नील॑ग्रीवाय सहस्रा॒क्षाय॑ मी॒ढुषे᳚",
+          "transliteration": "namo astu nīlagrīvāya sahasrākṣāya mīḍhuṣe",
+          "meaning": null,
+          "normalized": "ननोअस्तुनिलग्रिवयसहस्रक्सयनिडुसे"
+        },
+        {
+          "sequence": 20,
+          "verse": 10,
+          "devanagari": "अथो॒ ये अ॑स्य॒ सत्त्वा॑नो॒ऽहन् तेभ्यो॑ऽकर॒न् नमः॑",
+          "transliteration": "atho ye asya sattvāno'han tebhyo'karan namaḥ",
+          "meaning": null,
+          "normalized": "अतोयेअस्यसत्त्वनोऽहन्तेब्योऽकरन्नन"
+        },
+        {
+          "sequence": 21,
+          "verse": 11,
+          "devanagari": "प्र मु॑ञ्च॒ धन्व॑न॒स्त्वमु॒भयो॒रार्त्नि॑यो॒र्ज्याम्",
+          "transliteration": "pra muñca dhanvanastvamubhayorārtniyorjyām",
+          "meaning": null,
+          "normalized": "प्रनुन्चदन्वनस्त्वनुबयोरर्त्नियोर्ज्यन्"
+        },
+        {
+          "sequence": 22,
+          "verse": 11,
+          "devanagari": "याश्च॑ ते॒ हस्त॒ इष॑वः॒ परा॒ ता भ॑गवो वप",
+          "transliteration": "yāśca te hasta iṣavaḥ parā tā bhagavo vapa",
+          "meaning": null,
+          "normalized": "यस्चतेहस्तइसवपरतबगवोवप"
+        },
+        {
+          "sequence": 23,
+          "verse": 12,
+          "devanagari": "अ॒व॒तत्त्य॒ धनु॒स्त्वग्ं सह॑स्राक्ष॒ शते॑षुधे",
+          "transliteration": "avatattya dhanustvagṃ sahasrākṣa śateṣudhe",
+          "meaning": null,
+          "normalized": "अवतत्त्यदनुस्त्वग्नसहस्रक्ससतेसुदे"
+        },
+        {
+          "sequence": 24,
+          "verse": 12,
+          "devanagari": "नि॒शीर्य॑ श॒ल्याना॒म् मुखा॑ शि॒वो न॑स् सु॒मना॑ भव",
+          "transliteration": "niśīrya śalyānām mukhā śivo nas sumanā bhava",
+          "meaning": null,
+          "normalized": "निसिर्यसल्यनन्नुकसिवोनस्सुननबव"
+        },
+        {
+          "sequence": 25,
+          "verse": 13,
+          "devanagari": "विज्य॒न् धनुः॑ कप॒र्दिनो॒ विश॑ल्यो॒ बाण॑वाग्ं उ॒त",
+          "transliteration": "vijyan dhanuḥ kapardino viśalyo bāṇavāgṃ uta",
+          "meaning": null,
+          "normalized": "विज्यन्दनुकपर्दिनोविसल्योबनवग्नउत"
+        },
+        {
+          "sequence": 26,
+          "verse": 13,
+          "devanagari": "अने॑शन्न॒स्येष॑व आ॒भुर॑स्य निषं॒गथिः॑",
+          "transliteration": "aneśannasyeṣava ābhurasya niṣaṃgathiḥ",
+          "meaning": null,
+          "normalized": "अनेसन्नस्येसवअबुरस्यनिसनगति"
+        },
+        {
+          "sequence": 27,
+          "verse": 14,
+          "devanagari": "या ते॑ हे॒तिर्मी॑ढुष्टम॒ हस्ते॑ ब॒भूव॑ ते॒ धनुः॑",
+          "transliteration": "yā te hetirmīḍhuṣṭama haste babhūva te dhanuḥ",
+          "meaning": null,
+          "normalized": "यतेहेतिर्निडुस्टनहस्तेबबुवतेदनु"
+        },
+        {
+          "sequence": 28,
+          "verse": 14,
+          "devanagari": "तया॒ऽस्मान् वि॒श्वत॒स्त्वम॑य॒क्ष्मया॒ परि॑ब्भुज",
+          "transliteration": "tayā'smān viśvatastvamayakṣmayā paribbhuja",
+          "meaning": null,
+          "normalized": "तयऽस्नन्विस्वतस्त्वनयक्स्नयपरिब्बुज"
+        },
+        {
+          "sequence": 29,
+          "verse": 15,
+          "devanagari": "नम॑स्ते अ॒स्त्वायु॑धा॒याना॑तताय धृ॒ष्णवे᳚",
+          "transliteration": "namaste astvāyudhāyānātatāya dhṛṣṇave",
+          "meaning": null,
+          "normalized": "ननस्तेअस्त्वयुदयनततयदृस्नवे"
+        },
+        {
+          "sequence": 30,
+          "verse": 15,
+          "devanagari": "उ॒भाभ्या॑मु॒त ते॒ नमो॑ बा॒हुभ्या॒न् तव॒ धन्व॑ने",
+          "transliteration": "ubhābhyāmuta te namo bāhubhyān tava dhanvane",
+          "meaning": null,
+          "normalized": "उबब्यनुततेननोबहुब्यन्तवदन्वने"
+        },
+        {
+          "sequence": 31,
+          "verse": 16,
+          "devanagari": "परि॑ ते॒ धन्व॑नो हे॒तिर॒स्मान् वृ॑णक्तु वि॒श्वतः॑",
+          "transliteration": "pari te dhanvano hetirasmān vṛṇaktu viśvataḥ",
+          "meaning": null,
+          "normalized": "परितेदन्वनोहेतिरस्नन्वृनक्तुविस्वत"
+        },
+        {
+          "sequence": 32,
+          "verse": 16,
+          "devanagari": "अथो॒ य इ॑षु॒धिस्तवा॒ऽऽरे अ॒स्मन्नि धे॑हि॒ तम्",
+          "transliteration": "atho ya iṣudhistavā''re asmanni dhehi tam",
+          "meaning": null,
+          "normalized": "अतोयइसुदिस्तवऽऽरेअस्नन्निदेहितन्"
+        },
+        {
+          "sequence": 33,
+          "verse": 17,
+          "devanagari": "नम॑स्ते अस्तु भगवन् विश्वेश्व॒राय॑ महादे॒वाय॑",
+          "transliteration": "namaste astu bhagavan viśveśvarāya mahādevāya",
+          "meaning": null,
+          "normalized": "ननस्तेअस्तुबगवन्विस्वेस्वरयनहदेवय"
+        },
+        {
+          "sequence": 34,
+          "verse": 17,
+          "devanagari": "त्र्यम्ब॒काय॑ त्रिपुरान्त॒काय॑ त्रिकाग्निका॒लाय॑ कालाग्निरु॒द्राय॑",
+          "transliteration": "tryambakāya tripurāntakāya trikāgnikālāya kālāgnirudrāya",
+          "meaning": null,
+          "normalized": "त्र्यन्बकयत्रिपुरन्तकयत्रिकग्निकलयकलग्निरुद्रय"
+        },
+        {
+          "sequence": 35,
+          "verse": 17,
+          "devanagari": "नीलक॒ण्ठाय॑ मृत्युञ्ज॒याय॑ सर्वेश्व॒राय॑ सदाशि॒वाय॑",
+          "transliteration": "nīlakaṇṭhāya mṛtyuñjayāya sarveśvarāya sadāśivāya",
+          "meaning": null,
+          "normalized": "निलकन्टयनृत्युन्जययसर्वेस्वरयसदसिवय"
+        },
+        {
+          "sequence": 36,
+          "verse": 17,
+          "devanagari": "श्रीमन्महादे॒वाय॒ नमः॑",
+          "transliteration": "śrīmanmahādevāya namaḥ",
+          "meaning": null,
+          "normalized": "स्रिनन्नहदेवयनन"
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "work": "namakam",
+      "kind": "anuvaka",
+      "id": "namakam-anuvaka-2",
+      "title": {
+        "english": "Namakam · Anuvāka 2"
+      },
+      "lines": [
+        {
+          "sequence": 37,
+          "verse": 1,
+          "devanagari": "नमो॒ हिर॑ण्यबाहवे सेना॒न्ये॑ दि॒शाञ् च॒ पत॑ये॒ नमो॒",
+          "transliteration": "namo hiraṇyabāhave senānye diśāñ ca pataye namo",
+          "meaning": null,
+          "normalized": "ननोहिरन्यबहवेसेनन्येदिसन्चपतयेननो"
+        },
+        {
+          "sequence": 38,
+          "verse": 1,
+          "devanagari": "नमो॑ वृ॒क्षेभ्यो॒ हरि॑ केशेभ्यः पशू॒नाम् पत॑ये॒ नमो॒",
+          "transliteration": "namo vṛkṣebhyo hari keśebhyaḥ paśūnām pataye namo",
+          "meaning": null,
+          "normalized": "ननोवृक्सेब्योहरिकेसेब्यपसुनन्पतयेननो"
+        },
+        {
+          "sequence": 39,
+          "verse": 1,
+          "devanagari": "नम॑स् स॒स्पिञ्ज॑राय॒ त्विषी॑मते पथी॒नाम् पत॑ये॒ नमो॒",
+          "transliteration": "namas saspiñjarāya tviṣīmate pathīnām pataye namo",
+          "meaning": null,
+          "normalized": "ननस्सस्पिन्जरयत्विसिनतेपतिनन्पतयेननो"
+        },
+        {
+          "sequence": 40,
+          "verse": 1,
+          "devanagari": "नमो॑ बभ्लु॒शाय॑ विव्या॒धिनेऽन्ना॑ना॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namo babhluśāya vivyādhine'nnānām pataye namo",
+          "meaning": null,
+          "normalized": "ननोबब्लुसयविव्यदिनेऽन्ननन्पतयेननो"
+        },
+        {
+          "sequence": 41,
+          "verse": 1,
+          "devanagari": "नमो॒ हरि॑ केशायोपवी॒तिने॑ पु॒ष्टाना॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namo hari keśāyopavītine puṣṭānām pataye namo",
+          "meaning": null,
+          "normalized": "ननोहरिकेसयोपवितिनेपुस्टनन्पतयेननो"
+        },
+        {
+          "sequence": 42,
+          "verse": 1,
+          "devanagari": "नमो॑ भ॒वस्य॑ हे॒त्यै जग॑ता॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namo bhavasya hetyai jagatām pataye namo",
+          "meaning": null,
+          "normalized": "ननोबवस्यहेत्यैजगतन्पतयेननो"
+        },
+        {
+          "sequence": 43,
+          "verse": 1,
+          "devanagari": "नमो॑ रु॒द्राया॑ऽऽतता॒विने॒ क्षेत्रा॑णा॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namo rudrāyā''tatāvine kṣetrāṇām pataye namo",
+          "meaning": null,
+          "normalized": "ननोरुद्रयऽऽततविनेक्सेत्रनन्पतयेननो"
+        },
+        {
+          "sequence": 44,
+          "verse": 1,
+          "devanagari": "नम॑स् सू॒तायाह॑न्त्याय॒ वना॑ना॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namas sūtāyāhantyāya vanānām pataye namo",
+          "meaning": null,
+          "normalized": "ननस्सुतयहन्त्ययवननन्पतयेननो"
+        },
+        {
+          "sequence": 45,
+          "verse": 1,
+          "devanagari": "नमो॒ रोहि॑ताय स्थ॒पत॑ये वृ॒क्षाणा॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namo rohitāya sthapataye vṛkṣāṇām pataye namo",
+          "meaning": null,
+          "normalized": "ननोरोहितयस्तपतयेवृक्सनन्पतयेननो"
+        },
+        {
+          "sequence": 46,
+          "verse": 1,
+          "devanagari": "नमो॑ म॒न्त्रिणे॑ वाणि॒जाय॒ कक्षा॑णा॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namo mantriṇe vāṇijāya kakṣāṇām pataye namo",
+          "meaning": null,
+          "normalized": "ननोनन्त्रिनेवनिजयकक्सनन्पतयेननो"
+        },
+        {
+          "sequence": 47,
+          "verse": 1,
+          "devanagari": "नमो॑ भुव॒न्तये॑ वारिवस्कृ॒तायौष॑धीना॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namo bhuvantaye vārivaskṛtāyauṣadhīnām pataye namo",
+          "meaning": null,
+          "normalized": "ननोबुवन्तयेवरिवस्कृतयौसदिनन्पतयेननो"
+        },
+        {
+          "sequence": 48,
+          "verse": 1,
+          "devanagari": "नम॑ उ॒च्चैर्घो॑षायाऽऽक्र॒न्दय॑ते पत्ती॒नाम् पत॑ये॒ नमो॒",
+          "transliteration": "nama uccairghoṣāyā''krandayate pattīnām pataye namo",
+          "meaning": null,
+          "normalized": "ननउच्चैर्गोसयऽऽक्रन्दयतेपत्तिनन्पतयेननो"
+        },
+        {
+          "sequence": 49,
+          "verse": 1,
+          "devanagari": "नमः॑ कृत्स्नवी॒ताय॒ धाव॑ते॒ सत्त्व॑ना॒म् पत॑ये॒ नमः॑",
+          "transliteration": "namaḥ kṛtsnavītāya dhāvate sattvanām pataye namaḥ",
+          "meaning": null,
+          "normalized": "ननकृत्स्नवितयदवतेसत्त्वनन्पतयेनन"
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "work": "namakam",
+      "kind": "anuvaka",
+      "id": "namakam-anuvaka-3",
+      "title": {
+        "english": "Namakam · Anuvāka 3"
+      },
+      "lines": [
+        {
+          "sequence": 50,
+          "verse": 1,
+          "devanagari": "नम॒स् सह॑मानाय निव्या॒धिन॑ आव्या॒धिनी॑ना॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namas sahamānāya nivyādhina āvyādhinīnām pataye namo",
+          "meaning": null,
+          "normalized": "ननस्सहननयनिव्यदिनअव्यदिनिनन्पतयेननो"
+        },
+        {
+          "sequence": 51,
+          "verse": 1,
+          "devanagari": "नमः॑ ककु॒भाय॑ निषं॒गिणे᳚ स्ते॒नाना॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namaḥ kakubhāya niṣaṃgiṇe stenānām pataye namo",
+          "meaning": null,
+          "normalized": "ननककुबयनिसनगिनेस्तेननन्पतयेननो"
+        },
+        {
+          "sequence": 52,
+          "verse": 1,
+          "devanagari": "नमो॑ निषं॒गिण॑ इषुधि॒मते॒ तस्क॑राणा॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namo niṣaṃgiṇa iṣudhimate taskarāṇām pataye namo",
+          "meaning": null,
+          "normalized": "ननोनिसनगिनइसुदिनतेतस्करनन्पतयेननो"
+        },
+        {
+          "sequence": 53,
+          "verse": 1,
+          "devanagari": "नमो॒ वञ्च॑ते परि॒वञ्च॑ते स्तायू॒नाम् पत॑ये॒ नमो॒",
+          "transliteration": "namo vañcate parivañcate stāyūnām pataye namo",
+          "meaning": null,
+          "normalized": "ननोवन्चतेपरिवन्चतेस्तयुनन्पतयेननो"
+        },
+        {
+          "sequence": 54,
+          "verse": 1,
+          "devanagari": "नमो॑ निचे॒रवे॑ परिच॒रायार॑ण्याना॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namo nicerave paricarāyāraṇyānām pataye namo",
+          "meaning": null,
+          "normalized": "ननोनिचेरवेपरिचरयरन्यनन्पतयेननो"
+        },
+        {
+          "sequence": 55,
+          "verse": 1,
+          "devanagari": "नम॑स् सृका॒विभ्यो॒ जिघाग्ं॑सद्भ्यो मुष्ण॒ताम् पत॑ये॒ नमो॒",
+          "transliteration": "namas sṛkāvibhyo jighāgṃsadbhyo muṣṇatām pataye namo",
+          "meaning": null,
+          "normalized": "ननस्सृकविब्योजिगग्नसद्ब्योनुस्नतन्पतयेननो"
+        },
+        {
+          "sequence": 56,
+          "verse": 1,
+          "devanagari": "नमो॑ऽसि॒मद्भ्यो॒ नक्त॒ञ्चर॑द्भ्यः प्रकृ॒न्ताना॒म् पत॑ये॒ नमो॒",
+          "transliteration": "namo'simadbhyo naktañcaradbhyaḥ prakṛntānām pataye namo",
+          "meaning": null,
+          "normalized": "ननोऽसिनद्ब्योनक्तन्चरद्ब्यप्रकृन्तनन्पतयेननो"
+        },
+        {
+          "sequence": 57,
+          "verse": 1,
+          "devanagari": "नम॑ उष्णी॒षिणे॑ गिरिच॒राय॑ कुलु॒ञ्चाना॒म् पत॑ये॒ नमो॒",
+          "transliteration": "nama uṣṇīṣiṇe giricarāya kuluñcānām pataye namo",
+          "meaning": null,
+          "normalized": "ननउस्निसिनेगिरिचरयकुलुन्चनन्पतयेननो"
+        },
+        {
+          "sequence": 58,
+          "verse": 1,
+          "devanagari": "नम॒ इषु॑मद्भ्यो धन्वा॒विभ्य॑श्च वो॒ नमो॒",
+          "transliteration": "nama iṣumadbhyo dhanvāvibhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननइसुनद्ब्योदन्वविब्यस्चवोननो"
+        },
+        {
+          "sequence": 59,
+          "verse": 1,
+          "devanagari": "नम॑ आतन्वा॒नेभ्यः॑ प्रति॒दधा॑नेभ्यश्च वो॒ नमो॒",
+          "transliteration": "nama ātanvānebhyaḥ pratidadhānebhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननअतन्वनेब्यप्रतिददनेब्यस्चवोननो"
+        },
+        {
+          "sequence": 60,
+          "verse": 1,
+          "devanagari": "नम॑ आ॒यच्छ॑द्भ्यो विसृ॒जद्भ्य॑श्च वो॒ नमो॒",
+          "transliteration": "nama āyacchadbhyo visṛjadbhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननअयच्चद्ब्योविसृजद्ब्यस्चवोननो"
+        },
+        {
+          "sequence": 61,
+          "verse": 1,
+          "devanagari": "नमोऽस्य॑द्भ्यो॒ विध्य॑द्भ्यश्च वो॒ नमो॒",
+          "transliteration": "namo'syadbhyo vidhyadbhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननोऽस्यद्ब्योविद्यद्ब्यस्चवोननो"
+        },
+        {
+          "sequence": 62,
+          "verse": 1,
+          "devanagari": "नम॒ आसी॑नेभ्य॒श् शया॑नेभ्यश्च वो॒ नमो॒",
+          "transliteration": "nama āsīnebhyaś śayānebhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननअसिनेब्यस्सयनेब्यस्चवोननो"
+        },
+        {
+          "sequence": 63,
+          "verse": 1,
+          "devanagari": "नम॑स् स्व॒पद्भ्यो॒ जाग्र॑द्भ्यश्च वो॒ नमो॒",
+          "transliteration": "namas svapadbhyo jāgradbhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननस्स्वपद्ब्योजग्रद्ब्यस्चवोननो"
+        },
+        {
+          "sequence": 64,
+          "verse": 1,
+          "devanagari": "नम॒स्तिष्ठ॑द्भ्यो॒ धाव॑द्भ्यश्च वो॒ नमो॒",
+          "transliteration": "namastiṣṭhadbhyo dhāvadbhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननस्तिस्टद्ब्योदवद्ब्यस्चवोननो"
+        },
+        {
+          "sequence": 65,
+          "verse": 1,
+          "devanagari": "नम॑स् स॒भाभ्य॑स् स॒भाप॑तिभ्यश्च वो॒ नमो॒",
+          "transliteration": "namas sabhābhyas sabhāpatibhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननस्सबब्यस्सबपतिब्यस्चवोननो"
+        },
+        {
+          "sequence": 66,
+          "verse": 1,
+          "devanagari": "नमो॒ अश्वे॒भ्योऽश्व॑पतिभ्यश्च वो॒ नमः॑",
+          "transliteration": "namo aśvebhyo'śvapatibhyaśca vo namaḥ",
+          "meaning": null,
+          "normalized": "ननोअस्वेब्योऽस्वपतिब्यस्चवोनन"
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "work": "namakam",
+      "kind": "anuvaka",
+      "id": "namakam-anuvaka-4",
+      "title": {
+        "english": "Namakam · Anuvāka 4"
+      },
+      "lines": [
+        {
+          "sequence": 67,
+          "verse": 1,
+          "devanagari": "नम॑ आव्या॒धिनी᳚भ्यो वि॒विध्य॑न्तीभ्यश्च वो॒ नमो॒",
+          "transliteration": "nama āvyādhinībhyo vividhyantībhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननअव्यदिनिब्योविविद्यन्तिब्यस्चवोननो"
+        },
+        {
+          "sequence": 68,
+          "verse": 1,
+          "devanagari": "नम॒ उग॑णाभ्यस्तृग्ंह॒तीभ्य॑श्च वो॒ नमो॒",
+          "transliteration": "nama ugaṇābhyastṛgṃhatībhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननउगनब्यस्तृग्नहतिब्यस्चवोननो"
+        },
+        {
+          "sequence": 69,
+          "verse": 1,
+          "devanagari": "नमो॑ गृ॒त्सेभ्यो॑ गृ॒त्सप॑तिभ्यश्च वो॒ नमो॒",
+          "transliteration": "namo gṛtsebhyo gṛtsapatibhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननोगृत्सेब्योगृत्सपतिब्यस्चवोननो"
+        },
+        {
+          "sequence": 70,
+          "verse": 1,
+          "devanagari": "नमो॒ व्राते᳚भ्यो॒ व्रात॑पतिभ्यश्च वो॒ नमो॒",
+          "transliteration": "namo vrātebhyo vrātapatibhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननोव्रतेब्योव्रतपतिब्यस्चवोननो"
+        },
+        {
+          "sequence": 71,
+          "verse": 1,
+          "devanagari": "नमो॑ ग॒णेभ्यो॑ ग॒णप॑तिभ्यश्च वो॒ नमो॒",
+          "transliteration": "namo gaṇebhyo gaṇapatibhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननोगनेब्योगनपतिब्यस्चवोननो"
+        },
+        {
+          "sequence": 72,
+          "verse": 1,
+          "devanagari": "नमो॒ विरू॑पेभ्यो वि॒श्वरू॑पेभ्यश्च वो॒ नमो॒",
+          "transliteration": "namo virūpebhyo viśvarūpebhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननोविरुपेब्योविस्वरुपेब्यस्चवोननो"
+        },
+        {
+          "sequence": 73,
+          "verse": 1,
+          "devanagari": "नमो॑ म॒हद्भ्यः॑ क्षुल्ल॒केभ्य॑श्च वो॒ नमो॒",
+          "transliteration": "namo mahadbhyaḥ kṣullakebhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननोनहद्ब्यक्सुल्लकेब्यस्चवोननो"
+        },
+        {
+          "sequence": 74,
+          "verse": 1,
+          "devanagari": "नमो॑ र॒थिभ्यो॑ऽर॒थेभ्य॑श्च वो॒ नमो॒",
+          "transliteration": "namo rathibhyo'rathebhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननोरतिब्योऽरतेब्यस्चवोननो"
+        },
+        {
+          "sequence": 75,
+          "verse": 1,
+          "devanagari": "नमो॒ रथे᳚भ्यो॒ रथ॑पतिभ्यश्च वो॒ नमो॒",
+          "transliteration": "namo rathebhyo rathapatibhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननोरतेब्योरतपतिब्यस्चवोननो"
+        },
+        {
+          "sequence": 76,
+          "verse": 1,
+          "devanagari": "नम॒स् सेना᳚भ्यस् सेना॒निभ्य॑श्च वो॒ नमो॒",
+          "transliteration": "namas senābhyas senānibhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननस्सेनब्यस्सेननिब्यस्चवोननो"
+        },
+        {
+          "sequence": 77,
+          "verse": 1,
+          "devanagari": "नमः॑ क्ष॒त्तृभ्य॑स् संग्रही॒तृभ्य॑श्च वो॒ नमो॒",
+          "transliteration": "namaḥ kṣattṛbhyas saṃgrahītṛbhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननक्सत्तृब्यस्सनग्रहितृब्यस्चवोननो"
+        },
+        {
+          "sequence": 78,
+          "verse": 1,
+          "devanagari": "नम॒स्तक्ष॑भ्यो रथका॒रेभ्य॑श्च वो॒ नमो॒",
+          "transliteration": "namastakṣabhyo rathakārebhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननस्तक्सब्योरतकरेब्यस्चवोननो"
+        },
+        {
+          "sequence": 79,
+          "verse": 1,
+          "devanagari": "नमः॒ कुला॑लेभ्यः क॒र्मारे᳚भ्यश्च वो॒ नमो॒",
+          "transliteration": "namaḥ kulālebhyaḥ karmārebhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननकुललेब्यकर्नरेब्यस्चवोननो"
+        },
+        {
+          "sequence": 80,
+          "verse": 1,
+          "devanagari": "नमः॑ पु॒ञ्जिष्टे᳚भ्यो निषा॒देभ्य॑श्च वो॒ नमो॒",
+          "transliteration": "namaḥ puñjiṣṭebhyo niṣādebhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननपुन्जिस्टेब्योनिसदेब्यस्चवोननो"
+        },
+        {
+          "sequence": 81,
+          "verse": 1,
+          "devanagari": "नम॑ इषु॒कृद्भ्यो॑ धन्व॒कृद्भ्य॑श्च वो॒ नमो॒",
+          "transliteration": "nama iṣukṛdbhyo dhanvakṛdbhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननइसुकृद्ब्योदन्वकृद्ब्यस्चवोननो"
+        },
+        {
+          "sequence": 82,
+          "verse": 1,
+          "devanagari": "नमो॑ मृग॒युभ्य॑श् श्व॒निभ्य॑श्च वो॒ नमो॒",
+          "transliteration": "namo mṛgayubhyaś śvanibhyaśca vo namo",
+          "meaning": null,
+          "normalized": "ननोनृगयुब्यस्स्वनिब्यस्चवोननो"
+        },
+        {
+          "sequence": 83,
+          "verse": 1,
+          "devanagari": "नम॒श् श्वभ्य॒श् श्वप॑तिभ्यश्च वो॒ नमः॑",
+          "transliteration": "namaś śvabhyaś śvapatibhyaśca vo namaḥ",
+          "meaning": null,
+          "normalized": "ननस्स्वब्यस्स्वपतिब्यस्चवोनन"
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "work": "namakam",
+      "kind": "anuvaka",
+      "id": "namakam-anuvaka-5",
+      "title": {
+        "english": "Namakam · Anuvāka 5"
+      },
+      "lines": [
+        {
+          "sequence": 84,
+          "verse": 1,
+          "devanagari": "नमो॑ भ॒वाय॑ च रु॒द्राय॑ च॒",
+          "transliteration": "namo bhavāya ca rudrāya ca",
+          "meaning": null,
+          "normalized": "ननोबवयचरुद्रयच"
+        },
+        {
+          "sequence": 85,
+          "verse": 1,
+          "devanagari": "नम॑श् श॒र्वाय॑ च पशु॒पत॑ये च॒",
+          "transliteration": "namaś śarvāya ca paśupataye ca",
+          "meaning": null,
+          "normalized": "ननस्सर्वयचपसुपतयेच"
+        },
+        {
+          "sequence": 86,
+          "verse": 1,
+          "devanagari": "नमो॒ नील॑ग्रीवाय च शिति॒कण्ठा॑य च॒",
+          "transliteration": "namo nīlagrīvāya ca śitikaṇṭhāya ca",
+          "meaning": null,
+          "normalized": "ननोनिलग्रिवयचसितिकन्टयच"
+        },
+        {
+          "sequence": 87,
+          "verse": 1,
+          "devanagari": "नमः॑ कप॒र्दिने॑ च॒ व्यु॑प्तकेशाय च॒",
+          "transliteration": "namaḥ kapardine ca vyuptakeśāya ca",
+          "meaning": null,
+          "normalized": "ननकपर्दिनेचव्युप्तकेसयच"
+        },
+        {
+          "sequence": 88,
+          "verse": 1,
+          "devanagari": "नम॑स् सहस्रा॒क्षाय॑ च श॒तध॑न्वने च॒",
+          "transliteration": "namas sahasrākṣāya ca śatadhanvane ca",
+          "meaning": null,
+          "normalized": "ननस्सहस्रक्सयचसतदन्वनेच"
+        },
+        {
+          "sequence": 89,
+          "verse": 1,
+          "devanagari": "नमो॑ गिरि॒शाय॑ च शिपिवि॒ष्टाय॑ च॒",
+          "transliteration": "namo giriśāya ca śipiviṣṭāya ca",
+          "meaning": null,
+          "normalized": "ननोगिरिसयचसिपिविस्टयच"
+        },
+        {
+          "sequence": 90,
+          "verse": 1,
+          "devanagari": "नमो॑ मी॒ढुष्ट॑माय॒ चेषु॑मते च॒",
+          "transliteration": "namo mīḍhuṣṭamāya ceṣumate ca",
+          "meaning": null,
+          "normalized": "ननोनिडुस्टनयचेसुनतेच"
+        },
+        {
+          "sequence": 91,
+          "verse": 1,
+          "devanagari": "नमो᳚ ह्र॒स्वाय॑ च वाम॒नाय॑ च॒",
+          "transliteration": "namo hrasvāya ca vāmanāya ca",
+          "meaning": null,
+          "normalized": "ननोह्रस्वयचवननयच"
+        },
+        {
+          "sequence": 92,
+          "verse": 1,
+          "devanagari": "नमो॑ बृह॒ते च॒ वर्षी॑यसे च॒",
+          "transliteration": "namo bṛhate ca varṣīyase ca",
+          "meaning": null,
+          "normalized": "ननोबृहतेचवर्सियसेच"
+        },
+        {
+          "sequence": 93,
+          "verse": 1,
+          "devanagari": "नमो॑ वृ॒द्धाय॑ च सं॒वृध्व॑ने च॒",
+          "transliteration": "namo vṛddhāya ca saṃvṛdhvane ca",
+          "meaning": null,
+          "normalized": "ननोवृद्दयचसनवृद्वनेच"
+        },
+        {
+          "sequence": 94,
+          "verse": 1,
+          "devanagari": "नमो॒ अग्रि॑याय च प्रथ॒माय॑ च॒",
+          "transliteration": "namo agriyāya ca prathamāya ca",
+          "meaning": null,
+          "normalized": "ननोअग्रिययचप्रतनयच"
+        },
+        {
+          "sequence": 95,
+          "verse": 1,
+          "devanagari": "नम॑ आ॒शवे॑ चाजि॒राय॑ च॒",
+          "transliteration": "nama āśave cājirāya ca",
+          "meaning": null,
+          "normalized": "ननअसवेचजिरयच"
+        },
+        {
+          "sequence": 96,
+          "verse": 1,
+          "devanagari": "नम॒श् शीघ्रि॑याय च॒ शीभ्या॑य च॒",
+          "transliteration": "namaś śīghriyāya ca śībhyāya ca",
+          "meaning": null,
+          "normalized": "ननस्सिग्रिययचसिब्ययच"
+        },
+        {
+          "sequence": 97,
+          "verse": 1,
+          "devanagari": "नम॑ ऊ॒र्म्या॑य चावस्व॒न्या॑य च॒",
+          "transliteration": "nama ūrmyāya cāvasvanyāya ca",
+          "meaning": null,
+          "normalized": "ननउर्न्ययचवस्वन्ययच"
+        },
+        {
+          "sequence": 98,
+          "verse": 1,
+          "devanagari": "नम॑स् स्रोत॒स्या॑य च॒ द्वीप्या॑य च",
+          "transliteration": "namas srotasyāya ca dvīpyāya ca",
+          "meaning": null,
+          "normalized": "ननस्स्रोतस्ययचद्विप्ययच"
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "work": "namakam",
+      "kind": "anuvaka",
+      "id": "namakam-anuvaka-6",
+      "title": {
+        "english": "Namakam · Anuvāka 6"
+      },
+      "lines": [
+        {
+          "sequence": 99,
+          "verse": 1,
+          "devanagari": "नमो᳚ ज्ये॒ष्ठाय॑ च कनि॒ष्ठाय॑ च॒",
+          "transliteration": "namo jyeṣṭhāya ca kaniṣṭhāya ca",
+          "meaning": null,
+          "normalized": "ननोज्येस्टयचकनिस्टयच"
+        },
+        {
+          "sequence": 100,
+          "verse": 1,
+          "devanagari": "नमः॑ पूर्व॒जाय॑ चापर॒जाय॑ च॒",
+          "transliteration": "namaḥ pūrvajāya cāparajāya ca",
+          "meaning": null,
+          "normalized": "ननपुर्वजयचपरजयच"
+        },
+        {
+          "sequence": 101,
+          "verse": 1,
+          "devanagari": "नमो॑ मध्य॒माय॑ चापग॒ल्भाय॑ च॒",
+          "transliteration": "namo madhyamāya cāpagalbhāya ca",
+          "meaning": null,
+          "normalized": "ननोनद्यनयचपगल्बयच"
+        },
+        {
+          "sequence": 102,
+          "verse": 1,
+          "devanagari": "नमो॑ जघ॒न्या॑य च॒ बुध्नि॑याय च॒",
+          "transliteration": "namo jaghanyāya ca budhniyāya ca",
+          "meaning": null,
+          "normalized": "ननोजगन्ययचबुद्निययच"
+        },
+        {
+          "sequence": 103,
+          "verse": 1,
+          "devanagari": "नम॑स् सो॒भ्या॑य च प्रतिस॒र्या॑य च॒",
+          "transliteration": "namas sobhyāya ca pratisaryāya ca",
+          "meaning": null,
+          "normalized": "ननस्सोब्ययचप्रतिसर्ययच"
+        },
+        {
+          "sequence": 104,
+          "verse": 1,
+          "devanagari": "नमो॒ याम्या॑य च॒ क्षेम्या॑य च॒",
+          "transliteration": "namo yāmyāya ca kṣemyāya ca",
+          "meaning": null,
+          "normalized": "ननोयन्ययचक्सेन्ययच"
+        },
+        {
+          "sequence": 105,
+          "verse": 1,
+          "devanagari": "नम॑ उर्व॒र्या॑य च॒ खल्या॑य च॒",
+          "transliteration": "nama urvaryāya ca khalyāya ca",
+          "meaning": null,
+          "normalized": "ननउर्वर्ययचकल्ययच"
+        },
+        {
+          "sequence": 106,
+          "verse": 1,
+          "devanagari": "नम॒श् श्लोक्या॑य चावसा॒न्या॑य च॒",
+          "transliteration": "namaś ślokyāya cāvasānyāya ca",
+          "meaning": null,
+          "normalized": "ननस्स्लोक्ययचवसन्ययच"
+        },
+        {
+          "sequence": 107,
+          "verse": 1,
+          "devanagari": "नमो॒ वन्या॑य च॒ कक्ष्या॑य च॒",
+          "transliteration": "namo vanyāya ca kakṣyāya ca",
+          "meaning": null,
+          "normalized": "ननोवन्ययचकक्स्ययच"
+        },
+        {
+          "sequence": 108,
+          "verse": 1,
+          "devanagari": "नम॑श् श्र॒वाय॑ च प्रतिश्र॒वाय॑ च॒",
+          "transliteration": "namaś śravāya ca pratiśravāya ca",
+          "meaning": null,
+          "normalized": "ननस्स्रवयचप्रतिस्रवयच"
+        },
+        {
+          "sequence": 109,
+          "verse": 1,
+          "devanagari": "नम॑ आ॒शुषे॑णाय चा॒ऽऽशुर॑थाय च॒",
+          "transliteration": "nama āśuṣeṇāya cā''śurathāya ca",
+          "meaning": null,
+          "normalized": "ननअसुसेनयचऽऽसुरतयच"
+        },
+        {
+          "sequence": 110,
+          "verse": 1,
+          "devanagari": "नम॒श् शूरा॑य चावभिन्द॒ते च॒",
+          "transliteration": "namaś śūrāya cāvabhindate ca",
+          "meaning": null,
+          "normalized": "ननस्सुरयचवबिन्दतेच"
+        },
+        {
+          "sequence": 111,
+          "verse": 1,
+          "devanagari": "नमो॑ व॒र्मिणे॑ च वरू॒थिने॑ च॒",
+          "transliteration": "namo varmiṇe ca varūthine ca",
+          "meaning": null,
+          "normalized": "ननोवर्निनेचवरुतिनेच"
+        },
+        {
+          "sequence": 112,
+          "verse": 1,
+          "devanagari": "नमो॑ बि॒ल्मिने॑ च कव॒चिने॑ च॒",
+          "transliteration": "namo bilmine ca kavacine ca",
+          "meaning": null,
+          "normalized": "ननोबिल्निनेचकवचिनेच"
+        },
+        {
+          "sequence": 113,
+          "verse": 1,
+          "devanagari": "नम॑श् श्रु॒ताय॑ च श्रुतसे॒नाय॑ च",
+          "transliteration": "namaś śrutāya ca śrutasenāya ca",
+          "meaning": null,
+          "normalized": "ननस्स्रुतयचस्रुतसेनयच"
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "work": "namakam",
+      "kind": "anuvaka",
+      "id": "namakam-anuvaka-7",
+      "title": {
+        "english": "Namakam · Anuvāka 7"
+      },
+      "lines": [
+        {
+          "sequence": 114,
+          "verse": 1,
+          "devanagari": "नमो॑ दुन्दु॒भ्या॑य चाऽऽहन॒न्या॑य च॒",
+          "transliteration": "namo dundubhyāya cā''hananyāya ca",
+          "meaning": null,
+          "normalized": "ननोदुन्दुब्ययचऽऽहनन्ययच"
+        },
+        {
+          "sequence": 115,
+          "verse": 1,
+          "devanagari": "नमो॑ धृ॒ष्णवे॑ च प्रमृ॒शाय॑ च॒",
+          "transliteration": "namo dhṛṣṇave ca pramṛśāya ca",
+          "meaning": null,
+          "normalized": "ननोदृस्नवेचप्रनृसयच"
+        },
+        {
+          "sequence": 116,
+          "verse": 1,
+          "devanagari": "नमो॑ दू॒ताय॑ च॒ प्रहि॑ताय च॒",
+          "transliteration": "namo dūtāya ca prahitāya ca",
+          "meaning": null,
+          "normalized": "ननोदुतयचप्रहितयच"
+        },
+        {
+          "sequence": 117,
+          "verse": 1,
+          "devanagari": "नमो॑ निषं॒गिणे॑ चेषुधि॒मते॑ च॒",
+          "transliteration": "namo niṣaṃgiṇe ceṣudhimate ca",
+          "meaning": null,
+          "normalized": "ननोनिसनगिनेचेसुदिनतेच"
+        },
+        {
+          "sequence": 118,
+          "verse": 1,
+          "devanagari": "नम॑स्ती॒क्ष्णेष॑वे चाऽऽयु॒धिने॑ च॒",
+          "transliteration": "namastīkṣṇeṣave cā''yudhine ca",
+          "meaning": null,
+          "normalized": "ननस्तिक्स्नेसवेचऽऽयुदिनेच"
+        },
+        {
+          "sequence": 119,
+          "verse": 1,
+          "devanagari": "नम॑स् स्वायु॒धाय॑ च सु॒धन्व॑ने च॒",
+          "transliteration": "namas svāyudhāya ca sudhanvane ca",
+          "meaning": null,
+          "normalized": "ननस्स्वयुदयचसुदन्वनेच"
+        },
+        {
+          "sequence": 120,
+          "verse": 1,
+          "devanagari": "नम॒स् स्रुत्या॑य च॒ पथ्या॑य च॒",
+          "transliteration": "namas srutyāya ca pathyāya ca",
+          "meaning": null,
+          "normalized": "ननस्स्रुत्ययचपत्ययच"
+        },
+        {
+          "sequence": 121,
+          "verse": 1,
+          "devanagari": "नमः॑ का॒ट्या॑य च नी॒प्या॑य च॒",
+          "transliteration": "namaḥ kāṭyāya ca nīpyāya ca",
+          "meaning": null,
+          "normalized": "ननकट्ययचनिप्ययच"
+        },
+        {
+          "sequence": 122,
+          "verse": 1,
+          "devanagari": "नम॒स् सूद्या॑य च सर॒स्या॑य च॒",
+          "transliteration": "namas sūdyāya ca sarasyāya ca",
+          "meaning": null,
+          "normalized": "ननस्सुद्ययचसरस्ययच"
+        },
+        {
+          "sequence": 123,
+          "verse": 1,
+          "devanagari": "नमो॑ ना॒द्याय॑ च वैश॒न्ताय॑ च॒",
+          "transliteration": "namo nādyāya ca vaiśantāya ca",
+          "meaning": null,
+          "normalized": "ननोनद्ययचवैसन्तयच"
+        },
+        {
+          "sequence": 124,
+          "verse": 1,
+          "devanagari": "नमः॒ कूप्या॑य चाव॒ट्या॑य च॒",
+          "transliteration": "namaḥ kūpyāya cāvaṭyāya ca",
+          "meaning": null,
+          "normalized": "ननकुप्ययचवट्ययच"
+        },
+        {
+          "sequence": 125,
+          "verse": 1,
+          "devanagari": "नमो॒ वर्ष्या॑य चाव॒र्ष्याय॑ च॒",
+          "transliteration": "namo varṣyāya cāvarṣyāya ca",
+          "meaning": null,
+          "normalized": "ननोवर्स्ययचवर्स्ययच"
+        },
+        {
+          "sequence": 126,
+          "verse": 1,
+          "devanagari": "नमो॑ मे॒घ्या॑य च विद्यु॒त्या॑य च॒",
+          "transliteration": "namo meghyāya ca vidyutyāya ca",
+          "meaning": null,
+          "normalized": "ननोनेग्ययचविद्युत्ययच"
+        },
+        {
+          "sequence": 127,
+          "verse": 1,
+          "devanagari": "नम॑ ई॒ध्रिया॑य चाऽऽत॒प्या॑य च॒",
+          "transliteration": "nama īdhriyāya cā''tapyāya ca",
+          "meaning": null,
+          "normalized": "ननइद्रिययचऽऽतप्ययच"
+        },
+        {
+          "sequence": 128,
+          "verse": 1,
+          "devanagari": "नमो॒ वात्या॑य च॒ रेष्मि॑याय च॒ नमो॑ वास्त॒व्या॑य च वास्तु॒पाय॑ च",
+          "transliteration": "namo vātyāya ca reṣmiyāya ca namo vāstavyāya ca vāstupāya ca",
+          "meaning": null,
+          "normalized": "ननोवत्ययचरेस्निययचननोवस्तव्ययचवस्तुपयच"
+        },
+        {
+          "sequence": 129,
+          "verse": 2,
+          "devanagari": "ॐ हर हर हर हर ॐ",
+          "transliteration": "oṃ hara hara hara hara oṃ",
+          "meaning": null,
+          "normalized": "ॐहरहरहरहरॐ"
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "work": "namakam",
+      "kind": "anuvaka",
+      "id": "namakam-anuvaka-8",
+      "title": {
+        "english": "Namakam · Anuvāka 8"
+      },
+      "lines": [
+        {
+          "sequence": 130,
+          "verse": 1,
+          "devanagari": "नम॒स् सोमा॑य च रु॒द्राय॑ च॒ नम॑स्ता॒म्राय॑ चारु॒णाय॑ च॒",
+          "transliteration": "namas somāya ca rudrāya ca namastāmrāya cāruṇāya ca",
+          "meaning": null,
+          "normalized": "ननस्सोनयचरुद्रयचननस्तन्रयचरुनयच"
+        },
+        {
+          "sequence": 131,
+          "verse": 1,
+          "devanagari": "नम॑श् शं॒गाय॑ च पशु॒पत॑ये च॒ नम॑ उ॒ग्राय॑ च भी॒माय॑ च॒",
+          "transliteration": "namaś śaṃgāya ca paśupataye ca nama ugrāya ca bhīmāya ca",
+          "meaning": null,
+          "normalized": "ननस्सनगयचपसुपतयेचननउग्रयचबिनयच"
+        },
+        {
+          "sequence": 132,
+          "verse": 1,
+          "devanagari": "नमो॑ अग्रेव॒धाय॑ च दूरेव॒धाय॑ च॒ नमो॑ ह॒न्त्रे च॒ हनी॑यसे च॒",
+          "transliteration": "namo agrevadhāya ca dūrevadhāya ca namo hantre ca hanīyase ca",
+          "meaning": null,
+          "normalized": "ननोअग्रेवदयचदुरेवदयचननोहन्त्रेचहनियसेच"
+        },
+        {
+          "sequence": 133,
+          "verse": 1,
+          "devanagari": "नमो॑ वृ॒क्षेभ्यो॒ हरि॑ केशेभ्यो॒ नम॑स्ता॒राय॒ नम॑श् श॒म्भवे॑ च मयो॒भवे॑ च॒",
+          "transliteration": "namo vṛkṣebhyo hari keśebhyo namastārāya namaś śambhave ca mayobhave ca",
+          "meaning": null,
+          "normalized": "ननोवृक्सेब्योहरिकेसेब्योननस्तरयननस्सन्बवेचनयोबवेच"
+        },
+        {
+          "sequence": 134,
+          "verse": 1,
+          "devanagari": "नम॑श् शंक॒राय॑ च मयस्क॒राय॑ च॒ नम॑श् शि॒वाय॑ च शि॒वत॑राय च॒",
+          "transliteration": "namaś śaṃkarāya ca mayaskarāya ca namaś śivāya ca śivatarāya ca",
+          "meaning": null,
+          "normalized": "ननस्सनकरयचनयस्करयचननस्सिवयचसिवतरयच"
+        },
+        {
+          "sequence": 135,
+          "verse": 1,
+          "devanagari": "नम॒स्तीर्थ्या॑य च॒ कूल्या॑य च॒ नमः॑ पा॒र्या॑य चावा॒र्या॑य च॒",
+          "transliteration": "namastīrthyāya ca kūlyāya ca namaḥ pāryāya cāvāryāya ca",
+          "meaning": null,
+          "normalized": "ननस्तिर्त्ययचकुल्ययचननपर्ययचवर्ययच"
+        },
+        {
+          "sequence": 136,
+          "verse": 1,
+          "devanagari": "नमः॑ प्र॒तर॑णाय चो॒त्तर॑णाय च॒ नम॑ आता॒र्या॑य चाऽऽला॒द्या॑य च॒",
+          "transliteration": "namaḥ prataraṇāya cottaraṇāya ca nama ātāryāya cā''lādyāya ca",
+          "meaning": null,
+          "normalized": "ननप्रतरनयचोत्तरनयचननअतर्ययचऽऽलद्ययच"
+        },
+        {
+          "sequence": 137,
+          "verse": 1,
+          "devanagari": "नम॒श् शष्प्या॑य च॒ फेन्या॑य च॒ नम॑स् सिक॒त्या॑य च प्रवा॒ह्या॑य च",
+          "transliteration": "namaś śaṣpyāya ca phenyāya ca namas sikatyāya ca pravāhyāya ca",
+          "meaning": null,
+          "normalized": "ननस्सस्प्ययचपेन्ययचननस्सिकत्ययचप्रवह्ययच"
+        }
+      ]
+    },
+    {
+      "number": 9,
+      "work": "namakam",
+      "kind": "anuvaka",
+      "id": "namakam-anuvaka-9",
+      "title": {
+        "english": "Namakam · Anuvāka 9"
+      },
+      "lines": [
+        {
+          "sequence": 138,
+          "verse": 1,
+          "devanagari": "नम॑ इरि॒ण्या॑य च प्रप॒थ्या॑य च॒ नमः॑ किग्ंशि॒लाय॑ च॒ क्षय॑णाय च॒",
+          "transliteration": "nama iriṇyāya ca prapathyāya ca namaḥ kigṃśilāya ca kṣayaṇāya ca",
+          "meaning": null,
+          "normalized": "ननइरिन्ययचप्रपत्ययचननकिग्नसिलयचक्सयनयच"
+        },
+        {
+          "sequence": 139,
+          "verse": 1,
+          "devanagari": "नमः॑ कप॒र्दिने॑ च पुल॒स्तये॑ च॒ नमो॒ गोष्ठ्या॑य च॒ गृह्या॑य च॒",
+          "transliteration": "namaḥ kapardine ca pulastaye ca namo goṣṭhyāya ca gṛhyāya ca",
+          "meaning": null,
+          "normalized": "ननकपर्दिनेचपुलस्तयेचननोगोस्ट्ययचगृह्ययच"
+        },
+        {
+          "sequence": 140,
+          "verse": 1,
+          "devanagari": "नम॒स्तल्प्या॑य च॒ गेह्या॑य च॒ नमः॑ का॒ट्या॑य च गह्वरे॒ष्ठाय॑ च॒",
+          "transliteration": "namastalpyāya ca gehyāya ca namaḥ kāṭyāya ca gahvareṣṭhāya ca",
+          "meaning": null,
+          "normalized": "ननस्तल्प्ययचगेह्ययचननकट्ययचगह्वरेस्टयच"
+        },
+        {
+          "sequence": 141,
+          "verse": 1,
+          "devanagari": "नमो᳚ ह्रद॒य्या॑य च निवे॒ष्प्या॑य च॒ नमः॑ पाग्ंस॒व्या॑य च रज॒स्या॑य च॒",
+          "transliteration": "namo hradayyāya ca niveṣpyāya ca namaḥ pāgṃsavyāya ca rajasyāya ca",
+          "meaning": null,
+          "normalized": "ननोह्रदय्ययचनिवेस्प्ययचननपग्नसव्ययचरजस्ययच"
+        },
+        {
+          "sequence": 142,
+          "verse": 1,
+          "devanagari": "नम॒श् शुष्क्या॑य च हरि॒त्या॑य च॒ नमो॒ लोप्या॑य चोल॒प्या॑य च॒",
+          "transliteration": "namaś śuṣkyāya ca harityāya ca namo lopyāya colapyāya ca",
+          "meaning": null,
+          "normalized": "ननस्सुस्क्ययचहरित्ययचननोलोप्ययचोलप्ययच"
+        },
+        {
+          "sequence": 143,
+          "verse": 1,
+          "devanagari": "नम॑ ऊ॒र्व्या॑य च सू॒र्म्या॑य च॒ नमः॑ प॒र्ण्या॑य च पर्णश॒द्या॑य च॒",
+          "transliteration": "nama ūrvyāya ca sūrmyāya ca namaḥ parṇyāya ca parṇaśadyāya ca",
+          "meaning": null,
+          "normalized": "ननउर्व्ययचसुर्न्ययचननपर्न्ययचपर्नसद्ययच"
+        },
+        {
+          "sequence": 144,
+          "verse": 1,
+          "devanagari": "नमो॑ऽपगु॒रमा॑णाय चाभिघ्न॒ते च॒ नम॑ आक्खिद॒ते च॑ प्रक्खिद॒ते च॒",
+          "transliteration": "namo'paguramāṇāya cābhighnate ca nama ākkhidate ca prakkhidate ca",
+          "meaning": null,
+          "normalized": "ननोऽपगुरननयचबिग्नतेचननअक्किदतेचप्रक्किदतेच"
+        },
+        {
+          "sequence": 145,
+          "verse": 1,
+          "devanagari": "नमो॑ वः किरि॒केभ्यो॑ दे॒वाना॒ग्ं॒ हृद॑येभ्यो॒",
+          "transliteration": "namo vaḥ kirikebhyo devānāgṃ hṛdayebhyo",
+          "meaning": null,
+          "normalized": "ननोवकिरिकेब्योदेवनग्नहृदयेब्यो"
+        },
+        {
+          "sequence": 146,
+          "verse": 1,
+          "devanagari": "नमो॑ विक्षीण॒केभ्यो॒ नमो॑ विचिन्व॒त्केभ्यो॒ नम॑",
+          "transliteration": "namo vikṣīṇakebhyo namo vicinvatkebhyo nama",
+          "meaning": null,
+          "normalized": "ननोविक्सिनकेब्योननोविचिन्वत्केब्योनन"
+        },
+        {
+          "sequence": 147,
+          "verse": 1,
+          "devanagari": "आनिर्ह॒तेभ्यो॒ नम॑ आमीव॒त्केभ्यः॑",
+          "transliteration": "ānirhatebhyo nama āmīvatkebhyaḥ",
+          "meaning": null,
+          "normalized": "अनिर्हतेब्योननअनिवत्केब्य"
+        }
+      ]
+    },
+    {
+      "number": 10,
+      "work": "namakam",
+      "kind": "anuvaka",
+      "id": "namakam-anuvaka-10",
+      "title": {
+        "english": "Namakam · Anuvāka 10"
+      },
+      "lines": [
+        {
+          "sequence": 148,
+          "verse": 1,
+          "devanagari": "द्रापे॒ अन्ध॑सस्पते॒ दरि॑द्र॒न्नील॑लोहित",
+          "transliteration": "drāpe andhasaspate daridrannīlalohita",
+          "meaning": null,
+          "normalized": "द्रपेअन्दसस्पतेदरिद्रन्निललोहित"
+        },
+        {
+          "sequence": 149,
+          "verse": 1,
+          "devanagari": "ए॒षाम् पुरु॑षाणामे॒षाम् प॑शू॒नाम् मा भेर्माऽरो॒ मो ए॑षां॒ किञ् च॒नाऽऽम॑मत्",
+          "transliteration": "eṣām puruṣāṇāmeṣām paśūnām mā bhermā'ro mo eṣāṃ kiñ canā''mamat",
+          "meaning": null,
+          "normalized": "एसन्पुरुसननेसन्पसुनन्नबेर्नऽरोनोएसनकिन्चनऽऽननत्"
+        },
+        {
+          "sequence": 150,
+          "verse": 2,
+          "devanagari": "या ते॑ रुद्र शि॒वा त॒नूश् शि॒वा वि॒श्वाह॑भेषजी",
+          "transliteration": "yā te rudra śivā tanūś śivā viśvāhabheṣajī",
+          "meaning": null,
+          "normalized": "यतेरुद्रसिवतनुस्सिवविस्वहबेसजि"
+        },
+        {
+          "sequence": 151,
+          "verse": 2,
+          "devanagari": "शि॒वा रु॒द्रस्य॑ भेष॒जी तया॑ नो मृड जी॒वसे᳚",
+          "transliteration": "śivā rudrasya bheṣajī tayā no mṛḍa jīvase",
+          "meaning": null,
+          "normalized": "सिवरुद्रस्यबेसजितयनोनृडजिवसे"
+        },
+        {
+          "sequence": 152,
+          "verse": 3,
+          "devanagari": "इ॒माग्ं रु॒द्राय॑ त॒वसे॑ कप॒र्दिने᳚ क्ष॒यद्वी॑राय॒ प्र भ॑रामहे म॒तिम्",
+          "transliteration": "imāgṃ rudrāya tavase kapardine kṣayadvīrāya pra bharāmahe matim",
+          "meaning": null,
+          "normalized": "इनग्नरुद्रयतवसेकपर्दिनेक्सयद्विरयप्रबरनहेनतिन्"
+        },
+        {
+          "sequence": 153,
+          "verse": 3,
+          "devanagari": "यथा॑ न॒श् शमस॑द् द्वि॒पदे॒ चतु॑ष्पदे॒ विश्व॑म् पु॒ष्टं ग्रामे॑",
+          "transliteration": "yathā naś śamasad dvipade catuṣpade viśvam puṣṭaṃ grāme",
+          "meaning": null,
+          "normalized": "यतनस्सनसद्द्विपदेचतुस्पदेविस्वन्पुस्टनग्रने"
+        },
+        {
+          "sequence": 154,
+          "verse": 3,
+          "devanagari": "अ॒स्मिन्नना॑तुरम्",
+          "transliteration": "asminnanāturam",
+          "meaning": null,
+          "normalized": "अस्निन्ननतुरन्"
+        },
+        {
+          "sequence": 155,
+          "verse": 4,
+          "devanagari": "मृ॒डा नो॑ रुद्रो॒त नो॒ मय॑स्कृधि क्ष॒यद्वी॑राय॒ नम॑सा विधेम ते",
+          "transliteration": "mṛḍā no rudrota no mayaskṛdhi kṣayadvīrāya namasā vidhema te",
+          "meaning": null,
+          "normalized": "नृडनोरुद्रोतनोनयस्कृदिक्सयद्विरयननसविदेनते"
+        },
+        {
+          "sequence": 156,
+          "verse": 4,
+          "devanagari": "यच्छञ् च॒ योश्च॒ मनु॑राय॒जे पि॒ता तद॑श्याम॒ तव॑ रुद्र॒ प्रणी॑तौ",
+          "transliteration": "yacchañ ca yośca manurāyaje pitā tadaśyāma tava rudra praṇītau",
+          "meaning": null,
+          "normalized": "यच्चन्चयोस्चननुरयजेपिततदस्यनतवरुद्रप्रनितौ"
+        },
+        {
+          "sequence": 157,
+          "verse": 5,
+          "devanagari": "मा नो॑ म॒हान्त॑मु॒त मा नो॑ अर्भ॒कम् मा न॒ उक्ष॑न्तमु॒त मा न॑ उक्षि॒तम्",
+          "transliteration": "mā no mahāntamuta mā no arbhakam mā na ukṣantamuta mā na ukṣitam",
+          "meaning": null,
+          "normalized": "ननोनहन्तनुतननोअर्बकन्ननउक्सन्तनुतननउक्सितन्"
+        },
+        {
+          "sequence": 158,
+          "verse": 5,
+          "devanagari": "मा नो॑ वधीः पि॒तर॒म् मोत मा॒तर॑म् प्रि॒या मा न॑स्त॒नुवो॑ रुद्र रीरिषः",
+          "transliteration": "mā no vadhīḥ pitaram mota mātaram priyā mā nastanuvo rudra rīriṣaḥ",
+          "meaning": null,
+          "normalized": "ननोवदिपितरन्नोतनतरन्प्रियननस्तनुवोरुद्ररिरिस"
+        },
+        {
+          "sequence": 159,
+          "verse": 6,
+          "devanagari": "मान॑स्तो॒के तन॑ये॒ मा न॒ आयु॑षि॒ मा नो॒ गोषु॒ मा नो॒ अश्वे॑षु रीरिषः",
+          "transliteration": "mānastoke tanaye mā na āyuṣi mā no goṣu mā no aśveṣu rīriṣaḥ",
+          "meaning": null,
+          "normalized": "ननस्तोकेतनयेननअयुसिननोगोसुननोअस्वेसुरिरिस"
+        },
+        {
+          "sequence": 160,
+          "verse": 6,
+          "devanagari": "वी॒रान्मा नो॑ रुद्र भामि॒तो व॑धीर् ह॒विष्म॑न्तो॒ नम॑सा विधेम ते",
+          "transliteration": "vīrānmā no rudra bhāmito vadhīr haviṣmanto namasā vidhema te",
+          "meaning": null,
+          "normalized": "विरन्ननोरुद्रबनितोवदिर्हविस्नन्तोननसविदेनते"
+        },
+        {
+          "sequence": 161,
+          "verse": 7,
+          "devanagari": "आ॒रात् ते॑ गो॒घ्न उ॒त पू॑रुष॒घ्ने क्ष॒यद्वी॑राय सु॒म्नम॒स्मे ते॑ अस्तु",
+          "transliteration": "ārāt te goghna uta pūruṣaghne kṣayadvīrāya sumnamasme te astu",
+          "meaning": null,
+          "normalized": "अरत्तेगोग्नउतपुरुसग्नेक्सयद्विरयसुन्ननस्नेतेअस्तु"
+        },
+        {
+          "sequence": 162,
+          "verse": 7,
+          "devanagari": "रक्षा॑ च नो॒ अधि॑ च देव ब्रू॒ह्यधा॑ च न॒श् शर्म॑ यच्छ द्वि॒बर्हाः᳚",
+          "transliteration": "rakṣā ca no adhi ca deva brūhyadhā ca naś śarma yaccha dvibarhāḥ",
+          "meaning": null,
+          "normalized": "रक्सचनोअदिचदेवब्रुह्यदचनस्सर्नयच्चद्विबर्ह"
+        },
+        {
+          "sequence": 163,
+          "verse": 8,
+          "devanagari": "स्तु॒हि श्रु॒तं ग॑र्त॒सद॒ञ् युवा॑नम् मृ॒गन् न भी॒ममु॑पह॒त्नुमु॒ग्रम्",
+          "transliteration": "stuhi śrutaṃ gartasadañ yuvānam mṛgan na bhīmamupahatnumugram",
+          "meaning": null,
+          "normalized": "स्तुहिस्रुतनगर्तसदन्युवनन्नृगन्नबिननुपहत्नुनुग्रन्"
+        },
+        {
+          "sequence": 164,
+          "verse": 8,
+          "devanagari": "मृ॒डा ज॑रि॒त्रे रु॑द्र॒ स्तवा॑नो अ॒न्यन् ते॑ अ॒स्मन्नि व॑पन्तु॒ सेनाः᳚",
+          "transliteration": "mṛḍā jaritre rudra stavāno anyan te asmanni vapantu senāḥ",
+          "meaning": null,
+          "normalized": "नृडजरित्रेरुद्रस्तवनोअन्यन्तेअस्नन्निवपन्तुसेन"
+        },
+        {
+          "sequence": 165,
+          "verse": 9,
+          "devanagari": "परि॑णो रु॒द्रस्य॑ हे॒तिर्वृ॑णक्तु॒ परि॑ त्वे॒षस्य॑ दुर्म॒तिर॑घा॒योः",
+          "transliteration": "pariṇo rudrasya hetirvṛṇaktu pari tveṣasya durmatiraghāyoḥ",
+          "meaning": null,
+          "normalized": "परिनोरुद्रस्यहेतिर्वृनक्तुपरित्वेसस्यदुर्नतिरगयो"
+        },
+        {
+          "sequence": 166,
+          "verse": 9,
+          "devanagari": "अव॑ स्थि॒रा म॒घव॑द्भ्यस्तनुष्व॒ मीढ्व॑स्तो॒काय॒ तन॑याय मृडय",
+          "transliteration": "ava sthirā maghavadbhyastanuṣva mīḍhvastokāya tanayāya mṛḍaya",
+          "meaning": null,
+          "normalized": "अवस्तिरनगवद्ब्यस्तनुस्वनिड्वस्तोकयतनययनृडय"
+        },
+        {
+          "sequence": 167,
+          "verse": 10,
+          "devanagari": "मीढु॑ष्टम॒ शिव॑तम शि॒वो न॑स् सु॒मना॑ भव",
+          "transliteration": "mīḍhuṣṭama śivatama śivo nas sumanā bhava",
+          "meaning": null,
+          "normalized": "निडुस्टनसिवतनसिवोनस्सुननबव"
+        },
+        {
+          "sequence": 168,
+          "verse": 10,
+          "devanagari": "प॒र॒मे वृ॒क्ष आयु॑धन् नि॒धाय॒ कृत्तिं॒ वसा॑न॒",
+          "transliteration": "parame vṛkṣa āyudhan nidhāya kṛttiṃ vasāna",
+          "meaning": null,
+          "normalized": "परनेवृक्सअयुदन्निदयकृत्तिनवसन"
+        },
+        {
+          "sequence": 169,
+          "verse": 10,
+          "devanagari": "आ च॑र॒ पिना॑क॒म् बिभ्र॒दा ग॑हि",
+          "transliteration": "ā cara pinākam bibhradā gahi",
+          "meaning": null,
+          "normalized": "अचरपिनकन्बिब्रदगहि"
+        },
+        {
+          "sequence": 170,
+          "verse": 11,
+          "devanagari": "विकि॑रिद॒ विलो॑हित॒ नम॑स्ते अस्तु भगवः",
+          "transliteration": "vikirida vilohita namaste astu bhagavaḥ",
+          "meaning": null,
+          "normalized": "विकिरिदविलोहितननस्तेअस्तुबगव"
+        },
+        {
+          "sequence": 171,
+          "verse": 11,
+          "devanagari": "यास्ते॑ स॒हस्रग्ं॑ हे॒तयो॒ऽन्यम॒स्मन्नि व॑पन्तु॒ ताः",
+          "transliteration": "yāste sahasragṃ hetayo'nyamasmanni vapantu tāḥ",
+          "meaning": null,
+          "normalized": "यस्तेसहस्रग्नहेतयोऽन्यनस्नन्निवपन्तुत"
+        },
+        {
+          "sequence": 172,
+          "verse": 12,
+          "devanagari": "स॒हस्रा॑णि सहस्र॒धा बा॑हु॒वोस्तव॑ हे॒तयः॑",
+          "transliteration": "sahasrāṇi sahasradhā bāhuvostava hetayaḥ",
+          "meaning": null,
+          "normalized": "सहस्रनिसहस्रदबहुवोस्तवहेतय"
+        },
+        {
+          "sequence": 173,
+          "verse": 12,
+          "devanagari": "तासा॒मीशा॑नो भगवः परा॒चीना॒ मुखा॑ कृधि",
+          "transliteration": "tāsāmīśāno bhagavaḥ parācīnā mukhā kṛdhi",
+          "meaning": null,
+          "normalized": "तसनिसनोबगवपरचिननुककृदि"
+        }
+      ]
+    },
+    {
+      "number": 11,
+      "work": "namakam",
+      "kind": "anuvaka",
+      "id": "namakam-anuvaka-11",
+      "title": {
+        "english": "Namakam · Anuvāka 11"
+      },
+      "lines": [
+        {
+          "sequence": 174,
+          "verse": 1,
+          "devanagari": "स॒हस्रा॑णि सहस्र॒शो ये रु॒द्रा अधि॒ भूम्या᳚म्",
+          "transliteration": "sahasrāṇi sahasraśo ye rudrā adhi bhūmyām",
+          "meaning": null,
+          "normalized": "सहस्रनिसहस्रसोयेरुद्रअदिबुन्यन्"
+        },
+        {
+          "sequence": 175,
+          "verse": 1,
+          "devanagari": "तेषाग्ं॑ सहस्र योज॒नेऽव॒ धन्वा॑नि तन्मसि",
+          "transliteration": "teṣāgṃ sahasra yojane'va dhanvāni tanmasi",
+          "meaning": null,
+          "normalized": "तेसग्नसहस्रयोजनेऽवदन्वनितन्नसि"
+        },
+        {
+          "sequence": 176,
+          "verse": 2,
+          "devanagari": "अ॒स्मिन् म॑ह॒त्य॑र्ण॒वे᳚ ऽन्तरि॑क्षे भ॒वा अधि॑",
+          "transliteration": "asmin mahatyarṇave 'ntarikṣe bhavā adhi",
+          "meaning": null,
+          "normalized": "अस्निन्नहत्यर्नवेऽन्तरिक्सेबवअदि"
+        },
+        {
+          "sequence": 177,
+          "verse": 3,
+          "devanagari": "नील॑ग्रीवाश् शिति॒कण्ठा᳚श् श॒र्वा अ॒धः क्ष॑माच॒राः",
+          "transliteration": "nīlagrīvāś śitikaṇṭhāś śarvā adhaḥ kṣamācarāḥ",
+          "meaning": null,
+          "normalized": "निलग्रिवस्सितिकन्टस्सर्वअदक्सनचर"
+        },
+        {
+          "sequence": 178,
+          "verse": 4,
+          "devanagari": "नील॑ग्रीवाश् शिति॒कण्ठा॒ दिवग्ं॑ रु॒द्रा उप॑श्रिताः",
+          "transliteration": "nīlagrīvāś śitikaṇṭhā divagṃ rudrā upaśritāḥ",
+          "meaning": null,
+          "normalized": "निलग्रिवस्सितिकन्टदिवग्नरुद्रउपस्रित"
+        },
+        {
+          "sequence": 179,
+          "verse": 5,
+          "devanagari": "ये वृ॒क्षेषु॑ स॒स्पिञ्ज॑रा॒ नील॑ग्रीवा॒ विलो॑हिताः",
+          "transliteration": "ye vṛkṣeṣu saspiñjarā nīlagrīvā vilohitāḥ",
+          "meaning": null,
+          "normalized": "येवृक्सेसुसस्पिन्जरनिलग्रिवविलोहित"
+        },
+        {
+          "sequence": 180,
+          "verse": 6,
+          "devanagari": "ये भू॒ताना॒मधि॑पतयो विशि॒खासः॑ कप॒र्दिनः॑",
+          "transliteration": "ye bhūtānāmadhipatayo viśikhāsaḥ kapardinaḥ",
+          "meaning": null,
+          "normalized": "येबुतननदिपतयोविसिकसकपर्दिन"
+        },
+        {
+          "sequence": 181,
+          "verse": 7,
+          "devanagari": "ये अन्ने॑षु वि॒विध्य॑न्ति॒ पात्रे॑षु॒ पिब॑तो॒ जनान्॑",
+          "transliteration": "ye anneṣu vividhyanti pātreṣu pibato janān",
+          "meaning": null,
+          "normalized": "येअन्नेसुविविद्यन्तिपत्रेसुपिबतोजनन्"
+        },
+        {
+          "sequence": 182,
+          "verse": 8,
+          "devanagari": "ये प॒थाम् प॑थि॒ रक्ष॑य ऐलबृ॒दा य॒व्युधः॑",
+          "transliteration": "ye pathām pathi rakṣaya ailabṛdā yavyudhaḥ",
+          "meaning": null,
+          "normalized": "येपतन्पतिरक्सयऐलबृदयव्युद"
+        },
+        {
+          "sequence": 183,
+          "verse": 9,
+          "devanagari": "ये ती॒र्थानि॑ प्र॒चर॑न्ति सृ॒काव॑न्तो निषं॒गिणः॑",
+          "transliteration": "ye tīrthāni pracaranti sṛkāvanto niṣaṃgiṇaḥ",
+          "meaning": null,
+          "normalized": "येतिर्तनिप्रचरन्तिसृकवन्तोनिसनगिन"
+        },
+        {
+          "sequence": 184,
+          "verse": 10,
+          "devanagari": "य ए॒ताव॑न्तश्च॒ भूयाग्ं॑सश्च॒ दिशो॑ रु॒द्रा वि॑तस्थि॒रे",
+          "transliteration": "ya etāvantaśca bhūyāgṃsaśca diśo rudrā vitasthire",
+          "meaning": null,
+          "normalized": "यएतवन्तस्चबुयग्नसस्चदिसोरुद्रवितस्तिरे"
+        },
+        {
+          "sequence": 185,
+          "verse": 10,
+          "devanagari": "तेषाग्ं॑ सहस्र योज॒नेऽव॒ धन्वा॑नि तन्मसि",
+          "transliteration": "teṣāgṃ sahasra yojane'va dhanvāni tanmasi",
+          "meaning": null,
+          "normalized": "तेसग्नसहस्रयोजनेऽवदन्वनितन्नसि"
+        },
+        {
+          "sequence": 186,
+          "verse": 11,
+          "devanagari": "नमो॑ रु॒द्रेभ्यो॒ ये पृ॑थि॒व्याञ् ये᳚ ऽन्तरि॑क्षे॒ ये दि॒वि येषा॒मन्नं॒ वातो॑",
+          "transliteration": "namo rudrebhyo ye pṛthivyāñ ye 'ntarikṣe ye divi yeṣāmannaṃ vāto",
+          "meaning": null,
+          "normalized": "ननोरुद्रेब्योयेपृतिव्यन्येऽन्तरिक्सेयेदिवियेसनन्ननवतो"
+        },
+        {
+          "sequence": 187,
+          "verse": 11,
+          "devanagari": "व॒र्षमिष॑व॒स्तेभ्यो॒ दश॒ प्राची॒र्दश॑ दक्षि॒णा दश॑ प्र॒तीची॒र्दशोदी॑ची॒र्",
+          "transliteration": "varṣamiṣavastebhyo daśa prācīrdaśa dakṣiṇā daśa pratīcīrdaśodīcīr",
+          "meaning": null,
+          "normalized": "वर्सनिसवस्तेब्योदसप्रचिर्दसदक्सिनदसप्रतिचिर्दसोदिचिर्"
+        },
+        {
+          "sequence": 188,
+          "verse": 11,
+          "devanagari": "दशो॒र्ध्वास्तेभ्यो॒ नम॒स्ते नो॑ मृडयन्तु॒ ते यन्",
+          "transliteration": "daśordhvāstebhyo namaste no mṛḍayantu te yan",
+          "meaning": null,
+          "normalized": "दसोर्द्वस्तेब्योननस्तेनोनृडयन्तुतेयन्"
+        },
+        {
+          "sequence": 189,
+          "verse": 11,
+          "devanagari": "द्वि॒ष्मो यश्च॑ नो॒ द्वेष्टि॒ तं वो॒ जम्भे॑ दधामि",
+          "transliteration": "dviṣmo yaśca no dveṣṭi taṃ vo jambhe dadhāmi",
+          "meaning": null,
+          "normalized": "द्विस्नोयस्चनोद्वेस्टितनवोजन्बेददनि"
+        }
+      ]
+    },
+    {
+      "number": null,
+      "work": "namakam",
+      "kind": "rudra-mantras",
+      "id": "namakam-rudra-mantras",
+      "title": {
+        "english": "Namakam · Rudra Mantras"
+      },
+      "lines": [
+        {
+          "sequence": 190,
+          "verse": 1,
+          "devanagari": "त्र्य॑म्बकञ् यजामहे सुग॒न्धिम् पु॑ष्टि॒वर्ध॑नम्",
+          "transliteration": "tryambakañ yajāmahe sugandhim puṣṭivardhanam",
+          "meaning": null,
+          "normalized": "त्र्यन्बकन्यजनहेसुगन्दिन्पुस्टिवर्दनन्"
+        },
+        {
+          "sequence": 191,
+          "verse": 1,
+          "devanagari": "उ॒र्वा॒रु॒कमि॑व॒ बन्ध॑नान् मृ॒त्योर्मु॑क्षीय॒ माऽमृता᳚त्",
+          "transliteration": "urvārukamiva bandhanān mṛtyormukṣīya mā'mṛtāt",
+          "meaning": null,
+          "normalized": "उर्वरुकनिवबन्दनन्नृत्योर्नुक्सियनऽनृतत्"
+        },
+        {
+          "sequence": 192,
+          "verse": 1,
+          "devanagari": "यो रु॒द्रो अ॒ग्नौ यो अ॒प्सु य ओष॑धीषु॒ यो रु॒द्रो",
+          "transliteration": "yo rudro agnau yo apsu ya oṣadhīṣu yo rudro",
+          "meaning": null,
+          "normalized": "योरुद्रोअग्नौयोअप्सुयओसदिसुयोरुद्रो"
+        },
+        {
+          "sequence": 193,
+          "verse": 1,
+          "devanagari": "विश्वा॒भुव॑नाऽऽवि॒वेश॒ तस्मै॑ रु॒द्राय॒ नमो॑ अस्तु",
+          "transliteration": "viśvābhuvanā''viveśa tasmai rudrāya namo astu",
+          "meaning": null,
+          "normalized": "विस्वबुवनऽऽविवेसतस्नैरुद्रयननोअस्तु"
+        },
+        {
+          "sequence": 194,
+          "verse": 1,
+          "devanagari": "ये ते॑ स॒हस्र॑म॒युत॒म् पाशा॒ मृत्यो॒ मर्त्या॑य॒ हन्त॑वे",
+          "transliteration": "ye te sahasramayutam pāśā mṛtyo martyāya hantave",
+          "meaning": null,
+          "normalized": "येतेसहस्रनयुतन्पसनृत्योनर्त्ययहन्तवे"
+        },
+        {
+          "sequence": 195,
+          "verse": 1,
+          "devanagari": "तान् य॒ज्ञस्य॑ मा॒यया॒ सर्वा॒नव॑यजामहे",
+          "transliteration": "tān yajñasya māyayā sarvānavayajāmahe",
+          "meaning": null,
+          "normalized": "तन्यज्नस्यनययसर्वनवयजनहे"
+        },
+        {
+          "sequence": 196,
+          "verse": 1,
+          "devanagari": "मृ॒त्यवे॒ स्वाहा॑ मृ॒त्यवे॒ स्वाहा᳚",
+          "transliteration": "mṛtyave svāhā mṛtyave svāhā",
+          "meaning": null,
+          "normalized": "नृत्यवेस्वहनृत्यवेस्वह"
+        },
+        {
+          "sequence": 197,
+          "verse": 1,
+          "devanagari": "प्राणानां ग्रन्थिरसि रुद्रो मा॑ विशा॒न्तकः तेनान्नेना᳚प्याय॒स्व",
+          "transliteration": "prāṇānāṃ granthirasi rudro mā viśāntakaḥ tenānnenāpyāyasva",
+          "meaning": null,
+          "normalized": "प्रनननग्रन्तिरसिरुद्रोनविसन्तकतेनन्नेनप्ययस्व"
+        },
+        {
+          "sequence": 198,
+          "verse": 1,
+          "devanagari": "नमो रुद्राय विष्णवे मृत्यु॑र्मे पा॒हि",
+          "transliteration": "namo rudrāya viṣṇave mṛtyurme pāhi",
+          "meaning": null,
+          "normalized": "ननोरुद्रयविस्नवेनृत्युर्नेपहि"
+        },
+        {
+          "sequence": 199,
+          "verse": 1,
+          "devanagari": "तमु॑ ष्टुहि॒ यस् स्वि॒षुस् सु॒धन्वा॒यो विश्व॑स्य॒ क्षय॑ति भेष॒जस्य॑",
+          "transliteration": "tamu ṣṭuhi yas sviṣus sudhanvāyo viśvasya kṣayati bheṣajasya",
+          "meaning": null,
+          "normalized": "तनुस्टुहियस्स्विसुस्सुदन्वयोविस्वस्यक्सयतिबेसजस्य"
+        },
+        {
+          "sequence": 200,
+          "verse": 1,
+          "devanagari": "यक्ष्वा᳚म॒हे सौ᳚ मन॒साय॑ रु॒द्रन् नमो᳚ भिर्दे॒वमसु॑रन् दुवस्य",
+          "transliteration": "yakṣvāmahe sau manasāya rudran namo bhirdevamasuran duvasya",
+          "meaning": null,
+          "normalized": "यक्स्वनहेसौननसयरुद्रन्ननोबिर्देवनसुरन्दुवस्य"
+        },
+        {
+          "sequence": 201,
+          "verse": 1,
+          "devanagari": "अ॒यम् मे॒ हस्तो॒ भग॑वान॒यम् मे॒ भग॑वत्तरः",
+          "transliteration": "ayam me hasto bhagavānayam me bhagavattaraḥ",
+          "meaning": null,
+          "normalized": "अयन्नेहस्तोबगवनयन्नेबगवत्तर"
+        },
+        {
+          "sequence": 202,
+          "verse": 1,
+          "devanagari": "अ॒यम् मे᳚ वि॒श्व भे᳚षजो॒ ऽयं शि॒वाभि॑मर्शनः",
+          "transliteration": "ayam me viśva bheṣajo 'yaṃ śivābhimarśanaḥ",
+          "meaning": null,
+          "normalized": "अयन्नेविस्वबेसजोऽयनसिवबिनर्सन"
+        },
+        {
+          "sequence": 203,
+          "verse": 2,
+          "devanagari": "ॐ शान्ति॒श् शान्ति॒श् शान्तिः॑",
+          "transliteration": "oṃ śāntiś śāntiś śāntiḥ",
+          "meaning": null,
+          "normalized": "ॐसन्तिस्सन्तिस्सन्ति"
+        }
+      ]
+    },
+    {
+      "number": 1,
+      "work": "chamakam",
+      "kind": "anuvaka",
+      "id": "chamakam-anuvaka-1",
+      "title": {
+        "english": "Chamakam · Anuvāka 1"
+      },
+      "lines": [
+        {
+          "sequence": 204,
+          "verse": 1,
+          "devanagari": "ॐ अग्ना॑ विष्णू स॒जोष॑से॒मा व॑र्धन्तु वां॒ गिरः॑",
+          "transliteration": "oṃ agnā viṣṇū sajoṣasemā vardhantu vāṃ giraḥ",
+          "meaning": null,
+          "normalized": "ॐअग्नविस्नुसजोससेनवर्दन्तुवनगिर"
+        },
+        {
+          "sequence": 205,
+          "verse": 1,
+          "devanagari": "द्यु॒म्नैर्वाजे॑भि॒रा ग॑तम् वाज॑श्च मे प्रस॒वश्च॑ मे॒",
+          "transliteration": "dyumnairvājebhirā gatam vājaśca me prasavaśca me",
+          "meaning": null,
+          "normalized": "द्युन्नैर्वजेबिरगतन्वजस्चनेप्रसवस्चने"
+        },
+        {
+          "sequence": 206,
+          "verse": 1,
+          "devanagari": "प्रय॑तिश्च मे॒ प्रसि॑तिश्च मे धी॒तिश्च॑ मे॒ क्रतु॑श्च मे॒",
+          "transliteration": "prayatiśca me prasitiśca me dhītiśca me kratuśca me",
+          "meaning": null,
+          "normalized": "प्रयतिस्चनेप्रसितिस्चनेदितिस्चनेक्रतुस्चने"
+        },
+        {
+          "sequence": 207,
+          "verse": 1,
+          "devanagari": "स्वर॑श्च मे॒ श्लोक॑श्च मे श्रा॒वश्च॑ मे॒ श्रुति॑श्च मे॒",
+          "transliteration": "svaraśca me ślokaśca me śrāvaśca me śrutiśca me",
+          "meaning": null,
+          "normalized": "स्वरस्चनेस्लोकस्चनेस्रवस्चनेस्रुतिस्चने"
+        },
+        {
+          "sequence": 208,
+          "verse": 1,
+          "devanagari": "ज्योति॑श्च मे॒ सुव॑श्च मे प्रा॒णश्च॑ मे ऽपा॒नश्च॑ मे व्या॒नश्च॒ मे ऽसु॑श्च मे",
+          "transliteration": "jyotiśca me suvaśca me prāṇaśca me 'pānaśca me vyānaśca me 'suśca me",
+          "meaning": null,
+          "normalized": "ज्योतिस्चनेसुवस्चनेप्रनस्चनेऽपनस्चनेव्यनस्चनेऽसुस्चने"
+        },
+        {
+          "sequence": 209,
+          "verse": 1,
+          "devanagari": "चि॒त्तञ् च॑ म॒ आधी॑तञ् च मे॒ वाक् च॑ मे॒ मन॑श्च मे॒",
+          "transliteration": "cittañ ca ma ādhītañ ca me vāk ca me manaśca me",
+          "meaning": null,
+          "normalized": "चित्तन्चनअदितन्चनेवक्चनेननस्चने"
+        },
+        {
+          "sequence": 210,
+          "verse": 1,
+          "devanagari": "चक्षु॑श्च मे॒ श्रोत्र॑ञ् च मे॒ दक्ष॑श्च मे॒",
+          "transliteration": "cakṣuśca me śrotrañ ca me dakṣaśca me",
+          "meaning": null,
+          "normalized": "चक्सुस्चनेस्रोत्रन्चनेदक्सस्चने"
+        },
+        {
+          "sequence": 211,
+          "verse": 1,
+          "devanagari": "बल॑ञ् च म॒ ओज॑श्च मे॒ सह॑श्च म॒ आयु॑श्च मे",
+          "transliteration": "balañ ca ma ojaśca me sahaśca ma āyuśca me",
+          "meaning": null,
+          "normalized": "बलन्चनओजस्चनेसहस्चनअयुस्चने"
+        },
+        {
+          "sequence": 212,
+          "verse": 1,
+          "devanagari": "ज॒रा च॑ म आ॒त्मा च॑ मे त॒नूश्च॑ मे॒ शर्म॑ च मे॒",
+          "transliteration": "jarā ca ma ātmā ca me tanūśca me śarma ca me",
+          "meaning": null,
+          "normalized": "जरचनअत्नचनेतनुस्चनेसर्नचने"
+        },
+        {
+          "sequence": 213,
+          "verse": 1,
+          "devanagari": "वर्म॑ च॒ मेऽंगा॑नि च मे॒ऽस्थानि॑ च मे॒ परूग्ं॑षि च मे॒ शरी॑राणि च मे",
+          "transliteration": "varma ca me'ṃgāni ca me'sthāni ca me parūgṃṣi ca me śarīrāṇi ca me",
+          "meaning": null,
+          "normalized": "वर्नचनेऽनगनिचनेऽस्तनिचनेपरुग्नसिचनेसरिरनिचने"
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "work": "chamakam",
+      "kind": "anuvaka",
+      "id": "chamakam-anuvaka-2",
+      "title": {
+        "english": "Chamakam · Anuvāka 2"
+      },
+      "lines": [
+        {
+          "sequence": 214,
+          "verse": 1,
+          "devanagari": "ज्यैष्ठ्य॑ञ् च म॒ आधि॑पत्यञ् च मे",
+          "transliteration": "jyaiṣṭhyañ ca ma ādhipatyañ ca me",
+          "meaning": null,
+          "normalized": "ज्यैस्ट्यन्चनअदिपत्यन्चने"
+        },
+        {
+          "sequence": 215,
+          "verse": 1,
+          "devanagari": "म॒न्युश्च॑ मे॒ भाम॑श्च॒ मे ऽम॑श्च॒ मे ऽम्भ॑श्च मे",
+          "transliteration": "manyuśca me bhāmaśca me 'maśca me 'mbhaśca me",
+          "meaning": null,
+          "normalized": "नन्युस्चनेबनस्चनेऽनस्चनेऽन्बस्चने"
+        },
+        {
+          "sequence": 216,
+          "verse": 1,
+          "devanagari": "जे॒मा च॑ मे महि॒मा च॑ मे वरि॒मा च॑ मे प्रथि॒मा च॑ मे",
+          "transliteration": "jemā ca me mahimā ca me varimā ca me prathimā ca me",
+          "meaning": null,
+          "normalized": "जेनचनेनहिनचनेवरिनचनेप्रतिनचने"
+        },
+        {
+          "sequence": 217,
+          "verse": 1,
+          "devanagari": "व॒र्ष्मा च॑ मे द्राघु॒या च॑ मे वृ॒द्धञ् च॑ मे॒ वृद्धि॑श्च मे",
+          "transliteration": "varṣmā ca me drāghuyā ca me vṛddhañ ca me vṛddhiśca me",
+          "meaning": null,
+          "normalized": "वर्स्नचनेद्रगुयचनेवृद्दन्चनेवृद्दिस्चने"
+        },
+        {
+          "sequence": 218,
+          "verse": 1,
+          "devanagari": "स॒त्यञ् च॑ मे श्र॒द्धा च॑ मे॒ जग॑च्च मे॒ धन॑ञ् च मे॒",
+          "transliteration": "satyañ ca me śraddhā ca me jagacca me dhanañ ca me",
+          "meaning": null,
+          "normalized": "सत्यन्चनेस्रद्दचनेजगच्चनेदनन्चने"
+        },
+        {
+          "sequence": 219,
+          "verse": 1,
+          "devanagari": "वश॑श्च मे॒ त्विषि॑श्च मे क्री॒डा च॑ मे॒ मोद॑श्च मे",
+          "transliteration": "vaśaśca me tviṣiśca me krīḍā ca me modaśca me",
+          "meaning": null,
+          "normalized": "वसस्चनेत्विसिस्चनेक्रिडचनेनोदस्चने"
+        },
+        {
+          "sequence": 220,
+          "verse": 1,
+          "devanagari": "जा॒तञ् च॑ मे जनि॒ष्यमा॑णञ् च मे सू॒क्तञ् च॑ मे सुकृ॒तञ् च॑ मे",
+          "transliteration": "jātañ ca me janiṣyamāṇañ ca me sūktañ ca me sukṛtañ ca me",
+          "meaning": null,
+          "normalized": "जतन्चनेजनिस्यननन्चनेसुक्तन्चनेसुकृतन्चने"
+        },
+        {
+          "sequence": 221,
+          "verse": 1,
+          "devanagari": "वि॒त्तञ् च॑ मे॒ वेद्य॑ञ् च मे भू॒तञ् च॑ मे भवि॒ष्यच्च॑ मे",
+          "transliteration": "vittañ ca me vedyañ ca me bhūtañ ca me bhaviṣyacca me",
+          "meaning": null,
+          "normalized": "वित्तन्चनेवेद्यन्चनेबुतन्चनेबविस्यच्चने"
+        },
+        {
+          "sequence": 222,
+          "verse": 1,
+          "devanagari": "सु॒गञ् च॑ मे सु॒पथ॑ञ् च म ऋ॒द्धञ् च॑ म॒ ऋद्धि॑श्च मे",
+          "transliteration": "sugañ ca me supathañ ca ma ṛddhañ ca ma ṛddhiśca me",
+          "meaning": null,
+          "normalized": "सुगन्चनेसुपतन्चनऋद्दन्चनऋद्दिस्चने"
+        },
+        {
+          "sequence": 223,
+          "verse": 1,
+          "devanagari": "कॢ॒प्तञ् च॑ मे॒ कॢप्ति॑श्च मे म॒तिश्च॑ मे सुम॒तिश्च॑ मे",
+          "transliteration": "kḷptañ ca me kḷptiśca me matiśca me sumatiśca me",
+          "meaning": null,
+          "normalized": "कॢप्तन्चनेकॢप्तिस्चनेनतिस्चनेसुनतिस्चने"
+        }
+      ]
+    },
+    {
+      "number": 3,
+      "work": "chamakam",
+      "kind": "anuvaka",
+      "id": "chamakam-anuvaka-3",
+      "title": {
+        "english": "Chamakam · Anuvāka 3"
+      },
+      "lines": [
+        {
+          "sequence": 224,
+          "verse": 1,
+          "devanagari": "शञ् च॑ मे॒ मय॑श्च मे प्रि॒यञ् च॑ मे ऽनुका॒मश्च॑ मे॒ काम॑श्च मे",
+          "transliteration": "śañ ca me mayaśca me priyañ ca me 'nukāmaśca me kāmaśca me",
+          "meaning": null,
+          "normalized": "सन्चनेनयस्चनेप्रियन्चनेऽनुकनस्चनेकनस्चने"
+        },
+        {
+          "sequence": 225,
+          "verse": 1,
+          "devanagari": "सौमन॒सश्च॑ मे भ॒द्रञ् च॑ मे॒ श्रेय॑श्च मे॒",
+          "transliteration": "saumanasaśca me bhadrañ ca me śreyaśca me",
+          "meaning": null,
+          "normalized": "सौननसस्चनेबद्रन्चनेस्रेयस्चने"
+        },
+        {
+          "sequence": 226,
+          "verse": 1,
+          "devanagari": "वस्य॑श्च मे॒ यश॑श्च मे॒ भग॑श्च मे॒ द्रवि॑णञ् च मे",
+          "transliteration": "vasyaśca me yaśaśca me bhagaśca me draviṇañ ca me",
+          "meaning": null,
+          "normalized": "वस्यस्चनेयसस्चनेबगस्चनेद्रविनन्चने"
+        },
+        {
+          "sequence": 227,
+          "verse": 1,
+          "devanagari": "य॒न्ता च॑ मे ध॒र्ता च॑ मे॒ क्षेम॑श्च मे॒ धृति॑श्च मे॒",
+          "transliteration": "yantā ca me dhartā ca me kṣemaśca me dhṛtiśca me",
+          "meaning": null,
+          "normalized": "यन्तचनेदर्तचनेक्सेनस्चनेदृतिस्चने"
+        },
+        {
+          "sequence": 228,
+          "verse": 1,
+          "devanagari": "विश्व॑ञ् च मे॒ मह॑श्च मे सं॒विच्च॑ मे॒ ज्ञात्र॑ञ् च मे॒",
+          "transliteration": "viśvañ ca me mahaśca me saṃvicca me jñātrañ ca me",
+          "meaning": null,
+          "normalized": "विस्वन्चनेनहस्चनेसनविच्चनेज्नत्रन्चने"
+        },
+        {
+          "sequence": 229,
+          "verse": 1,
+          "devanagari": "सूश्च॑ मे प्र॒सूश्च॑ मे॒ सीर॑ञ् च मे ल॒यश्च॑ म",
+          "transliteration": "sūśca me prasūśca me sīrañ ca me layaśca ma",
+          "meaning": null,
+          "normalized": "सुस्चनेप्रसुस्चनेसिरन्चनेलयस्चन"
+        },
+        {
+          "sequence": 230,
+          "verse": 1,
+          "devanagari": "ऋ॒तञ् च॑ मे॒ ऽमृत॑ञ् च मे ऽय॒क्ष्मञ् च॒ मे ऽना॑मयच्च मे",
+          "transliteration": "ṛtañ ca me 'mṛtañ ca me 'yakṣmañ ca me 'nāmayacca me",
+          "meaning": null,
+          "normalized": "ऋतन्चनेऽनृतन्चनेऽयक्स्नन्चनेऽननयच्चने"
+        },
+        {
+          "sequence": 231,
+          "verse": 1,
+          "devanagari": "जी॒वातु॑श्च मे दीर्घायु॒त्वञ् च॑ मे ऽनमि॒त्रञ् च॒ मे ऽभ॑यञ् च मे",
+          "transliteration": "jīvātuśca me dīrghāyutvañ ca me 'namitrañ ca me 'bhayañ ca me",
+          "meaning": null,
+          "normalized": "जिवतुस्चनेदिर्गयुत्वन्चनेऽननित्रन्चनेऽबयन्चने"
+        },
+        {
+          "sequence": 232,
+          "verse": 1,
+          "devanagari": "सु॒गञ् च॑ मे॒ शय॑नञ् च मे सू॒षा च॑ मे सु॒दिन॑ञ् च मे",
+          "transliteration": "sugañ ca me śayanañ ca me sūṣā ca me sudinañ ca me",
+          "meaning": null,
+          "normalized": "सुगन्चनेसयनन्चनेसुसचनेसुदिनन्चने"
+        }
+      ]
+    },
+    {
+      "number": 4,
+      "work": "chamakam",
+      "kind": "anuvaka",
+      "id": "chamakam-anuvaka-4",
+      "title": {
+        "english": "Chamakam · Anuvāka 4"
+      },
+      "lines": [
+        {
+          "sequence": 233,
+          "verse": 1,
+          "devanagari": "ऊर्क् च॑ मे सू॒नृता॑ च मे॒ पय॑श्च मे॒ रस॑श्च मे",
+          "transliteration": "ūrk ca me sūnṛtā ca me payaśca me rasaśca me",
+          "meaning": null,
+          "normalized": "उर्क्चनेसुनृतचनेपयस्चनेरसस्चने"
+        },
+        {
+          "sequence": 234,
+          "verse": 1,
+          "devanagari": "घृ॒तञ् च॑ मे॒ मधु॑ च मे॒ सग्धि॑श्च मे॒ सपी॑तिश्च मे",
+          "transliteration": "ghṛtañ ca me madhu ca me sagdhiśca me sapītiśca me",
+          "meaning": null,
+          "normalized": "गृतन्चनेनदुचनेसग्दिस्चनेसपितिस्चने"
+        },
+        {
+          "sequence": 235,
+          "verse": 1,
+          "devanagari": "कृ॒षिश्च॑ मे॒ वृष्टि॑श्च मे॒ जैत्र॑ञ् च म॒ औद्भि॑द्यञ् च मे",
+          "transliteration": "kṛṣiśca me vṛṣṭiśca me jaitrañ ca ma audbhidyañ ca me",
+          "meaning": null,
+          "normalized": "कृसिस्चनेवृस्टिस्चनेजैत्रन्चनऔद्बिद्यन्चने"
+        },
+        {
+          "sequence": 236,
+          "verse": 1,
+          "devanagari": "र॒यिश्च॑ मे॒ राय॑श्च मे पु॒ष्टञ् च॑ मे॒ पुष्टि॑श्च मे",
+          "transliteration": "rayiśca me rāyaśca me puṣṭañ ca me puṣṭiśca me",
+          "meaning": null,
+          "normalized": "रयिस्चनेरयस्चनेपुस्टन्चनेपुस्टिस्चने"
+        },
+        {
+          "sequence": 237,
+          "verse": 1,
+          "devanagari": "वि॒भु च॑ मे प्र॒भु च॑ मे ब॒हु च॑ मे॒ भूय॑श्च मे पू॒र्णञ् च॑ मे",
+          "transliteration": "vibhu ca me prabhu ca me bahu ca me bhūyaśca me pūrṇañ ca me",
+          "meaning": null,
+          "normalized": "विबुचनेप्रबुचनेबहुचनेबुयस्चनेपुर्नन्चने"
+        },
+        {
+          "sequence": 238,
+          "verse": 1,
+          "devanagari": "पू॒र्णत॑रञ् च॒ मे ऽक्षि॑तिश्च मे॒ कूय॑वाश्च॒ मे ऽन्न॑ञ् च॒ मे ऽक्षु॑च्च मे",
+          "transliteration": "pūrṇatarañ ca me 'kṣitiśca me kūyavāśca me 'nnañ ca me 'kṣucca me",
+          "meaning": null,
+          "normalized": "पुर्नतरन्चनेऽक्सितिस्चनेकुयवस्चनेऽन्नन्चनेऽक्सुच्चने"
+        },
+        {
+          "sequence": 239,
+          "verse": 1,
+          "devanagari": "व्री॒हय॑श्च मे॒ यवा᳚श्च मे॒ माषा᳚श्च मे॒ तिला᳚श्च मे",
+          "transliteration": "vrīhayaśca me yavāśca me māṣāśca me tilāśca me",
+          "meaning": null,
+          "normalized": "व्रिहयस्चनेयवस्चनेनसस्चनेतिलस्चने"
+        },
+        {
+          "sequence": 240,
+          "verse": 1,
+          "devanagari": "मु॒द्गाश्च॑ मे ख॒ल्वा᳚श्च मे गो॒धूमा᳚श्च मे म॒सुरा᳚श्च मे",
+          "transliteration": "mudgāśca me khalvāśca me godhūmāśca me masurāśca me",
+          "meaning": null,
+          "normalized": "नुद्गस्चनेकल्वस्चनेगोदुनस्चनेनसुरस्चने"
+        },
+        {
+          "sequence": 241,
+          "verse": 1,
+          "devanagari": "प्रि॒यंग॑वश्च॒ मे ऽण॑वश्च मे श्या॒माका᳚श्च मे नी॒वारा᳚श्च मे",
+          "transliteration": "priyaṃgavaśca me 'ṇavaśca me śyāmākāśca me nīvārāśca me",
+          "meaning": null,
+          "normalized": "प्रियनगवस्चनेऽनवस्चनेस्यनकस्चनेनिवरस्चने"
+        }
+      ]
+    },
+    {
+      "number": 5,
+      "work": "chamakam",
+      "kind": "anuvaka",
+      "id": "chamakam-anuvaka-5",
+      "title": {
+        "english": "Chamakam · Anuvāka 5"
+      },
+      "lines": [
+        {
+          "sequence": 242,
+          "verse": 1,
+          "devanagari": "अश्मा॑ च मे॒ मृत्ति॑का च मे गि॒रय॑श्च मे॒ पर्व॑ताश्च मे॒ सिक॑ताश्च मे॒",
+          "transliteration": "aśmā ca me mṛttikā ca me girayaśca me parvatāśca me sikatāśca me",
+          "meaning": null,
+          "normalized": "अस्नचनेनृत्तिकचनेगिरयस्चनेपर्वतस्चनेसिकतस्चने"
+        },
+        {
+          "sequence": 243,
+          "verse": 1,
+          "devanagari": "वन॒स्पत॑यश्च मे॒ हिर॑ण्यञ् च॒ मे ऽय॑श्च मे॒",
+          "transliteration": "vanaspatayaśca me hiraṇyañ ca me 'yaśca me",
+          "meaning": null,
+          "normalized": "वनस्पतयस्चनेहिरन्यन्चनेऽयस्चने"
+        },
+        {
+          "sequence": 244,
+          "verse": 1,
+          "devanagari": "सीस॑ञ् च मे॒ त्रपु॑श्च मे श्या॒मञ् च॑ मे",
+          "transliteration": "sīsañ ca me trapuśca me śyāmañ ca me",
+          "meaning": null,
+          "normalized": "सिसन्चनेत्रपुस्चनेस्यनन्चने"
+        },
+        {
+          "sequence": 245,
+          "verse": 1,
+          "devanagari": "लो॒हञ् च॑ मे॒ ऽग्निश्च॑ म॒ आप॑श्च मे",
+          "transliteration": "lohañ ca me 'gniśca ma āpaśca me",
+          "meaning": null,
+          "normalized": "लोहन्चनेऽग्निस्चनअपस्चने"
+        },
+        {
+          "sequence": 246,
+          "verse": 1,
+          "devanagari": "वी॒रुध॑श्च म॒ ओष॑धयश्च मे कृष्टप॒च्यञ् च॑ मे ऽकृष्टप॒च्यञ् च॑ मे",
+          "transliteration": "vīrudhaśca ma oṣadhayaśca me kṛṣṭapacyañ ca me 'kṛṣṭapacyañ ca me",
+          "meaning": null,
+          "normalized": "विरुदस्चनओसदयस्चनेकृस्टपच्यन्चनेऽकृस्टपच्यन्चने"
+        },
+        {
+          "sequence": 247,
+          "verse": 1,
+          "devanagari": "ग्रा॒म्याश्च॑ मे प॒शव॑ आर॒ण्याश्च॑ य॒ज्ञेन॑ कल्पन्तां",
+          "transliteration": "grāmyāśca me paśava āraṇyāśca yajñena kalpantāṃ",
+          "meaning": null,
+          "normalized": "ग्रन्यस्चनेपसवअरन्यस्चयज्नेनकल्पन्तन"
+        },
+        {
+          "sequence": 248,
+          "verse": 1,
+          "devanagari": "वि॒त्तञ् च॑ मे॒ वित्ति॑श्च मे भू॒तञ् च॑ मे॒ भूति॑श्च मे॒",
+          "transliteration": "vittañ ca me vittiśca me bhūtañ ca me bhūtiśca me",
+          "meaning": null,
+          "normalized": "वित्तन्चनेवित्तिस्चनेबुतन्चनेबुतिस्चने"
+        },
+        {
+          "sequence": 249,
+          "verse": 1,
+          "devanagari": "वसु॑ च मे वस॒तिश्च॑ मे॒ कर्म॑ च मे॒ शक्ति॑श्च॒ मे ऽर्थ॑श्च म॒",
+          "transliteration": "vasu ca me vasatiśca me karma ca me śaktiśca me 'rthaśca ma",
+          "meaning": null,
+          "normalized": "वसुचनेवसतिस्चनेकर्नचनेसक्तिस्चनेऽर्तस्चन"
+        },
+        {
+          "sequence": 250,
+          "verse": 1,
+          "devanagari": "एम॑श्च म॒ इति॑श्च मे॒ गति॑श्च मे",
+          "transliteration": "emaśca ma itiśca me gatiśca me",
+          "meaning": null,
+          "normalized": "एनस्चनइतिस्चनेगतिस्चने"
+        }
+      ]
+    },
+    {
+      "number": 6,
+      "work": "chamakam",
+      "kind": "anuvaka",
+      "id": "chamakam-anuvaka-6",
+      "title": {
+        "english": "Chamakam · Anuvāka 6"
+      },
+      "lines": [
+        {
+          "sequence": 251,
+          "verse": 1,
+          "devanagari": "अ॒ग्निश्च॑ म॒ इन्द्र॑श्च मे॒ सोम॑श्च म॒ इन्द्र॑श्च मे",
+          "transliteration": "agniśca ma indraśca me somaśca ma indraśca me",
+          "meaning": null,
+          "normalized": "अग्निस्चनइन्द्रस्चनेसोनस्चनइन्द्रस्चने"
+        },
+        {
+          "sequence": 252,
+          "verse": 1,
+          "devanagari": "सवि॒ता च॑ म॒ इन्द्र॑श्च मे॒ सर॑स्वती च म॒ इन्द्र॑श्च मे",
+          "transliteration": "savitā ca ma indraśca me sarasvatī ca ma indraśca me",
+          "meaning": null,
+          "normalized": "सवितचनइन्द्रस्चनेसरस्वतिचनइन्द्रस्चने"
+        },
+        {
+          "sequence": 253,
+          "verse": 1,
+          "devanagari": "पू॒षा च॑ म॒ इन्द्र॑श्च मे॒ बृह॒स्पति॑श्च म॒ इन्द्र॑श्च मे",
+          "transliteration": "pūṣā ca ma indraśca me bṛhaspatiśca ma indraśca me",
+          "meaning": null,
+          "normalized": "पुसचनइन्द्रस्चनेबृहस्पतिस्चनइन्द्रस्चने"
+        },
+        {
+          "sequence": 254,
+          "verse": 1,
+          "devanagari": "मि॒त्रश्च॑ म॒ इन्द्र॑श्च मे॒ वरु॑णश्च म॒ इन्द्र॑श्च मे॒",
+          "transliteration": "mitraśca ma indraśca me varuṇaśca ma indraśca me",
+          "meaning": null,
+          "normalized": "नित्रस्चनइन्द्रस्चनेवरुनस्चनइन्द्रस्चने"
+        },
+        {
+          "sequence": 255,
+          "verse": 1,
+          "devanagari": "त्वष्टा॑ च म॒ इन्द्र॑श्च मे धा॒ता च॑ म॒ इन्द्र॑श्च मे॒",
+          "transliteration": "tvaṣṭā ca ma indraśca me dhātā ca ma indraśca me",
+          "meaning": null,
+          "normalized": "त्वस्टचनइन्द्रस्चनेदतचनइन्द्रस्चने"
+        },
+        {
+          "sequence": 256,
+          "verse": 1,
+          "devanagari": "विष्णु॑श्च म॒ इन्द्र॑श्च मे॒ ऽश्विनौ॑ च म॒ इन्द्र॑श्च मे",
+          "transliteration": "viṣṇuśca ma indraśca me 'śvinau ca ma indraśca me",
+          "meaning": null,
+          "normalized": "विस्नुस्चनइन्द्रस्चनेऽस्विनौचनइन्द्रस्चने"
+        },
+        {
+          "sequence": 257,
+          "verse": 1,
+          "devanagari": "म॒रुत॑श्च म॒ इन्द्र॑श्च मे॒ विश्वे॑ च मे दे॒वा इन्द्र॑श्च मे",
+          "transliteration": "marutaśca ma indraśca me viśve ca me devā indraśca me",
+          "meaning": null,
+          "normalized": "नरुतस्चनइन्द्रस्चनेविस्वेचनेदेवइन्द्रस्चने"
+        },
+        {
+          "sequence": 258,
+          "verse": 1,
+          "devanagari": "पृथि॒वी च॑ म॒ इन्द्र॑श्च मे॒ ऽन्तरि॑क्षञ् च म॒ इन्द्र॑श्च मे॒",
+          "transliteration": "pṛthivī ca ma indraśca me 'ntarikṣañ ca ma indraśca me",
+          "meaning": null,
+          "normalized": "पृतिविचनइन्द्रस्चनेऽन्तरिक्सन्चनइन्द्रस्चने"
+        },
+        {
+          "sequence": 259,
+          "verse": 1,
+          "devanagari": "द्यौश्च॑ म॒ इन्द्र॑श्च मे॒ दिश॑श्च म॒ इन्द्र॑श्च मे",
+          "transliteration": "dyauśca ma indraśca me diśaśca ma indraśca me",
+          "meaning": null,
+          "normalized": "द्यौस्चनइन्द्रस्चनेदिसस्चनइन्द्रस्चने"
+        },
+        {
+          "sequence": 260,
+          "verse": 1,
+          "devanagari": "मू॒र्धा च॑ म॒ इन्द्र॑श्च मे प्र॒जाप॑तिश्च म॒ इन्द्र॑श्च मे",
+          "transliteration": "mūrdhā ca ma indraśca me prajāpatiśca ma indraśca me",
+          "meaning": null,
+          "normalized": "नुर्दचनइन्द्रस्चनेप्रजपतिस्चनइन्द्रस्चने"
+        }
+      ]
+    },
+    {
+      "number": 7,
+      "work": "chamakam",
+      "kind": "anuvaka",
+      "id": "chamakam-anuvaka-7",
+      "title": {
+        "english": "Chamakam · Anuvāka 7"
+      },
+      "lines": [
+        {
+          "sequence": 261,
+          "verse": 1,
+          "devanagari": "अ॒ग्ं॒शुश्च॑ मे र॒श्मिश्च॒ मे ऽदा᳚भ्यश्च॒ मे ऽधि॑पतिश्च म",
+          "transliteration": "agṃśuśca me raśmiśca me 'dābhyaśca me 'dhipatiśca ma",
+          "meaning": null,
+          "normalized": "अग्नसुस्चनेरस्निस्चनेऽदब्यस्चनेऽदिपतिस्चन"
+        },
+        {
+          "sequence": 262,
+          "verse": 1,
+          "devanagari": "उपा॒ग्ं॒शुश्च॑ मे ऽन्तर्या॒मश्च॑ म ऐन्द्रवाय॒वश्च॑ मे",
+          "transliteration": "upāgṃśuśca me 'ntaryāmaśca ma aindravāyavaśca me",
+          "meaning": null,
+          "normalized": "उपग्नसुस्चनेऽन्तर्यनस्चनऐन्द्रवयवस्चने"
+        },
+        {
+          "sequence": 263,
+          "verse": 1,
+          "devanagari": "मैत्रावरु॒णश्च॑ म आश्वि॒नश्च॑ मे प्रतिप्र॒स्थान॑श्च मे",
+          "transliteration": "maitrāvaruṇaśca ma āśvinaśca me pratiprasthānaśca me",
+          "meaning": null,
+          "normalized": "नैत्रवरुनस्चनअस्विनस्चनेप्रतिप्रस्तनस्चने"
+        },
+        {
+          "sequence": 264,
+          "verse": 1,
+          "devanagari": "शु॒क्रश्च॑ मे म॒न्थी च॑ म आग्रय॒णश्च॑ मे वैश्वदे॒वश्च॑ मे",
+          "transliteration": "śukraśca me manthī ca ma āgrayaṇaśca me vaiśvadevaśca me",
+          "meaning": null,
+          "normalized": "सुक्रस्चनेनन्तिचनअग्रयनस्चनेवैस्वदेवस्चने"
+        },
+        {
+          "sequence": 265,
+          "verse": 1,
+          "devanagari": "ध्रु॒वश्च॑ मे वैश्वान॒रश्च॑ म ऋतुग्र॒हाश्च॑ मे ऽतिग्रा॒ह्या᳚श्च म",
+          "transliteration": "dhruvaśca me vaiśvānaraśca ma ṛtugrahāśca me 'tigrāhyāśca ma",
+          "meaning": null,
+          "normalized": "द्रुवस्चनेवैस्वनरस्चनऋतुग्रहस्चनेऽतिग्रह्यस्चन"
+        },
+        {
+          "sequence": 266,
+          "verse": 1,
+          "devanagari": "ऐन्द्रा॒ग्नश्च॑ मे वैश्वदे॒वश्च॑ मे",
+          "transliteration": "aindrāgnaśca me vaiśvadevaśca me",
+          "meaning": null,
+          "normalized": "ऐन्द्रग्नस्चनेवैस्वदेवस्चने"
+        },
+        {
+          "sequence": 267,
+          "verse": 1,
+          "devanagari": "मरुत्व॒तीया᳚श्च मे माहे॒न्द्रश्च॑ म आदि॒त्यश्च॑ मे सावि॒त्रश्च॑ मे",
+          "transliteration": "marutvatīyāśca me māhendraśca ma ādityaśca me sāvitraśca me",
+          "meaning": null,
+          "normalized": "नरुत्वतियस्चनेनहेन्द्रस्चनअदित्यस्चनेसवित्रस्चने"
+        },
+        {
+          "sequence": 268,
+          "verse": 1,
+          "devanagari": "सारस्व॒तश्च॑ मे पौ॒ष्णश्च॑ मे पात्नीव॒तश्च॑ मे हारियोज॒नश्च॑ मे",
+          "transliteration": "sārasvataśca me pauṣṇaśca me pātnīvataśca me hāriyojanaśca me",
+          "meaning": null,
+          "normalized": "सरस्वतस्चनेपौस्नस्चनेपत्निवतस्चनेहरियोजनस्चने"
+        }
+      ]
+    },
+    {
+      "number": 8,
+      "work": "chamakam",
+      "kind": "anuvaka",
+      "id": "chamakam-anuvaka-8",
+      "title": {
+        "english": "Chamakam · Anuvāka 8"
+      },
+      "lines": [
+        {
+          "sequence": 269,
+          "verse": 1,
+          "devanagari": "इ॒ध्मश्च॑ मे ब॒र्हिश्च॑ मे॒ वेदि॑श्च मे॒ धिष्णि॑याश्च मे॒",
+          "transliteration": "idhmaśca me barhiśca me vediśca me dhiṣṇiyāśca me",
+          "meaning": null,
+          "normalized": "इद्नस्चनेबर्हिस्चनेवेदिस्चनेदिस्नियस्चने"
+        },
+        {
+          "sequence": 270,
+          "verse": 1,
+          "devanagari": "स्रुच॑श्च मे चम॒साश्च॑ मे॒ ग्रावा॑णश्च मे॒ स्वर॑वश्च म",
+          "transliteration": "srucaśca me camasāśca me grāvāṇaśca me svaravaśca ma",
+          "meaning": null,
+          "normalized": "स्रुचस्चनेचनसस्चनेग्रवनस्चनेस्वरवस्चन"
+        },
+        {
+          "sequence": 271,
+          "verse": 1,
+          "devanagari": "उपर॒वाश्च॑ मे ऽधि॒षव॑णे च मे द्रोणकल॒शश्च॑ मे",
+          "transliteration": "uparavāśca me 'dhiṣavaṇe ca me droṇakalaśaśca me",
+          "meaning": null,
+          "normalized": "उपरवस्चनेऽदिसवनेचनेद्रोनकलसस्चने"
+        },
+        {
+          "sequence": 272,
+          "verse": 1,
+          "devanagari": "वाय॒व्या॑नि च मे पूत॒भृच्च॑ म आधव॒नीय॑श्च म॒",
+          "transliteration": "vāyavyāni ca me pūtabhṛcca ma ādhavanīyaśca ma",
+          "meaning": null,
+          "normalized": "वयव्यनिचनेपुतबृच्चनअदवनियस्चन"
+        },
+        {
+          "sequence": 273,
+          "verse": 1,
+          "devanagari": "आग्नी᳚ध्रञ् च मे हवि॒र्धान॑ञ् च मे गृ॒हाश्च॑ मे॒ सद॑श्च मे",
+          "transliteration": "āgnīdhrañ ca me havirdhānañ ca me gṛhāśca me sadaśca me",
+          "meaning": null,
+          "normalized": "अग्निद्रन्चनेहविर्दनन्चनेगृहस्चनेसदस्चने"
+        },
+        {
+          "sequence": 274,
+          "verse": 1,
+          "devanagari": "पुरो॒डाशा᳚श्च मे पच॒ताश्च॑ मे ऽवभृ॒थश्च॑ मे स्वगाका॒रश्च॑ मे",
+          "transliteration": "puroḍāśāśca me pacatāśca me 'vabhṛthaśca me svagākāraśca me",
+          "meaning": null,
+          "normalized": "पुरोडसस्चनेपचतस्चनेऽवबृतस्चनेस्वगकरस्चने"
+        }
+      ]
+    },
+    {
+      "number": 9,
+      "work": "chamakam",
+      "kind": "anuvaka",
+      "id": "chamakam-anuvaka-9",
+      "title": {
+        "english": "Chamakam · Anuvāka 9"
+      },
+      "lines": [
+        {
+          "sequence": 275,
+          "verse": 1,
+          "devanagari": "अ॒ग्निश्च॑ मे घ॒र्मश्च॑ मे॒ ऽर्कश्च॑ मे॒ सूर्य॑श्च मे",
+          "transliteration": "agniśca me gharmaśca me 'rkaśca me sūryaśca me",
+          "meaning": null,
+          "normalized": "अग्निस्चनेगर्नस्चनेऽर्कस्चनेसुर्यस्चने"
+        },
+        {
+          "sequence": 276,
+          "verse": 1,
+          "devanagari": "प्रा॒णश्च॑ मे ऽश्वमे॒धश्च॑ मे पृथि॒वी च॒ मे ऽदि॑तिश्च मे॒",
+          "transliteration": "prāṇaśca me 'śvamedhaśca me pṛthivī ca me 'ditiśca me",
+          "meaning": null,
+          "normalized": "प्रनस्चनेऽस्वनेदस्चनेपृतिविचनेऽदितिस्चने"
+        },
+        {
+          "sequence": 277,
+          "verse": 1,
+          "devanagari": "दिति॑श्च मे॒ द्यौश्च॑ मे॒ शक्व॑रीरं॒गुल॑यो॒ दिश॑श्च मे य॒ज्ञेन॑ कल्पन्ता॒मृक् च॑ मे॒",
+          "transliteration": "ditiśca me dyauśca me śakvarīraṃgulayo diśaśca me yajñena kalpantāmṛk ca me",
+          "meaning": null,
+          "normalized": "दितिस्चनेद्यौस्चनेसक्वरिरनगुलयोदिसस्चनेयज्नेनकल्पन्तनृक्चने"
+        },
+        {
+          "sequence": 278,
+          "verse": 1,
+          "devanagari": "साम॑ च मे॒ स्तोम॑श्च मे॒ यजु॑श्च मे",
+          "transliteration": "sāma ca me stomaśca me yajuśca me",
+          "meaning": null,
+          "normalized": "सनचनेस्तोनस्चनेयजुस्चने"
+        },
+        {
+          "sequence": 279,
+          "verse": 1,
+          "devanagari": "दी॒क्षा च॑ मे॒ तप॑श्च म ऋ॒तुश्च॑ मे",
+          "transliteration": "dīkṣā ca me tapaśca ma ṛtuśca me",
+          "meaning": null,
+          "normalized": "दिक्सचनेतपस्चनऋतुस्चने"
+        },
+        {
+          "sequence": 280,
+          "verse": 1,
+          "devanagari": "व्र॒तञ् च॑ मे ऽहोरा॒त्रयो᳚र्वृ॒ष्ट्या बृ॑हद्रथन्त॒रे च॑ मे य॒ज्ञेन॑ कल्पेताम्",
+          "transliteration": "vratañ ca me 'horātrayorvṛṣṭyā bṛhadrathantare ca me yajñena kalpetām",
+          "meaning": null,
+          "normalized": "व्रतन्चनेऽहोरत्रयोर्वृस्ट्यबृहद्रतन्तरेचनेयज्नेनकल्पेतन्"
+        }
+      ]
+    },
+    {
+      "number": 10,
+      "work": "chamakam",
+      "kind": "anuvaka",
+      "id": "chamakam-anuvaka-10",
+      "title": {
+        "english": "Chamakam · Anuvāka 10"
+      },
+      "lines": [
+        {
+          "sequence": 281,
+          "verse": 1,
+          "devanagari": "गर्भा᳚श्च मे व॒त्साश्च॑ मे॒ त्र्यवि॑श्च मे त्र्य॒वी च॑ मे",
+          "transliteration": "garbhāśca me vatsāśca me tryaviśca me tryavī ca me",
+          "meaning": null,
+          "normalized": "गर्बस्चनेवत्सस्चनेत्र्यविस्चनेत्र्यविचने"
+        },
+        {
+          "sequence": 282,
+          "verse": 1,
+          "devanagari": "दित्य॒वाट् च॑ मे दित्यौ॒ही च॑ मे॒ पञ्चा॑विश्च मे पञ्चा॒वी च॑ मे",
+          "transliteration": "dityavāṭ ca me dityauhī ca me pañcāviśca me pañcāvī ca me",
+          "meaning": null,
+          "normalized": "दित्यवट्चनेदित्यौहिचनेपन्चविस्चनेपन्चविचने"
+        },
+        {
+          "sequence": 283,
+          "verse": 1,
+          "devanagari": "त्रिव॒त्सश्च॑ मे त्रिव॒त्सा च॑ मे तुर्य॒वाट् च॑ मे तुर्यौ॒ही च॑ मे",
+          "transliteration": "trivatsaśca me trivatsā ca me turyavāṭ ca me turyauhī ca me",
+          "meaning": null,
+          "normalized": "त्रिवत्सस्चनेत्रिवत्सचनेतुर्यवट्चनेतुर्यौहिचने"
+        },
+        {
+          "sequence": 284,
+          "verse": 1,
+          "devanagari": "पष्ठ॒वाच्च॑ मे पष्ठौ॒ही च॑ म उ॒क्षा च॑ मे व॒शा च॑ म",
+          "transliteration": "paṣṭhavācca me paṣṭhauhī ca ma ukṣā ca me vaśā ca ma",
+          "meaning": null,
+          "normalized": "पस्टवच्चनेपस्टौहिचनउक्सचनेवसचन"
+        },
+        {
+          "sequence": 285,
+          "verse": 1,
+          "devanagari": "ऋष॒भश्च॑ मे वे॒हच्च॑ मे ऽन॒ड् वाञ्च॑ मे धे॒नुश्च॑ म॒",
+          "transliteration": "ṛṣabhaśca me vehacca me 'naḍ vāñca me dhenuśca ma",
+          "meaning": null,
+          "normalized": "ऋसबस्चनेवेहच्चनेऽनड्वन्चनेदेनुस्चन"
+        },
+        {
+          "sequence": 286,
+          "verse": 1,
+          "devanagari": "आयु॑र्य॒ज्ञेन॑ कल्पताम् प्रा॒णो य॒ज्ञेन॑ कल्पतामपा॒नो य॒ज्ञेन॑ कल्पतां",
+          "transliteration": "āyuryajñena kalpatām prāṇo yajñena kalpatāmapāno yajñena kalpatāṃ",
+          "meaning": null,
+          "normalized": "अयुर्यज्नेनकल्पतन्प्रनोयज्नेनकल्पतनपनोयज्नेनकल्पतन"
+        },
+        {
+          "sequence": 287,
+          "verse": 1,
+          "devanagari": "व्या॒नो य॒ज्ञेन॑ कल्पता॒ञ् चक्षु॑र्य॒ज्ञेन॑ कल्पता॒ग्॒",
+          "transliteration": "vyāno yajñena kalpatāñ cakṣuryajñena kalpatāg",
+          "meaning": null,
+          "normalized": "व्यनोयज्नेनकल्पतन्चक्सुर्यज्नेनकल्पतग्"
+        },
+        {
+          "sequence": 288,
+          "verse": 1,
+          "devanagari": "श्रोत्र॑ञ् य॒ज्ञेन॑ कल्पता॒म् मनो॑ य॒ज्ञेन॑ कल्पतां॒",
+          "transliteration": "śrotrañ yajñena kalpatām mano yajñena kalpatāṃ",
+          "meaning": null,
+          "normalized": "स्रोत्रन्यज्नेनकल्पतन्ननोयज्नेनकल्पतन"
+        },
+        {
+          "sequence": 289,
+          "verse": 1,
+          "devanagari": "वाग्य॒ज्ञेन॑ कल्पतामा॒त्मा य॒ज्ञेन॑ कल्पताञ् य॒ज्ञो य॒ज्ञेन॑ कल्पताम्",
+          "transliteration": "vāgyajñena kalpatāmātmā yajñena kalpatāñ yajño yajñena kalpatām",
+          "meaning": null,
+          "normalized": "वग्यज्नेनकल्पतनत्नयज्नेनकल्पतन्यज्नोयज्नेनकल्पतन्"
+        }
+      ]
+    },
+    {
+      "number": 11,
+      "work": "chamakam",
+      "kind": "anuvaka",
+      "id": "chamakam-anuvaka-11",
+      "title": {
+        "english": "Chamakam · Anuvāka 11"
+      },
+      "lines": [
+        {
+          "sequence": 290,
+          "verse": 1,
+          "devanagari": "एका॑ च मे ति॒स्रश्च॑ मे॒ पञ्च॑ च मे स॒प्त च॑ मे॒ नव॑ च म॒ एका॑दश च मे॒",
+          "transliteration": "ekā ca me tisraśca me pañca ca me sapta ca me nava ca ma ekādaśa ca me",
+          "meaning": null,
+          "normalized": "एकचनेतिस्रस्चनेपन्चचनेसप्तचनेनवचनएकदसचने"
+        },
+        {
+          "sequence": 291,
+          "verse": 1,
+          "devanagari": "त्रयो॑दश च मे॒ पञ्च॑दश च मे स॒प्तद॑श च मे॒ नव॑दश च म॒ एक॑विग्ंशतिश्च",
+          "transliteration": "trayodaśa ca me pañcadaśa ca me saptadaśa ca me navadaśa ca ma ekavigṃśatiśca",
+          "meaning": null,
+          "normalized": "त्रयोदसचनेपन्चदसचनेसप्तदसचनेनवदसचनएकविग्नसतिस्च"
+        },
+        {
+          "sequence": 292,
+          "verse": 1,
+          "devanagari": "मे॒ त्रयो॑विग्ंशतिश्च मे॒ पञ्च॑विग्ंशतिश्च मे स॒प्तविग्ं॑शतिश्च मे॒ नव॑विग्ंशतिश्च",
+          "transliteration": "me trayovigṃśatiśca me pañcavigṃśatiśca me saptavigṃśatiśca me navavigṃśatiśca",
+          "meaning": null,
+          "normalized": "नेत्रयोविग्नसतिस्चनेपन्चविग्नसतिस्चनेसप्तविग्नसतिस्चनेनवविग्नसतिस्च"
+        },
+        {
+          "sequence": 293,
+          "verse": 1,
+          "devanagari": "म॒ एक॑त्रिग्ंशच्च मे॒ त्रय॑स्त्रिग्ंशच्च मे॒",
+          "transliteration": "ma ekatrigṃśacca me trayastrigṃśacca me",
+          "meaning": null,
+          "normalized": "नएकत्रिग्नसच्चनेत्रयस्त्रिग्नसच्चने"
+        },
+        {
+          "sequence": 294,
+          "verse": 1,
+          "devanagari": "चत॑स्रश्च मे॒ ऽष्टौ च॑ मे॒ द्वाद॑श च मे॒ षोड॑श च मे विग्ंश॒तिश्च॑ मे॒",
+          "transliteration": "catasraśca me 'ṣṭau ca me dvādaśa ca me ṣoḍaśa ca me vigṃśatiśca me",
+          "meaning": null,
+          "normalized": "चतस्रस्चनेऽस्टौचनेद्वदसचनेसोडसचनेविग्नसतिस्चने"
+        },
+        {
+          "sequence": 295,
+          "verse": 1,
+          "devanagari": "चतु॑र्विग्ंशतिश्च मे॒ ऽष्टाविग्ं॑शतिश्च मे॒ द्वात्रिग्ं॑शच्च मे॒ षट्त्रिग्ं॑शच्च मे",
+          "transliteration": "caturvigṃśatiśca me 'ṣṭāvigṃśatiśca me dvātrigṃśacca me ṣaṭtrigṃśacca me",
+          "meaning": null,
+          "normalized": "चतुर्विग्नसतिस्चनेऽस्टविग्नसतिस्चनेद्वत्रिग्नसच्चनेसट्त्रिग्नसच्चने"
+        },
+        {
+          "sequence": 296,
+          "verse": 1,
+          "devanagari": "चत्वारि॒ग्ं॒शच्च॑ मे॒ चतु॑श्चत्वारिग्ंशच्च मे॒ ऽष्टाच॑त्वारिग्ंशच्च मे॒",
+          "transliteration": "catvārigṃśacca me catuścatvārigṃśacca me 'ṣṭācatvārigṃśacca me",
+          "meaning": null,
+          "normalized": "चत्वरिग्नसच्चनेचतुस्चत्वरिग्नसच्चनेऽस्टचत्वरिग्नसच्चने"
+        },
+        {
+          "sequence": 297,
+          "verse": 1,
+          "devanagari": "वाज॑श्च प्रस॒वश्चा॑पि॒जश्च॒ क्रतु॑श्च॒ सुव॑श्च मू॒र्धा च॒",
+          "transliteration": "vājaśca prasavaścāpijaśca kratuśca suvaśca mūrdhā ca",
+          "meaning": null,
+          "normalized": "वजस्चप्रसवस्चपिजस्चक्रतुस्चसुवस्चनुर्दच"
+        },
+        {
+          "sequence": 298,
+          "verse": 1,
+          "devanagari": "व्यश्नि॑यश्चा ऽऽन्त्याय॒नश्चान्त्य॑श्च भौव॒नश्च॒ भुव॑न॒श्चाधि॑पतिश्च",
+          "transliteration": "vyaśniyaścā ''ntyāyanaścāntyaśca bhauvanaśca bhuvanaścādhipatiśca",
+          "meaning": null,
+          "normalized": "व्यस्नियस्चऽऽन्त्ययनस्चन्त्यस्चबौवनस्चबुवनस्चदिपतिस्च"
+        }
+      ]
+    },
+    {
+      "number": null,
+      "work": "chamakam",
+      "kind": "shanti-mantras",
+      "id": "chamakam-shanti-mantras",
+      "title": {
+        "english": "Chamakam · Shanti Mantras"
+      },
+      "lines": [
+        {
+          "sequence": 299,
+          "verse": 1,
+          "devanagari": "ॐ इडा॑ देव॒हूर्मनु॑र्यज्ञ॒नीर्बृह॒स्पति॑रुक्थाम॒दानि॑ शग्ंसिष॒द्विश्वे॑ दे॒वास्",
+          "transliteration": "oṃ iḍā devahūrmanuryajñanīrbṛhaspatirukthāmadāni śagṃsiṣadviśve devās",
+          "meaning": null,
+          "normalized": "ॐइडदेवहुर्ननुर्यज्ननिर्बृहस्पतिरुक्तनदनिसग्नसिसद्विस्वेदेवस्"
+        },
+        {
+          "sequence": 300,
+          "verse": 1,
+          "devanagari": "सू᳚क्त॒ वाचः॒ पृथि॑वि मात॒र्मा मा॑ हिग्ंसी॒र्मधु॑ मनिष्ये॒ मधु॑ जनिष्ये॒ मधु॑",
+          "transliteration": "sūkta vācaḥ pṛthivi mātarmā mā higṃsīrmadhu maniṣye madhu janiṣye madhu",
+          "meaning": null,
+          "normalized": "सुक्तवचपृतिविनतर्ननहिग्नसिर्नदुननिस्येनदुजनिस्येनदु"
+        },
+        {
+          "sequence": 301,
+          "verse": 1,
+          "devanagari": "वक्ष्यामि॒ मधु॑ वदिष्यामि॒ मधु॑मतीन् दे॒वेभ्यो॒ वाच॑मुद्यासग्ं शुश्रू॒षेण्या᳚म्",
+          "transliteration": "vakṣyāmi madhu vadiṣyāmi madhumatīn devebhyo vācamudyāsagṃ śuśrūṣeṇyām",
+          "meaning": null,
+          "normalized": "वक्स्यनिनदुवदिस्यनिनदुनतिन्देवेब्योवचनुद्यसग्नसुस्रुसेन्यन्"
+        },
+        {
+          "sequence": 302,
+          "verse": 1,
+          "devanagari": "मनु॒ष्ये᳚भ्य॒स्तम् मा॑ दे॒वा अ॑वन्तु शो॒भायै॑ पि॒तरोऽनु॑ मदन्तु",
+          "transliteration": "manuṣyebhyastam mā devā avantu śobhāyai pitaro'nu madantu",
+          "meaning": null,
+          "normalized": "ननुस्येब्यस्तन्नदेवअवन्तुसोबयैपितरोऽनुनदन्तु"
+        },
+        {
+          "sequence": 303,
+          "verse": 2,
+          "devanagari": "ॐ शान्ति॒श् शान्ति॒श् शान्तिः॑",
+          "transliteration": "oṃ śāntiś śāntiś śāntiḥ",
+          "meaning": null,
+          "normalized": "ॐसन्तिस्सन्तिस्सन्ति"
+        }
+      ]
+    }
+  ]
+}
