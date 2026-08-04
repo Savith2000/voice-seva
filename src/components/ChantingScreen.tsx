@@ -75,12 +75,14 @@ const LIGHTS = {
     "--ink": "#221B12", "--ink2": "#5C5245", "--ink3": "#6F6456",
     "--blue": "#0C5098", "--rule": "rgba(12,80,152,.32)", "--rule-soft": "rgba(12,80,152,.17)",
     "--saffron": "#9C4A05", "--saffron-full": "#EE7900", "--saffron-pale": "rgba(238,121,0,.22)",
+    "--key-side": "#A24E00", "--key-face": "#FFF7EC", "--key-well": "rgba(120,70,20,.18)",
   },
   dawn: {
     "--page": "#131110", "--paper": "#1C1917",
     "--ink": "#EDE6D8", "--ink2": "#A99C88", "--ink3": "#9C907D",
     "--blue": "#8FB3DC", "--rule": "rgba(143,179,220,.34)", "--rule-soft": "rgba(143,179,220,.18)",
     "--saffron": "#EE9A45", "--saffron-full": "#EE7900", "--saffron-pale": "rgba(238,154,69,.24)",
+    "--key-side": "#7E3D00", "--key-face": "#20180F", "--key-well": "rgba(0,0,0,.42)",
   },
 } as const;
 
@@ -506,7 +508,8 @@ export default function ChantingScreen() {
             </p>
             <button
               type="button"
-              className="vs-act"
+              className="vs-key"
+              data-live={running}
               disabled={starting}
               onClick={
                 running || starting
@@ -1189,10 +1192,45 @@ const CSS = `
 /* Pressing it. The nib is put to the paper before any ink moves — 90 ms, the
    shortest thing on the page, because acknowledgement that arrives late reads
    as latency rather than as response. */
-.vs-act:active .vs-mark, .vs-state:has(.vs-act:active) .vs-well{transform:scale(.86)}
-.vs-act{transition:color 260ms var(--ease), border-color 260ms var(--ease)}
-.vs-act:hover:not(:disabled){color:var(--ink); border-bottom-color:var(--blue)}
-.vs-act:active:not(:disabled){transform:translateY(1px)}
+/* ---- the key --------------------------------------------------------------
+   It read as a line of text before, and the one thing a first-time visitor
+   has to do was the quietest thing on the screen.
+
+   It is a key now, and a latching one: UP when nothing is being heard, and
+   held DOWN for as long as it is listening. The state of the app is the
+   physical state of the object, the way it is on a tape recorder — you can
+   tell across a room whether it is running without reading a word.
+
+   The depth is the side of a solid thing rather than a decorative offset
+   shadow, so it collapses when the key goes down; the soft shadow under it is
+   the light, and that is what carries blur. Pressing costs 90 ms, the fastest
+   thing on the page, because acknowledgement arriving late reads as latency.
+   -------------------------------------------------------------------------- */
+.vs-stage .vs-key{
+  --depth:5px;
+  position:relative; display:inline-block; margin-top:11px;
+  padding:9px 17px 10px; border-radius:3px;
+  font-family:var(--book); font-size:16px; letter-spacing:.01em;
+  color:var(--key-face); background:var(--saffron-full);
+  box-shadow:0 var(--depth) 0 var(--key-side), 0 calc(var(--depth) + 3px) 9px var(--key-well);
+  transition:transform 90ms var(--ease), box-shadow 90ms var(--ease),
+             background 320ms var(--ease), color 320ms var(--ease);
+}
+.vs-stage .vs-key:hover:not(:disabled){--depth:6px}
+.vs-stage .vs-key:active:not(:disabled){
+  transform:translateY(var(--depth));
+  box-shadow:0 0 0 var(--key-side), 0 1px 3px var(--key-well);
+}
+.vs-stage .vs-key:focus-visible{outline:2px solid var(--blue); outline-offset:3px}
+/* Held down for as long as it is listening. */
+.vs-stage .vs-key[data-live="true"]{
+  background:var(--saffron-pale); color:var(--ink);
+  transform:translateY(var(--depth));
+  box-shadow:0 0 0 var(--key-side), inset 0 1px 3px var(--key-well);
+}
+.vs-stage .vs-key[data-live="true"]:active:not(:disabled){transform:translateY(calc(var(--depth) + 1px))}
+.vs-stage .vs-key:disabled{opacity:.6; cursor:default}
+.vs-state:has(.vs-key:active) .vs-well{transform:scale(.86)}
 
 /* ---- the words -----------------------------------------------------------
    Every state is rendered and stacked in one grid cell, and only opacity and
@@ -1220,6 +1258,7 @@ const CSS = `
    between two equally-present things. */
 .vs-say:not([data-on="true"]){transition-duration:220ms}
 .vs-labels{justify-items:start}
+.vs-stage .vs-key .vs-say{transition-duration:260ms}
 
 /* ---- the travelling underline -------------------------------------------
    One mark per group, moved to whichever choice is active, rather than a
@@ -1251,8 +1290,6 @@ const CSS = `
   overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0}
 .vs-word{font-family:var(--book); font-size:20px; line-height:1.25}
 .vs-sub{font-size:13px; color:var(--ink2); margin-top:4px; line-height:1.5}
-.vs-act{font-size:15px; font-style:italic; color:var(--blue); margin-top:8px; border-bottom:1px solid var(--rule); padding-bottom:2px}
-.vs-act:disabled{opacity:.45; cursor:default}
 
 .vs-loading{padding:10px 0 0; font-size:13px; color:var(--ink2)}
 .vs-bar{height:1.5px; background:var(--rule-soft); margin-top:6px; position:relative}
@@ -1437,6 +1474,8 @@ const CSS = `
   .vs-well, .vs-draw{animation:none !important}
   .vs-say{transition:opacity 200ms linear}
   .vs-navrow::after, .vs-v::after{transition:opacity 200ms linear}
+  /* The key keeps its travel: it is the state of the app, not an effect. */
+  .vs-stage .vs-key{transition:transform 90ms linear, box-shadow 90ms linear}
   .vs-draw{opacity:1; stroke-dashoffset:15}
   .vs-clip{scroll-behavior:auto}
   .vs-scroll, .vs-prog i, .vs-tick, .vs-leadtext{transition:none}
