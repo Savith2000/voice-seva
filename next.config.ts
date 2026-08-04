@@ -22,17 +22,23 @@ const nextConfig: NextConfig = {
    * which is exactly the shape of a public model download.
    */
   async headers() {
-    // Set VOICE_SEVA_ISOLATE=0 to turn this off without touching code.
+    // OFF by default. Set VOICE_SEVA_ISOLATE=1 to try it.
     //
-    // Cross-origin isolation changes how the browser loads *everything*, and
-    // ONNX Runtime responds by switching to its threaded WASM build — a
-    // different binary, fetched from a different place, spawning nested
-    // workers. That is a lot of new behaviour to buy with two lines of config,
-    // and it cannot be exercised on a machine that takes the WebGPU path
-    // anyway. So it stays reversible: if a device fails to start its worker,
-    // one environment variable puts it back to the way that was merely slow,
-    // instead of needing a code change and a redeploy to find out.
-    if (process.env.VOICE_SEVA_ISOLATE === "0") return [];
+    // It was on for two commits and it broke the worker on every machine it
+    // met — a Surface and a Mac — while every test here passed. The tests
+    // passed because headless Chromium has no GPU adapter, so all of them took
+    // the WASM path; the WebGPU path, which is what a real machine actually
+    // uses, was never exercised with these headers once. ONNX Runtime fetches
+    // its backend from cdn.jsdelivr.net and spawns nested workers from it, and
+    // cross-origin isolation is precisely what stops that.
+    //
+    // The threading win behind this is real and still worth having — without
+    // isolation the WASM backend is pinned to a single core by ORT itself. But
+    // it costs nothing to be slow and everything to be broken, so it does not
+    // come back on until ONNX Runtime's binaries are served from this origin
+    // and someone has watched a real GPU-capable browser start a session with
+    // it enabled.
+    if (process.env.VOICE_SEVA_ISOLATE !== "1") return [];
 
     return [
       {
