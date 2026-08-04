@@ -16,9 +16,18 @@
 import type { ChantLine } from "@/lib/chant/chant";
 
 /** System Devanagari, in the order these platforms actually have it. */
+/**
+ * Defers to the webfont the app actually ships.
+ *
+ * The list this replaced was all system fonts, and none of them covers the
+ * Unicode Vedic Extensions block — so U+1CDA, the double svarita, drew as an
+ * empty box on three lines of Anuvaka 1 alone. Nothing errored; the text was
+ * correct and one pitch mark was simply missing. globals.css defines
+ * --font-devanagari as Shobhika with the same system fonts behind it, so the
+ * fallback here is only for a stylesheet that has not arrived yet.
+ */
 export const DEVANAGARI_STACK =
-  '"Noto Sans Devanagari", "Kohinoor Devanagari", "Devanagari Sangam MN", ' +
-  '"Nirmala UI", "Mangal", serif';
+  'var(--font-devanagari, "Kohinoor Devanagari", "Devanagari Sangam MN", serif)';
 
 export type ChantLineViewProps = {
   line: ChantLine;
