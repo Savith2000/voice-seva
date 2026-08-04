@@ -117,6 +117,21 @@ export type FollowState = {
   misses: number;
   /** A distant position waiting to be confirmed, and since when. */
   candidate: { lineIndex: number; agreements: number; since: number } | null;
+  /**
+   * Someone put this position here by hand, and the audio has not yet agreed.
+   *
+   * A correction the next window silently undoes is worse than no correction at
+   * all — the reader taps a line, sees it take, and half a second later the
+   * screen is somewhere else with no explanation. So while this is set, the
+   * "high confidence goes immediately" shortcut is suspended and a distant
+   * result has to corroborate like any other. It is not a lock: persistent
+   * disagreement from the audio still wins, because the alternative is a screen
+   * that can be stranded by a mis-tap.
+   *
+   * Cleared the moment any result is accepted — including one that simply
+   * continues from here, which is the audio saying "yes, that is where you are".
+   */
+  pinned: boolean;
   /** When the current run of useless windows began. */
   missingSince: number | null;
   /** Clock reading of the last accepted position. */
@@ -136,7 +151,36 @@ export const INITIAL: FollowState = {
   missingSince: null,
   updatedAt: 0,
   heardAt: 0,
+  pinned: false,
 };
+
+/**
+ * Put the position somewhere by hand, and mean it.
+ *
+ * Requirement 1.6: the user must be able to correct the app. This is the only
+ * input to the reducer that does not come from the audio, so it is the only one
+ * allowed to overrule it — see `pinned`.
+ */
+export function pin(state: FollowState, lineIndex: number, at: number): FollowState {
+  return {
+    ...state,
+    kind: "locked",
+    lineIndex,
+    progress: 0,
+    confidence: "high",
+    holding: !state.heardAt,
+    misses: 0,
+    candidate: null,
+    missingSince: null,
+    updatedAt: at,
+    // A tap is a sign of life. Without this the position keeps whatever
+    // heardAt it had — nothing, if the session has not started — and the very
+    // next silent window reads as "quiet for eight seconds" and throws the
+    // hand-placed position away before anyone has chanted a syllable.
+    heardAt: at,
+    pinned: true,
+  };
+}
 
 function continues(from: number | null, to: number): boolean {
   if (from === null) return false;
@@ -165,6 +209,8 @@ function accept(
     missingSince: null,
     updatedAt: at,
     heardAt: at,
+    // Any accepted result settles the question the pin was holding open.
+    pinned: false,
   };
 }
 
@@ -245,10 +291,15 @@ export function follow(
     return accept(state, result, confidence, tick.at, progress);
   }
 
-  if (confidence === "high") {
+  if (confidence === "high" && !state.pinned) {
     // Unambiguous and well-scored. Requirement 1.7's "high confidence:
     // highlight and scroll automatically" — including when it means jumping,
     // which is what makes recovering from a lost position possible at all.
+    //
+    // Suspended while pinned. A hand-placed position that one confident window
+    // can undo is not a correction, it is a suggestion — and the window right
+    // after a tap is the *least* trustworthy one, because the five seconds it
+    // describes are mostly the line the reader has just left.
     return accept(state, result, confidence, tick.at, progress);
   }
 
