@@ -570,12 +570,14 @@ export default function ChantingScreen() {
           </span>
           <div className="vs-bar">
             <i
-              style={{
-                width:
-                  session.progress.fraction === null
-                    ? "33%"
-                    : `${session.progress.fraction * 100}%`,
-              }}
+              style={
+                {
+                  "--fill":
+                    session.progress.fraction === null
+                      ? 0.33
+                      : session.progress.fraction,
+                } as unknown as React.CSSProperties
+              }
             />
           </div>
         </div>
@@ -956,7 +958,8 @@ function useSlider() {
     box.style.setProperty("--o", "1");
     box.style.setProperty("--x", `${on.offsetLeft}px`);
     box.style.setProperty("--y", `${on.offsetTop + on.offsetHeight}px`);
-    box.style.setProperty("--w", `${on.offsetWidth}px`);
+    // Unitless: this feeds scaleX, not a width.
+    box.style.setProperty("--w", `${on.offsetWidth}`);
 
     if (arriving) {
       // Commit the placement while transitions are still off, so the next
@@ -1398,10 +1401,17 @@ const CSS = `
    frame. --------------------------------------------------------------- */
 .vs-navrow::after, .vs-v::after{
   content:""; position:absolute; left:0; top:0;
-  width:var(--w,0); height:2px; background:var(--saffron-full);
+  width:1px; height:2px; background:var(--saffron-full);
   opacity:var(--o,0);
-  transform:translate(var(--x,0), var(--y,0));
-  transition:transform 420ms var(--ease), width 340ms var(--ease);
+  /* Width rides scaleX off a 1 px base rather than being animated directly.
+     Animating width relayouts the row on every frame of a 420 ms move; a
+     transform is composited and never touches layout at all. It matters here
+     more than the pixels suggest — the machines this is being tuned for are
+     running speech inference and three hundred lines of React on the same
+     main thread. */
+  transform:translate(var(--x,0), var(--y,0)) scaleX(var(--w,0));
+  transform-origin:0 0;
+  transition:transform 420ms var(--ease);
   pointer-events:none;
 }
 .vs-navrow[data-jump]::after, .vs-v[data-jump]::after{transition:none}
@@ -1415,7 +1425,8 @@ const CSS = `
 
 .vs-loading{padding:10px 0 0; font-size:13px; color:var(--ink2)}
 .vs-bar{height:1.5px; background:var(--rule-soft); margin-top:6px; position:relative}
-.vs-bar i{position:absolute; left:0; top:0; bottom:0; background:var(--blue); opacity:.6; transition:width .3s}
+.vs-bar i{position:absolute; left:0; right:0; top:0; bottom:0; background:var(--blue); opacity:.6;
+  transform:scaleX(var(--fill,0)); transform-origin:0 50%; transition:transform .3s}
 .vs-failed{padding:10px 0 0; font-size:13px; color:#B3261E}
 
 .vs-middle{flex:1; min-height:0; display:grid; grid-template-columns:70px 1fr 290px; gap:40px; padding:14px 0 0}
@@ -1424,10 +1435,16 @@ const CSS = `
 .vs-cap{font-size:13px; color:var(--ink2); text-align:right; margin-bottom:10px; font-variant-numeric:oldstyle-nums}
 .vs-stack{flex:1; display:flex; flex-direction:column; gap:5px; min-height:0}
 .vs-trow{flex:1; display:flex; align-items:center; justify-content:flex-end; min-height:5px}
-.vs-tick{height:1.5px; background:var(--blue); opacity:.38; width:12px; transition:width .3s, opacity .3s, background .3s; display:block}
-.vs-trow.vs-done .vs-tick{opacity:.72; width:18px}
-.vs-trow.vs-now .vs-tick{opacity:1; width:40px; height:2.5px; background:var(--saffron-full)}
-.vs-trow:hover .vs-tick{opacity:.9; width:24px}
+/* One box, 40 px wide, right-aligned in the row; the visible length is a
+   scale. Thirty-six of these share a column and the hover and the position
+   change animate two at once, so keeping them off the layout path is worth
+   more than the four bytes it costs. */
+.vs-tick{height:1.5px; background:var(--blue); opacity:.38; width:40px; display:block;
+  transform:scaleX(.3); transform-origin:100% 50%;
+  transition:transform .3s, opacity .3s, background .3s}
+.vs-trow.vs-done .vs-tick{opacity:.72; transform:scaleX(.45)}
+.vs-trow.vs-now .vs-tick{opacity:1; transform:scaleX(1); height:2.5px; background:var(--saffron-full)}
+.vs-trow:hover .vs-tick{opacity:.9; transform:scaleX(.6)}
 .vs-foot{font-size:13px; color:var(--ink2); text-align:right; margin-top:10px; font-variant-numeric:oldstyle-nums}
 
 .vs-vessel{display:flex; flex-direction:column; min-width:0}
