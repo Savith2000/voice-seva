@@ -42,6 +42,7 @@ import { listAudioInputs, type AudioInput } from "@/lib/audio/capture";
 import { allLines, flatten, type ChantLine } from "@/lib/chant/chant";
 import { chant, works } from "@/lib/chant/chant-data";
 import { INITIAL, follow, pin, type FollowState } from "@/lib/chant/follow";
+import { anchorFrom, glide, type Anchor } from "@/lib/chant/glide";
 import { progressThroughLine } from "@/lib/chant/matcher";
 import { useAsrSession } from "@/lib/chant/use-asr-session";
 
@@ -156,6 +157,8 @@ export default function ChantingScreen() {
   const [showImport, setShowImport] = useState(false);
   const [devices, setDevices] = useState<AudioInput[]>([]);
   const [deviceId, setDeviceId] = useState("");
+  /** Cadence the device actually achieved, whatever backend won the ladder. */
+  const [cadence, setCadence] = useState(250);
 
   const session = useAsrSession(
     flat,
@@ -166,6 +169,16 @@ export default function ChantingScreen() {
             ? progressThroughLine(tick.result, flat)
             : 0;
         setState((previous) => follow(previous, tick, progress));
+        if (tick.state === "matched") {
+          // Read once per window rather than per frame. This is what makes the
+          // glide device-aware: a machine that found an NPU reports a short
+          // interval and needs little filling in; one on a single CPU thread
+          // reports a long one and needs a lot.
+          setCadence((was) => {
+            const now = Math.round(tick.inferenceMs * 2);
+            return Math.abs(now - was) < 40 ? was : Math.max(200, now);
+          });
+        }
       },
       [flat],
     ),
@@ -180,6 +193,22 @@ export default function ChantingScreen() {
   // Before anything has been heard the page still has to be a page, so it opens
   // on the first line rather than on nothing.
   const active = state.lineIndex ?? 0;
+  /** Words in the line being chanted — the quantum the ink moves in. */
+  const activeWords = useMemo(() => {
+    const line = lines[state.lineIndex ?? 0];
+    if (!line) return 0;
+    const text = lead === "dev" ? line.devanagari : line.transliteration;
+    return text.split(/\s+/).filter(Boolean).length;
+  }, [lines, state.lineIndex, lead]);
+
+  const { stageRef, inked } = useGlide({
+    progress: state.progress,
+    updatedAt: state.updatedAt,
+    line: state.lineIndex ?? -1,
+    words: activeWords,
+    intervalMs: cadence,
+    live: state.kind === "locked" && !state.holding && running,
+  });
   const section = chant.anuvakas[sectionOf[active] ?? 0];
   const sectionIndex = sectionOf[active] ?? 0;
   const withinSection = active - (sectionStart[sectionIndex] ?? 0);
@@ -419,6 +448,7 @@ export default function ChantingScreen() {
 
   return (
     <div
+      ref={stageRef}
       className="vs-stage"
       data-light={light}
       data-lead={lead}
@@ -615,7 +645,7 @@ export default function ChantingScreen() {
                           big={here}
                           current={index === active}
                           near={!here && Math.abs(index - active) <= 3}
-                          progress={index === active ? state.progress : 0}
+                          inked={index === active ? inked : 0}
                           onSelect={() => selectLine(index)}
                           register={(node) => {
                             lineRefs.current[index] = node;
@@ -785,6 +815,93 @@ export default function ChantingScreen() {
       </footer>
     </div>
   );
+}
+
+/**
+ * Drive the ink from the glide, one animation frame at a time.
+ *
+ * The arithmetic and every governor live in lib/chant/glide.ts, tested there
+ * without React or a DOM, because the safety argument for extrapolating at all
+ * is those governors and it should be provable rather than merely watched.
+ *
+ * This is only the plumbing: hold an anchor, re-anchor when a real reading
+ * lands, and publish the result. The smooth value goes straight to a CSS
+ * custom property — the progress rule is a pure width and never re-renders —
+ * while the word count is state, because a word appearing is a real visual
+ * change and words arrive a few times a second, not sixty.
+ */
+function useGlide({
+  progress,
+  updatedAt,
+  line,
+  words,
+  intervalMs,
+  live,
+}: {
+  progress: number;
+  updatedAt: number;
+  line: number;
+  words: number;
+  intervalMs: number;
+  live: boolean;
+}) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [inked, setInked] = useState(0);
+
+  const anchor = useRef<Anchor & { line: number }>({
+    progress: 0,
+    at: 0,
+    rate: 0,
+    line: -1,
+  });
+  const latest = useRef({ progress, updatedAt, line, words, intervalMs, live });
+  // Refreshed in an effect rather than during render, so the frame loop sees
+  // the newest values without being torn down to get them.
+  useEffect(() => {
+    latest.current = { progress, updatedAt, line, words, intervalMs, live };
+  }, [progress, updatedAt, line, words, intervalMs, live]);
+
+  useEffect(() => {
+    const reduced = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    )?.matches;
+
+    let frame = 0;
+    const tick = () => {
+      frame = requestAnimationFrame(tick);
+      const stage = stageRef.current;
+      const now = latest.current;
+      if (!stage) return;
+
+      if (now.line !== anchor.current.line) {
+        // A new line is a jump, not a journey: snap, and forget the old pace.
+        anchor.current = {
+          progress: now.progress,
+          at: now.updatedAt,
+          rate: 0,
+          line: now.line,
+        };
+      } else if (now.updatedAt !== anchor.current.at) {
+        anchor.current = {
+          ...anchorFrom(anchor.current, now.progress, now.updatedAt),
+          line: now.line,
+        };
+      }
+
+      const shown = reduced
+        ? anchor.current.progress
+        : glide(anchor.current, performance.now(), now.intervalMs, now.live);
+
+      stage.style.setProperty("--glide", shown.toFixed(4));
+      const reach = now.words > 0 ? Math.floor(shown * now.words) : 0;
+      setInked((was) => (was === reach ? was : reach));
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  return { stageRef, inked };
 }
 
 /**
@@ -965,7 +1082,7 @@ function Line({
   big,
   current,
   near,
-  progress,
+  inked,
   onSelect,
   register,
 }: {
@@ -976,7 +1093,8 @@ function Line({
   /** This exact line is where the tracker says the voice is — carries the ink. */
   current: boolean;
   near: boolean;
-  progress: number;
+  /** How many words the voice has reached, glided between windows. */
+  inked: number;
   onSelect: () => void;
   register: (node: HTMLDivElement | null) => void;
 }) {
@@ -1002,8 +1120,7 @@ function Line({
   );
 
   const total = words.filter((w) => !w.gap).length;
-  const position = progress * total;
-  const reached = Math.max(0, Math.min(total - 1, Math.floor(position)));
+  const reached = Math.max(0, Math.min(total - 1, inked));
 
   return (
     <div
@@ -1025,10 +1142,13 @@ function Line({
             <span
               key={index}
               className={inked ? "vs-inked" : now ? "vs-nowword" : undefined}
+              // The word being spoken carries a wet edge rather than a hard
+              // cut. Its position rides --glide, so it moves every frame
+              // instead of once per window.
               style={
                 now
                   ? ({
-                      "--wp": `${((position - reached) * 100).toFixed(1)}%`,
+                      "--wp": `calc((var(--glide, 0) * ${total} - ${reached}) * 100%)`,
                     } as unknown as React.CSSProperties)
                   : undefined
               }
@@ -1047,9 +1167,11 @@ function Line({
           {secondary}
         </div>
       ) : null}
+      {/* The rule under the line is a pure width, so it is driven straight
+          from --glide at frame rate and never re-renders at all. */}
       {current ? (
         <div className="vs-prog">
-          <i style={{ width: `${Math.round(progress * 100)}%` }} />
+          <i />
         </div>
       ) : null}
     </div>
@@ -1381,7 +1503,8 @@ const CSS = `
 }
 .vs-second{display:block; margin-top:6px; font-size:calc(19px * var(--scale)); line-height:1.9; color:var(--ink2)}
 .vs-prog{display:block; margin-top:11px; height:2px; background:var(--rule-soft); position:relative}
-.vs-prog i{position:absolute; left:0; top:0; bottom:0; background:var(--saffron-full); transition:width .3s linear}
+.vs-prog i{position:absolute; left:0; top:0; bottom:0; background:var(--saffron-full);
+  width:calc(var(--glide, 0) * 100%)}
 
 .vs-margin{min-height:0; position:relative; display:flex; flex-direction:column}
 .vs-gloss{flex:1; min-height:0}
