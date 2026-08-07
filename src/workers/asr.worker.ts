@@ -137,7 +137,12 @@ export type AsrMessage = AsrReady | AsrResult | AsrError | AsrProgress;
  * (see bestDtypeFor below). The panel still offers both and reports the
  * number, because the whole point is that this was measured.
  */
-export type AsrDevice = "auto" | "webgpu" | "wasm";
+export type AsrDevice =
+  | "auto"
+  | "webgpu"
+  | "wasm"
+  | "webnn-npu"
+  | "webnn-gpu";
 
 /**
  * Which exported graph to run.
@@ -228,7 +233,49 @@ function reportProgress() {
  * one, where the extra 67 MB would buy nothing at all.
  */
 function bestDtypeFor(device: string): AsrDtype {
+  // fp16 is a GPU-only win. Every other backend has real int8 kernels, and on
+  // an NPU int8 is not merely faster, it is frequently the only thing the
+  // hardware will accept at all.
   return device === "webgpu" ? "fp16" : "q8";
+}
+
+/**
+ * What to try, best first, when nobody has asked for a particular backend.
+ *
+ * WebGPU stays at the head because it is the only rung with a measured number
+ * behind it — 48 ms against 1405 ms — and because a machine that already has
+ * it must not be made slower by anything below.
+ *
+ * WebNN is new here and it is the interesting one. It is the only web API with
+ * direct access to an NPU, and recent laptops and tablets ship one that this
+ * app has never touched: it asked for WebGPU, missed, and dropped straight to
+ * running a 94 M-parameter transformer on a CPU while dedicated silicon for
+ * exactly this sat idle beside it.
+ *
+ * Anything unavailable throws on load and costs only the attempt, so a device
+ * with none of it lands on WASM exactly as before.
+ */
+const LADDER: AsrDevice[] = ["webgpu", "webnn-npu", "webnn-gpu", "wasm"];
+
+/**
+ * Prove the backend runs, rather than that it loaded.
+ *
+ * A backend can accept a graph and then fail on the first real input — WebNN
+ * in particular is strict about shapes and operators, and an NPU that silently
+ * declines half the graph is worse than one that refuses honestly. One second
+ * of silence through the model costs little and turns "it initialised" into
+ * "it produced a tensor of the right rank", which are not the same claim and
+ * have been confused here before.
+ */
+async function proves(candidate: PreTrainedModel): Promise<void> {
+  if (!processor) throw new Error("processor missing");
+  const probe = new Float32Array(16_000);
+  const inputs = await processor(probe);
+  const { logits } = await candidate(inputs);
+  const dims = logits?.dims;
+  if (!dims || dims.length !== 3) {
+    throw new Error(`backend returned ${dims ? `rank ${dims.length}` : "nothing"}`);
+  }
 }
 
 async function load(
@@ -250,27 +297,34 @@ async function load(
   let fallbackReason: string | undefined;
 
   if (requested === "auto") {
-    // A hard failure here would read as "the model is broken" rather than
-    // "this backend cannot run it", so fall back and say so. The fallback
-    // changes the graph as well as the backend — fp16 buys nothing on WASM.
-    try {
-      resolvedDtype = dtype ?? bestDtypeFor("webgpu");
-      model = await AutoModelForCTC.from_pretrained(MODEL_ID, {
-        dtype: resolvedDtype,
-        progress_callback,
-        device: "webgpu",
-      });
-      device = "webgpu";
-    } catch (error) {
-      fallbackReason = error instanceof Error ? error.message : String(error);
-      resolvedDtype = dtype ?? bestDtypeFor("wasm");
-      model = await AutoModelForCTC.from_pretrained(MODEL_ID, {
-        dtype: resolvedDtype,
-        progress_callback,
-        device: "wasm",
-      });
-      device = "wasm";
+    // Walk the ladder. A hard failure would read as "the model is broken"
+    // rather than "this backend cannot run it", so every rung is allowed to
+    // fail, the reasons are collected, and the last rung is WASM, which is
+    // always there.
+    const refused: string[] = [];
+    for (const candidate of LADDER) {
+      const candidateDtype = dtype ?? bestDtypeFor(candidate);
+      try {
+        const built = await AutoModelForCTC.from_pretrained(MODEL_ID, {
+          dtype: candidateDtype,
+          progress_callback,
+          device: candidate,
+        });
+        await proves(built);
+        model = built;
+        device = candidate;
+        resolvedDtype = candidateDtype;
+        break;
+      } catch (error) {
+        refused.push(
+          `${candidate}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
+    if (!model) throw new Error(`no backend would run:\n${refused.join("\n")}`);
+    // Worth surfacing rather than swallowing: on a machine that ends up on
+    // WASM, these lines are the whole explanation for why it is slow.
+    if (refused.length) fallbackReason = refused.join(" · ");
   } else {
     model = await AutoModelForCTC.from_pretrained(MODEL_ID, {
       dtype: resolvedDtype,
