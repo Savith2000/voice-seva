@@ -37,6 +37,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 import { listAudioInputs, type AudioInput } from "@/lib/audio/capture";
@@ -150,6 +151,7 @@ export default function ChantingScreen() {
     return { sectionOf: of, sectionStart: start };
   }, []);
 
+  const phone = usePhone();
   const [state, setState] = useState<FollowState>(INITIAL);
   const [lead, setLead] = useState<Lead>("dev");
   const [light, setLight] = useState<Light>("lamp");
@@ -253,14 +255,23 @@ export default function ChantingScreen() {
       // the couplet above the fade, so the reader sees half of the thing they
       // are chanting — which is the failure the unit grouping exists to fix.
       const unit = node.closest<HTMLElement>(".vs-unit") ?? node;
+      // The anchor sits higher on a phone. Centring works on a wide page
+      // because the eye takes in the whole block at once; on a tall narrow
+      // one the line being chanted wants the upper third, with what is coming
+      // next below it — a reader needs to see forward, not behind.
+      //
+      // Math.max(0) is what lets the top of the chant sit at the top of the
+      // paper: there is no phantom padding above the first line, so the paper
+      // simply does not glide until there is something above it to glide.
+      const anchor = phone ? 0.36 : 0.5;
       const target =
-        unit.offsetTop + unit.offsetHeight / 2 - clip.clientHeight * 0.5;
+        unit.offsetTop + unit.offsetHeight / 2 - clip.clientHeight * anchor;
       clip.scrollTo({
         top: Math.max(0, target),
         behavior: smooth ? "smooth" : "auto",
       });
     },
-    [active, autoScroll],
+    [active, autoScroll, phone],
   );
 
   // Follow only when the position actually moves. Re-anchoring on every render
@@ -461,12 +472,214 @@ export default function ChantingScreen() {
     };
   }, [current, active, lines, sectionOf]);
 
+  // --- the pieces both compositions are made of ----------------------------
+  //
+  // Named here rather than written inline twice, because the phone and the
+  // page are the same instrument arranged differently: on the page the
+  // sections sit under the running head, the gloss and the well in the margin,
+  // and the controls along the foot; on a phone all of them live in the sheet.
+  // Two copies of this markup is how the two would drift into behaving
+  // differently, and only one of them would ever be tested.
+
+  const navBlock = (
+    <div className="vs-nav">
+      {grouped.map((group) => (
+        <NavRow key={group.work || "all"}>
+          <span className="vs-lbl">{group.work || "Sections"}</span>
+          {group.sections.map((entry) => {
+            const index = chant.anuvakas.indexOf(entry);
+            const here = index === sectionIndex;
+            const label =
+              entry.kind === "anuvaka" && entry.number
+                ? ROMAN[entry.number]
+                : entry.kind === "rudra-mantras"
+                  ? "Rudra"
+                  : "Śānti";
+            return (
+              <button
+                type="button"
+                key={entry.id}
+                onClick={() => selectLine(sectionStart[index])}
+                className={here ? "vs-here" : ""}
+                data-on={here}
+                title={entry.title.english}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </NavRow>
+      ))}
+    </div>
+  );
+
+  const crestBlock = (
+    <div className="vs-crest">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/sssgc-usa.png"
+        alt="Sri Sathya Sai Global Council, U.S.A."
+        width={92}
+        height={92}
+      />
+    </div>
+  );
+
+  const glossBlock =
+    showGloss && glossVerse ? (
+      <div className="vs-gloss">
+        <div className="vs-ref">
+          {section.title.english} · Verse {ROMAN[current?.verse ?? 0] ?? current?.verse}
+          {" · "}
+          {glossVerse.first === glossVerse.last
+            ? `Line ${glossVerse.first}`
+            : `Lines ${glossVerse.first}–${glossVerse.last}`}
+        </div>
+        {glossVerse.meaning ? (
+          <div className="vs-en">{glossVerse.meaning}</div>
+        ) : (
+          <div className="vs-none">
+            No translation is loaded. A translation is an interpretation rather
+            than a transcription — it needs a named edition rather than being
+            filled in from memory.
+          </div>
+        )}
+      </div>
+    ) : null;
+
+  // Every state is in the DOM at once, stacked in a single grid cell, so the
+  // block is always the height of the tallest and nothing around it ever
+  // moves — a control that relocates out from under the hand reaching for it
+  // is the bug this construction exists to prevent.
+  const stateBlock = (
+    <div className="vs-state" data-shows={shows}>
+      <WellButton
+        shows={shows}
+        level={session.level}
+        live={running}
+        busy={starting}
+        onToggle={
+          running || starting
+            ? () => void session.stop()
+            : () => void session.start("mic", { deviceId: deviceId || undefined })
+        }
+      />
+      <div className="vs-txt">
+        <div className="vs-says">
+          {SHOWN.map((key) => (
+            <div
+              className="vs-say"
+              key={key}
+              data-on={key === shows}
+              aria-hidden={key !== shows}
+            >
+              <div className="vs-word">{STATE_WORDS[key].word}</div>
+              <div className="vs-sub">{STATE_WORDS[key].sub}</div>
+            </div>
+          ))}
+        </div>
+        {/* The stack is hidden from assistive tech; this is the one voice that
+            speaks, and only when the state actually changes. */}
+        <p className="vs-sr" role="status">
+          {STATE_WORDS[shows].word} {STATE_WORDS[shows].sub}
+        </p>
+      </div>
+    </div>
+  );
+
+  const controlsBlock = (
+    <div className="vs-ctrls">
+      <Control label="Script leads">
+        <Choice on={lead === "dev"} onClick={() => setLead("dev")} devanagari>
+          देवनागरी
+        </Choice>
+        <Choice on={lead === "ia"} onClick={() => setLead("ia")}>
+          IAST
+        </Choice>
+      </Control>
+
+      <Control label="Meaning">
+        <Choice on={showGloss} onClick={() => setShowGloss(true)}>
+          {phone ? "Shown" : "In margin"}
+        </Choice>
+        <Choice on={!showGloss} onClick={() => setShowGloss(false)}>
+          Hidden
+        </Choice>
+      </Control>
+
+      <Control label="Text size">
+        {SIZE_NAMES.map((name, index) => (
+          <Choice key={name} on={size === index} onClick={() => setSize(index)}>
+            {name}
+          </Choice>
+        ))}
+      </Control>
+
+      {/* Named for what a reader already knows rather than for the scene they
+          are in. "Lamp" and "Before dawn" described the hour; these describe
+          the setting, which is the thing being chosen. */}
+      <Control label="Appearance">
+        {(["lamp", "dawn"] as const).map((name) => (
+          <Choice key={name} on={light === name} onClick={() => setLight(name)}>
+            {name === "dawn" ? "Dark mode" : "Light mode"}
+          </Choice>
+        ))}
+      </Control>
+
+      <Control label="Scrolling">
+        <Choice on={autoScroll} onClick={() => setAutoScroll(true)}>
+          Auto
+        </Choice>
+        <Choice on={!autoScroll} onClick={() => setAutoScroll(false)}>
+          By hand
+        </Choice>
+      </Control>
+
+      <Control label="Microphone">
+        {devices.length > 0 ? (
+          <select
+            value={deviceId}
+            onChange={(event) => setDeviceId(event.target.value)}
+            disabled={running || starting}
+            className="vs-select"
+          >
+            <option value="">System default</option>
+            {devices.map((device) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span>System default</span>
+        )}
+      </Control>
+
+      {/* A phone has no window to fill and iOS has no Fullscreen API on
+          iPhone at all, so the control is not offered where it cannot work. */}
+      {phone ? null : (
+        <Control label="Full screen">
+          <Choice on={false} onClick={toggleFullScreen}>
+            Enter
+          </Choice>
+        </Control>
+      )}
+
+      <Control label="Library" note="Coming soon">
+        <Choice on={showImport} onClick={() => setShowImport((on) => !on)}>
+          Add a chant · PDF
+        </Choice>
+      </Control>
+    </div>
+  );
+
   return (
     <div
       ref={stageRef}
       className="vs-stage"
       data-light={light}
       data-lead={lead}
+      data-phone={phone ? "yes" : "no"}
       data-still={still ? "yes" : "no"}
       style={{ ...LIGHTS[light], "--scale": scale } as unknown as React.CSSProperties}
     >
@@ -494,81 +707,16 @@ export default function ChantingScreen() {
             <span className="vs-ia">{chant.name.english}</span>
           </div>
 
-          <div className="vs-nav">
-            {grouped.map((group) => (
-              <NavRow key={group.work || "all"}>
-                <span className="vs-lbl">{group.work || "Sections"}</span>
-                {group.sections.map((entry) => {
-                  const index = chant.anuvakas.indexOf(entry);
-                  const here = index === sectionIndex;
-                  const label =
-                    entry.kind === "anuvaka" && entry.number
-                      ? ROMAN[entry.number]
-                      : entry.kind === "rudra-mantras"
-                        ? "Rudra"
-                        : "Śānti";
-                  return (
-                    <button
-                      type="button"
-                      key={entry.id}
-                      onClick={() => selectLine(sectionStart[index])}
-                      className={here ? "vs-here" : ""}
-                      data-on={here}
-                      title={entry.title.english}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </NavRow>
-            ))}
-          </div>
+          {/* The sections live in the sheet on a phone. */}
+          {phone ? null : navBlock}
         </div>
 
-        {/* Every state is in the DOM at once, stacked in a single grid cell.
-            The block is therefore always the height of the tallest and NOTHING
-            below it moves — which was the actual complaint. The control used to
-            travel 44 px between states, and no easing curve rescues a button
-            that relocates out from under the hand reaching for it. */}
-        <div className="vs-state" data-shows={shows}>
-          {/* The well IS the button now. It used to be a 23 px mark beside a
-              separate control (a key, then a ribbon — both replaced), and the
-              page carried two objects for one idea. Now there is one
-              instrument: press the well and it sinks into the paper and stays
-              sunk while listening, your own voice holding the ink up inside
-              it. Depth is the state, readable across a room. */}
-          <WellButton
-            shows={shows}
-            level={session.level}
-            live={running}
-            busy={starting}
-            onToggle={
-              running || starting
-                ? () => void session.stop()
-                : () => void session.start("mic", { deviceId: deviceId || undefined })
-            }
-          />
-          <div className="vs-txt">
-            <div className="vs-says">
-              {SHOWN.map((key) => (
-                <div
-                  className="vs-say"
-                  key={key}
-                  data-on={key === shows}
-                  aria-hidden={key !== shows}
-                >
-                  <div className="vs-word">{STATE_WORDS[key].word}</div>
-                  <div className="vs-sub">{STATE_WORDS[key].sub}</div>
-                </div>
-              ))}
-            </div>
-            {/* The stack is hidden from assistive tech; this is the one voice
-                that speaks, and only when the state actually changes. */}
-            <p className="vs-sr" role="status">
-              {STATE_WORDS[shows].word} {STATE_WORDS[shows].sub}
-            </p>
-          </div>
-        </div>
+        {/* The council's emblem, set at the head of the page like a crest on
+            letterhead. The listening instrument that sat here now lives at the
+            foot of the margin, where the printer's seal used to be — the owner
+            swapped them. The emblem carries its own name and values in its
+            ring, so no caption repeats them. */}
+        {phone ? null : crestBlock}
       </header>
 
       {starting && session.progress ? (
@@ -674,43 +822,15 @@ export default function ChantingScreen() {
           <div className="vs-hr" />
         </section>
 
-        <aside className="vs-margin">
-          {showGloss && glossVerse ? (
-            <div className="vs-gloss">
-              <div className="vs-ref">
-                {section.title.english} · Verse {ROMAN[current?.verse ?? 0] ?? current?.verse}
-                {" · "}
-                {glossVerse.first === glossVerse.last
-                  ? `Line ${glossVerse.first}`
-                  : `Lines ${glossVerse.first}–${glossVerse.last}`}
-              </div>
-              {glossVerse.meaning ? (
-                <div className="vs-en">{glossVerse.meaning}</div>
-              ) : (
-                <div className="vs-none">
-                  No translation is loaded. A translation is an interpretation
-                  rather than a transcription — it needs a named edition rather
-                  than being filled in from memory.
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          <div className="vs-seal">
-            <div className="vs-sealrow">
-              <div className="vs-who">
-                Sri Sathya Sai
-                <br />
-                International Organisation
-              </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/ssio-logo.png" alt="" width={62} height={62} />
-            </div>
-            <div className="vs-values">
-              Truth · Right Conduct · Peace · Love · Non-violence
-            </div>
-          </div>
-        </aside>
+        {/* On a phone the margin has nowhere to be: its gloss and its
+            instrument are in the sheet, and the reading surface takes the
+            whole width. */}
+        {phone ? null : (
+          <aside className="vs-margin">
+            {glossBlock}
+            {stateBlock}
+          </aside>
+        )}
       </div>
 
       {/* Honest about a feature that is not built rather than a dead label.
@@ -735,86 +855,26 @@ export default function ChantingScreen() {
       ) : null}
 
       {/* --- colophon ------------------------------------------------------ */}
+      {phone ? (
+        <PhoneSheet peek={stateBlock}>
+          {navBlock}
+          {glossBlock}
+          {controlsBlock}
+          <div className="vs-sfoot">
+            {crestBlock}
+            <div className="vs-model">
+              Voice model · downloaded once, then kept on this device
+              <div className="vs-modelnote">
+                {running && session.phase.kind === "running"
+                  ? `Listening · ${session.phase.device}. No audio leaves this device.`
+                  : "No audio leaves this device."}
+              </div>
+            </div>
+          </div>
+        </PhoneSheet>
+      ) : (
       <footer className="vs-colophon">
-        <div className="vs-ctrls">
-          <Control label="Script leads">
-            <Choice on={lead === "dev"} onClick={() => setLead("dev")} devanagari>
-              देवनागरी
-            </Choice>
-            <Choice on={lead === "ia"} onClick={() => setLead("ia")}>
-              IAST
-            </Choice>
-          </Control>
-
-          <Control label="Meaning">
-            <Choice on={showGloss} onClick={() => setShowGloss(true)}>
-              In margin
-            </Choice>
-            <Choice on={!showGloss} onClick={() => setShowGloss(false)}>
-              Hidden
-            </Choice>
-          </Control>
-
-          <Control label="Text size">
-            {SIZE_NAMES.map((name, index) => (
-              <Choice key={name} on={size === index} onClick={() => setSize(index)}>
-                {name}
-              </Choice>
-            ))}
-          </Control>
-
-          {/* Named for what a reader already knows rather than for the scene
-              they are in. "Lamp" and "Before dawn" described the hour; these
-              describe the setting, which is the thing being chosen. */}
-          <Control label="Appearance">
-            {(["lamp", "dawn"] as const).map((name) => (
-              <Choice key={name} on={light === name} onClick={() => setLight(name)}>
-                {name === "dawn" ? "Dark mode" : "Light mode"}
-              </Choice>
-            ))}
-          </Control>
-
-          <Control label="Scrolling">
-            <Choice on={autoScroll} onClick={() => setAutoScroll(true)}>
-              Auto
-            </Choice>
-            <Choice on={!autoScroll} onClick={() => setAutoScroll(false)}>
-              By hand
-            </Choice>
-          </Control>
-
-          <Control label="Microphone">
-            {devices.length > 0 ? (
-              <select
-                value={deviceId}
-                onChange={(event) => setDeviceId(event.target.value)}
-                disabled={running || starting}
-                className="vs-select"
-              >
-                <option value="">System default</option>
-                {devices.map((device) => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    {device.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span>System default</span>
-            )}
-          </Control>
-
-          <Control label="Full screen">
-            <Choice on={false} onClick={toggleFullScreen}>
-              Enter
-            </Choice>
-          </Control>
-
-          <Control label="Library" note="Coming soon">
-            <Choice on={showImport} onClick={() => setShowImport((on) => !on)}>
-              Add a chant · PDF
-            </Choice>
-          </Control>
-        </div>
+        {controlsBlock}
 
         <div className="vs-model">
           Voice model · downloaded once, then kept on this device
@@ -825,7 +885,251 @@ export default function ChantingScreen() {
           </div>
         </div>
       </footer>
+      )}
     </div>
+  );
+}
+
+/**
+ * Is this a phone?
+ *
+ * Asked in JavaScript rather than answered in CSS because the two layouts are
+ * not the same composition at different widths — on a phone the controls, the
+ * section navigation, the gloss and the crest all live inside a sheet that
+ * does not exist on the desktop page, and CSS cannot move a node to a new
+ * parent. So the phone renders its own chrome and the desktop's is not
+ * rendered at all: one well, one set of controls, one animation frame loop.
+ *
+ * 760px rather than the old 960: a tablet in landscape is a small desktop and
+ * should keep the margin and the measure.
+ */
+const PHONE = "(max-width: 760px)";
+
+/**
+ * Read synchronously during render, not set from an effect.
+ *
+ * The first version held this in state and filled it in from an effect, and
+ * on the owner's iPhone the page came up as the desktop composition squeezed
+ * into 390 px — the media queries had plainly worked, because the controls
+ * were in their narrow arrangement, but the attribute this branch keys on was
+ * still "no". An effect that does not run, runs late, or runs after a failed
+ * hydration leaves the layout permanently wrong, and there is no way for the
+ * page to notice.
+ *
+ * useSyncExternalStore reads the match during render on the client, so the
+ * first painted frame is already right and no effect has to arrive to rescue
+ * it. The server snapshot is false because a server has no viewport; that is
+ * also why the stylesheet carries a narrow-width floor (see the CSS), so the
+ * markup rendered before JavaScript is readable rather than a heap.
+ */
+function usePhone(): boolean {
+  const subscribe = useCallback((changed: () => void) => {
+    const query = window.matchMedia(PHONE);
+    query.addEventListener("change", changed);
+    return () => query.removeEventListener("change", changed);
+  }, []);
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(PHONE).matches,
+    () => false,
+  );
+}
+
+/**
+ * The sheet: the foot of the page, and everything the page keeps under it.
+ *
+ * Collapsed it is not a card floating over the reading surface — it IS the
+ * foot of the paper, the same stock, parted by the same hairline rule that
+ * parts everything else in this book, holding exactly the instrument and the
+ * state words. The sheet grammar arrives only as it rises: `--lift` runs 0→1
+ * with the drag, and the corners round and the shadow grows out of it. A
+ * rounded card at rest leaves two wedges of not-paper at its top corners,
+ * which is the thing an eye catches and calls unfinished.
+ *
+ * The travel is a transform on a fixed element, so the reading surface never
+ * reflows while it moves, and the drag writes straight to the DOM rather than
+ * through React — a finger moves far more often than sixty times a second and
+ * none of it is worth re-rendering three hundred lines of scripture.
+ */
+function PhoneSheet({
+  peek,
+  children,
+}: {
+  peek: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const peekRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const scrimRef = useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = useState(false);
+
+  /** How far down the sheet sits when collapsed. Measured, never assumed. */
+  const shut = useRef(0);
+  const at = useRef(0);
+  const drag = useRef({ active: false, from: 0, base: 0, moved: 0, last: 0, vel: 0 });
+  const raf = useRef(0);
+
+  const put = useCallback((y: number) => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    const clamped = Math.max(0, Math.min(shut.current, y));
+    at.current = clamped;
+    sheet.style.transform = `translateY(${clamped.toFixed(1)}px)`;
+    const lift = shut.current > 0 ? 1 - clamped / shut.current : 0;
+    sheet.style.setProperty("--lift", lift.toFixed(3));
+    if (scrimRef.current) {
+      scrimRef.current.style.opacity = (0.42 * lift).toFixed(3);
+      scrimRef.current.style.pointerEvents = lift > 0.4 ? "auto" : "none";
+    }
+    if (bodyRef.current) {
+      // The contents fade in behind the movement rather than with it, so a
+      // half-open sheet reads as a sheet arriving, not as text sliding.
+      bodyRef.current.style.opacity = Math.max(0, (lift - 0.15) / 0.85).toFixed(3);
+      bodyRef.current.style.pointerEvents = lift > 0.85 ? "auto" : "none";
+    }
+  }, []);
+
+  const glideTo = useCallback(
+    (target: number) => {
+      cancelAnimationFrame(raf.current);
+      const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+      if (reduced) {
+        put(target);
+        return;
+      }
+      let last = performance.now();
+      const step = (now: number) => {
+        const dt = Math.min(64, now - last);
+        last = now;
+        // Exponential settle, the page's own grammar. Nothing bounces: this is
+        // a screen for someone mid-prayer, and a spring is a flourish they did
+        // not ask for.
+        const next = at.current + (target - at.current) * (1 - Math.exp(-dt / 110));
+        if (Math.abs(target - next) < 0.5) {
+          put(target);
+          return;
+        }
+        put(next);
+        raf.current = requestAnimationFrame(step);
+      };
+      raf.current = requestAnimationFrame(step);
+    },
+    [put],
+  );
+
+  // Measured from the real peek, so a taller status line or a safe-area inset
+  // can never strand the bar off the bottom of the screen.
+  useEffect(() => {
+    const measure = () => {
+      const sheet = sheetRef.current;
+      const peekEl = peekRef.current;
+      if (!sheet || !peekEl) return;
+      shut.current = Math.max(0, sheet.offsetHeight - peekEl.offsetHeight);
+      // Published on the STAGE, not on the sheet: the reading surface is not a
+      // descendant of the sheet, so a property set here would never reach it
+      // and the paper would end at a guessed height instead of the real one.
+      sheet
+        .closest<HTMLElement>(".vs-stage")
+        ?.style.setProperty("--peek", `${peekEl.offsetHeight}px`);
+      put(open ? 0 : shut.current);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (peekRef.current) observer.observe(peekRef.current);
+    if (sheetRef.current) observer.observe(sheetRef.current);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+      cancelAnimationFrame(raf.current);
+    };
+  }, [open, put]);
+
+  const toggle = useCallback(
+    (next: boolean) => {
+      setOpen(next);
+      glideTo(next ? 0 : shut.current);
+    },
+    [glideTo],
+  );
+
+  const down = (event: React.PointerEvent) => {
+    drag.current = {
+      active: true,
+      from: event.clientY,
+      base: at.current,
+      moved: 0,
+      last: event.clientY,
+      vel: 0,
+    };
+    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+  };
+
+  const move = (event: React.PointerEvent) => {
+    if (!drag.current.active) return;
+    const dy = event.clientY - drag.current.from;
+    drag.current.vel = event.clientY - drag.current.last;
+    drag.current.last = event.clientY;
+    drag.current.moved = dy;
+    put(drag.current.base + dy);
+  };
+
+  const up = () => {
+    if (!drag.current.active) return;
+    const { moved, vel } = drag.current;
+    drag.current.active = false;
+    // A tap counts. So does a flick, in the direction it was flicked. Anything
+    // else goes wherever it is nearer to, which is what a hand expects of a
+    // thing it has been holding.
+    if (Math.abs(moved) < 5) {
+      toggle(at.current > shut.current / 2);
+      return;
+    }
+    if (Math.abs(vel) > 2) {
+      toggle(vel < 0);
+      return;
+    }
+    toggle(at.current < shut.current / 2);
+  };
+
+  return (
+    <>
+      <div
+        className="vs-scrim"
+        ref={scrimRef}
+        onClick={() => toggle(false)}
+        aria-hidden="true"
+      />
+      <div className="vs-sheet" ref={sheetRef}>
+        <div
+          className="vs-peek"
+          ref={peekRef}
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerCancel={up}
+        >
+          <button
+            type="button"
+            className="vs-grab"
+            aria-expanded={open}
+            aria-label={open ? "Close settings" : "Open settings"}
+            onClick={(event) => {
+              // The pointer handlers above already decided a tap; this exists
+              // so a keyboard reaches the same place.
+              if (event.detail === 0) toggle(!open);
+            }}
+          >
+            <i />
+          </button>
+          {peek}
+        </div>
+        <div className="vs-sbody" ref={bodyRef}>
+          {children}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -1372,7 +1676,12 @@ const CSS = `
 .vs-navrow button.vs-here{color:var(--ink); opacity:1; font-weight:600}
 .vs-navrow button[data-on="true"]{opacity:1}
 
-.vs-state{width:330px; flex:none; display:flex; gap:16px; align-items:flex-start}
+/* At the foot of the margin, pinned there by the auto margin exactly as the
+   printer's seal it replaced was. The words sit beside the well and wrap in
+   the column's own width. */
+.vs-state{margin-top:auto; display:flex; gap:16px; align-items:flex-start}
+.vs-crest{flex:none; margin-top:4px}
+.vs-crest img{width:92px; height:92px; display:block}
 /* ---- the living well ----------------------------------------------------
    One material in four states, and now one instrument instead of two: the
    well is the button. Everything below interpolates, so no change is ever a
@@ -1641,11 +1950,6 @@ const CSS = `
 .vs-ref{font-family:var(--book); font-size:16px; color:var(--ink2); margin-bottom:9px}
 .vs-en{font-family:var(--book); font-size:18px; line-height:1.62}
 .vs-none{font-family:var(--book); font-size:15px; line-height:1.6; color:var(--ink2); font-style:italic}
-.vs-seal{margin-top:auto; text-align:right}
-.vs-sealrow{display:flex; align-items:center; gap:14px; justify-content:flex-end}
-.vs-seal img{width:62px;height:62px;display:block;flex:none}
-.vs-who{font-size:12px; line-height:1.7; letter-spacing:.11em; text-transform:uppercase; color:var(--blue); font-variant-numeric:oldstyle-nums}
-.vs-values{margin-top:9px; font-family:var(--book); font-style:italic; font-size:13px; color:var(--ink2)}
 
 .vs-import{
   flex:none; margin-top:14px; padding:13px 16px;
@@ -1740,21 +2044,203 @@ const CSS = `
   .vs-ctrls{grid-template-columns:repeat(3,minmax(0,1fr))}
   .vs-colophon{grid-template-columns:1fr 250px; gap:26px}
 }
+/* Between a phone and the page: a small laptop or a tablet still gets the
+   page's composition, only tighter. */
 @media (max-width:960px){
-  .vs-stage{height:auto; min-height:100dvh; overflow:auto; padding:20px 16px 26px}
-  .vs-head{flex-direction:column; gap:18px}
-  .vs-state{width:auto}
-  .vs-middle{display:block; padding-top:18px}
+  .vs-stage{padding:20px 20px 22px}
+  .vs-middle{grid-template-columns:1fr 250px; gap:22px}
   .vs-measure{display:none}
-  .vs-window{height:46dvh; min-height:290px}
-  .vs-scroll{padding:0 14px}
-  .vs-leadtext{font-size:calc(20px * var(--scale)) !important}
-  .vs-ln.vs-big .vs-leadtext{font-size:calc(30px * var(--scale)) !important}
-  .vs-margin{margin-top:22px}
-  .vs-seal{text-align:left}
-  .vs-sealrow{justify-content:flex-start}
   .vs-colophon{grid-template-columns:1fr; gap:18px}
   .vs-ctrls{grid-template-columns:repeat(2,minmax(0,1fr))}
   .vs-model{text-align:left}
+  .vs-crest img{width:72px; height:72px}
+}
+
+/* The floor under a narrow screen.
+   ------------------------------------------------------------------------
+   These rules apply to the PAGE composition at phone width, and they exist
+   because that composition can still be what is on screen there: it is what
+   the server renders before any JavaScript has run, and it is what remains if
+   hydration is slow or fails. Without them a phone showing the page gets
+   three columns of a 1440 px design heaped on top of each other — which is
+   exactly what the owner photographed. The phone rules below outspecify every
+   one of these, so this is a floor and never a ceiling. */
+@media (max-width:760px){
+  .vs-stage{height:auto; min-height:100dvh; overflow:auto; padding:18px 16px 24px}
+  .vs-head{flex-direction:column; gap:16px}
+  .vs-crest{align-self:flex-start; margin-top:0}
+  .vs-crest img{width:64px; height:64px}
+  .vs-middle{display:block; padding-top:16px}
+  .vs-measure{display:none}
+  .vs-window{height:52dvh; min-height:300px}
+  .vs-scroll{padding:0 14px}
+  .vs-leadtext{font-size:calc(19px * var(--scale))}
+  .vs-ln.vs-big .vs-leadtext{font-size:calc(26px * var(--scale))}
+  .vs-margin{margin-top:20px}
+  .vs-state{margin-top:20px}
+  .vs-colophon{grid-template-columns:1fr; gap:16px}
+  .vs-ctrls{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vs-model{text-align:left}
+}
+
+/* ==========================================================================
+   THE PHONE
+   ==========================================================================
+   Not the page squeezed: a different composition of the same instrument,
+   chosen from three built and tried on the owner's own phone
+   (design/direction-approved-mobile.md — "the unrolling scroll").
+
+   The text fills the screen and is read top to bottom. The line being
+   chanted rides a fixed anchor about a third down and the paper glides
+   beneath it. Everything else — the sections, the gloss, the controls, the
+   crest — lives under a sheet at the foot, which at rest shows only the
+   instrument and what it honestly knows.
+
+   The stage stops scrolling as a document here and becomes a fixed frame:
+   a running head, a reading surface that owns the rest, and the sheet over
+   it. Nothing but the paper moves. -------------------------------------- */
+[data-phone="yes"].vs-stage{
+  height:100dvh; overflow:hidden;
+  padding:0; display:flex; flex-direction:column;
+}
+
+[data-phone="yes"] .vs-head{
+  flex:none; padding:calc(env(safe-area-inset-top) + 10px) 18px 8px;
+  border-bottom:1px solid var(--rule);
+  flex-direction:row; align-items:baseline; gap:12px;
+}
+[data-phone="yes"] .vs-work{display:flex; align-items:baseline; gap:12px; min-width:0}
+/* The library link keeps its target size while reading as a mark, not a row
+   of words competing with the chant's own title. */
+[data-phone="yes"] .vs-lib{flex:none; font-size:0; padding:6px 6px 6px 0; margin:0}
+[data-phone="yes"] .vs-lib svg{width:15px; height:11px}
+[data-phone="yes"] .vs-title{
+  display:flex; align-items:baseline; gap:9px; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+[data-phone="yes"] .vs-sa{font-size:20px}
+[data-phone="yes"] .vs-ia{font-size:14px; overflow:hidden; text-overflow:ellipsis}
+
+/* The reading surface takes everything the head and the sheet do not.
+   --peek is published by the sheet from its own measured height, so the
+   paper ends exactly where the bar begins and never behind it. */
+[data-phone="yes"] .vs-middle{
+  flex:1; min-height:0; display:block; padding:0; gap:0;
+  margin-bottom:var(--peek,116px);
+}
+[data-phone="yes"] .vs-vessel{height:100%}
+[data-phone="yes"] .vs-vessel > .vs-hr{display:none}
+[data-phone="yes"] .vs-window{height:100%; min-height:0}
+/* The head of the chant sits at the head of the paper. No phantom padding
+   above the first line: the anchor clamps at zero, so the paper simply does
+   not glide until there is something above it to glide. Anything else opens
+   the app on a void. */
+[data-phone="yes"] .vs-scroll{padding:18px 20px 62dvh}
+[data-phone="yes"] .vs-clip{
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 7%,#000 93%,transparent 100%);
+          mask-image:linear-gradient(to bottom,transparent 0,#000 7%,#000 93%,transparent 100%);
+}
+/* Type for a hand at 40 cm, not for a hall at three metres. The active unit
+   still steps up, and it is never the only signal: it also takes full ink,
+   its second script, and the saffron rule. */
+[data-phone="yes"] .vs-leadtext{font-size:calc(19px * var(--scale)); line-height:1.95}
+[data-phone="yes"] [data-lead="ia"] .vs-leadtext{line-height:1.7}
+[data-phone="yes"] .vs-ln.vs-big .vs-leadtext{font-size:calc(26px * var(--scale)); line-height:1.9}
+[data-phone="yes"] [data-lead="ia"] .vs-ln.vs-big .vs-leadtext{font-size:calc(24px * var(--scale)); line-height:1.6}
+[data-phone="yes"] .vs-unit[data-lines="3"] .vs-ln.vs-big .vs-leadtext{font-size:calc(23px * var(--scale))}
+[data-phone="yes"] .vs-unit[data-lines="4"] .vs-ln.vs-big .vs-leadtext{font-size:calc(21px * var(--scale)); line-height:1.8}
+[data-phone="yes"] .vs-second{font-size:calc(15px * var(--scale)); line-height:1.85}
+[data-phone="yes"] .vs-ln{padding:4px 0}
+[data-phone="yes"] .vs-divider{margin:30px 0 18px; font-size:13px}
+
+/* ---- the scrim behind the raised sheet --------------------------------- */
+[data-phone="yes"] .vs-scrim{
+  position:fixed; inset:0; z-index:20; background:#0A0806;
+  opacity:0; pointer-events:none;
+}
+
+/* ---- the sheet ---------------------------------------------------------
+   At rest it is the FOOT of the page: the same paper, parted by the same
+   hairline rule that parts everything else in this book, square to the
+   edges. The sheet grammar arrives only as it rises — --lift runs 0→1 with
+   the drag, and the corners round and the shadow grows out of it. A rounded
+   card at rest leaves two wedges of not-paper at its top corners, which is
+   what an eye catches and calls unfinished. ----------------------------- */
+[data-phone="yes"] .vs-sheet{
+  --lift:0;
+  position:fixed; left:0; right:0; bottom:0; z-index:30;
+  height:min(88dvh,760px);
+  background:var(--paper);
+  border-radius:calc(18px * var(--lift)) calc(18px * var(--lift)) 0 0;
+  box-shadow:0 -1px 0 var(--rule),
+    0 calc(-14px * var(--lift)) calc(34px * var(--lift)) var(--key-well);
+  display:flex; flex-direction:column;
+  will-change:transform;
+  transition:background .5s ease;
+}
+[data-phone="yes"] .vs-peek{
+  flex:none; padding:0 18px calc(14px + env(safe-area-inset-bottom));
+  touch-action:none;
+}
+.vs-grab{display:block; width:100%; padding:9px 0 10px; cursor:grab; background:none; border:0}
+.vs-grab i{display:block; width:40px; height:4px; border-radius:2px;
+  background:var(--rule); margin:0 auto}
+[data-phone="yes"] .vs-sbody{
+  flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain;
+  padding:2px 18px calc(24px + env(safe-area-inset-bottom));
+  opacity:0;
+}
+
+/* The instrument and its words, side by side in the peek. */
+[data-phone="yes"] .vs-state{margin-top:0; gap:15px; align-items:flex-start}
+[data-phone="yes"] .vs-press{width:76px}
+[data-phone="yes"] .vs-word{font-size:19px}
+[data-phone="yes"] .vs-sub{font-size:13px}
+
+/* Everything under the sheet reads as one column of settings. */
+[data-phone="yes"] .vs-sheet .vs-nav{margin-top:4px; gap:6px}
+[data-phone="yes"] .vs-sheet .vs-navrow{padding-bottom:9px}
+[data-phone="yes"] .vs-sheet .vs-lbl{min-width:74px; font-size:13px; margin-right:8px}
+[data-phone="yes"] .vs-sheet .vs-navrow button{padding:7px 9px; min-height:38px}
+[data-phone="yes"] .vs-sheet .vs-gloss{
+  margin:14px 0 4px; padding-top:14px; border-top:1px solid var(--rule-soft); flex:none;
+}
+[data-phone="yes"] .vs-sheet .vs-en{font-size:16px}
+[data-phone="yes"] .vs-ctrls{
+  grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 18px;
+  margin-top:16px; padding-top:16px; border-top:1px solid var(--rule-soft);
+}
+[data-phone="yes"] .vs-ctrl button{min-height:40px}
+[data-phone="yes"] .vs-sfoot{
+  display:flex; align-items:center; gap:14px;
+  margin-top:20px; padding-top:16px; border-top:1px solid var(--rule-soft);
+}
+[data-phone="yes"] .vs-sfoot .vs-crest{margin:0}
+[data-phone="yes"] .vs-sfoot .vs-crest img{width:56px; height:56px}
+[data-phone="yes"] .vs-model{text-align:left; margin:0; flex:1; min-width:0}
+
+/* The loading line and the failure line belong over the paper, not squeezed
+   into the head, so neither can push the reading surface around. */
+[data-phone="yes"] .vs-loading,
+[data-phone="yes"] .vs-failed{
+  position:fixed; left:0; right:0; bottom:var(--peek,116px); z-index:25;
+  padding:9px 18px; background:var(--paper);
+  border-top:1px solid var(--rule-soft);
+}
+[data-phone="yes"] .vs-import{
+  position:fixed; left:12px; right:12px; bottom:calc(var(--peek,116px) + 12px);
+  z-index:26; flex-direction:column; gap:12px; margin:0;
+}
+
+@media (max-width:380px){
+  /* The English title wraps the running head onto a second line and costs a
+     line of scripture to say what the Devanagari beside it already says. */
+  [data-phone="yes"] .vs-ia{display:none}
+}
+@media (max-width:360px){
+  [data-phone="yes"] .vs-scroll{padding-left:15px; padding-right:15px}
+  [data-phone="yes"] .vs-peek{padding-left:14px; padding-right:14px}
+  [data-phone="yes"] .vs-sbody{padding-left:14px; padding-right:14px}
+  [data-phone="yes"] .vs-ctrls{grid-template-columns:1fr}
 }
 `;

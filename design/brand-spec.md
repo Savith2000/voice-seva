@@ -2,26 +2,36 @@
 
 ## Organisation
 
-**Sri Sathya Sai International Organisation (SSIO).** Spiritual/service organisation.
-Voice Seva is a chanting-companion app made for it. *Seva* means selfless service.
+**Sri Sathya Sai Global Council, U.S.A.** Spiritual/service organisation.
+Voice Seva is a chanting-companion app published under it. *Seva* means
+selfless service.
+
+> **Rebrand, August 2026, permanent.** The app originally carried the Sri
+> Sathya Sai International Organisation (SSIO) emblem; the owner replaced it
+> with the Global Council's and called the change permanent. PRODUCT.md is the
+> authority. The SSIO assets below remain in the repo as history only.
 
 ## Assets held
 
 | asset | path | note |
 |---|---|---|
-| Primary emblem | `ssio-logo-english.png` (repo root) | 2010×2024 PNG, transparent |
-| Embed-ready, 512px | `design/assets/ssio-logo.b64` | data-URI, 138 KB |
-| Embed-ready, 160px | `design/assets/ssio-logo-sm.b64` | data-URI, 33 KB — use this in headers |
+| **Current emblem** | `public/sssgc-usa.png` | 512 px, downscaled from the owner's 2000 px PNG, transparent |
+| Previous emblem (SSIO) | `ssio-logo-english.png` (repo root) | 2010×2024 PNG — no longer shown |
+| Previous, embed-ready | `design/assets/ssio-logo.b64`, `design/assets/ssio-logo-sm.b64` | history only |
 
-The emblem is the five-values lotus: a central white disc holding the orange
-Sarva Dharma pillar with radiating rays, ringed by five blue petals reading
-**TRUTH · RIGHT CONDUCT · PEACE · LOVE · NON-VIOLENCE**, interleaved with orange
-petal tips.
+The current emblem is a five-petal lotus of faith symbols — Om, cross,
+crescent and star, dharmachakra, fire vessel — around a central lamp on an
+orange disc, ringed **TRUTH · RIGHT ACTION · PEACE · LOVE · NONVIOLENCE**,
+with **Sri Sathya Sai Global Council, U.S.A.** in blue beneath. Quote the
+ring's own wording — *Right Action*, *Nonviolence* — not the older list. The
+emblem carries its own name and values; never caption it with either.
 
 ## Colour — sampled, not guessed
 
-Pixel-counted from the actual PNG (`PIL`, alpha > 200). These are measured values,
-not eyeballed:
+Pixel-counted from the **previous (SSIO) emblem's** PNG (`PIL`, alpha > 200) —
+measured values, not eyeballed. **The palette is retained through the rebrand**
+(owner's decision, with the emblem swap): the rebrand changed the seal, not
+the paper and ink. Do not resample from the new emblem's pastel petals.
 
 | role | hex | share of artwork |
 |---|---|---|
