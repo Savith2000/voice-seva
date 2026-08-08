@@ -292,6 +292,44 @@ function bestDtypeFor(device: string): AsrDtype {
 const LADDER: AsrDevice[] = ["webgpu", "webnn-npu", "webnn-gpu", "wasm"];
 
 /**
+ * Apple's engine, on any platform.
+ *
+ * Every browser on an iPhone is this engine — Chrome on iOS is Safari wearing
+ * a different icon — so a check for "Safari" by name would miss most of the
+ * devices that need this. What is being detected is WebKit: Apple's build of
+ * it says AppleWebKit and does not say Chrome, Chromium, Edge or Firefox,
+ * each of which announces itself.
+ */
+function isWebKit(): boolean {
+  const ua = self.navigator?.userAgent ?? "";
+  return /AppleWebKit/.test(ua) && !/Chrome|Chromium|Edg\/|Firefox/.test(ua);
+}
+
+/**
+ * What to actually try on this device.
+ *
+ * WebGPU is removed on WebKit, and this is a reluctant, evidence-led choice
+ * rather than a preference. iOS 26 turned WebGPU on by default, so an iPhone
+ * now advertises the fast path and this app took it — straight into an open
+ * ONNX Runtime bug in which the WebGPU execution provider's memory climbs past
+ * a gigabyte and keeps going (microsoft/onnxruntime#26827; the same shape is
+ * reported against transformers.js as huggingface/transformers.js#1242). Safari
+ * caps a page near a gigabyte, so the tab is killed and silently reloaded, and
+ * the owner saw exactly that: the app restarting itself a line into the chant,
+ * on both Safari and Chrome, which on an iPhone are the same engine.
+ *
+ * The cost is real and is accepted deliberately: WebKit now runs on the CPU,
+ * which is slower, and slower is a great deal better than a page that restarts
+ * mid-recitation. This comes off the moment the upstream bug is fixed — and it
+ * is worth re-testing rather than assuming, because a version that fixes it
+ * will not announce itself here.
+ */
+function ladderFor(): AsrDevice[] {
+  if (!isWebKit()) return LADDER;
+  return LADDER.filter((device) => device !== "webgpu");
+}
+
+/**
  * Prove the backend runs, rather than that it loaded.
  *
  * A backend can accept a graph and then fail on the first real input — WebNN
@@ -306,9 +344,15 @@ async function proves(candidate: PreTrainedModel): Promise<void> {
   const probe = new Float32Array(16_000);
   const inputs = await processor(probe);
   const { logits } = await candidate(inputs);
-  const dims = logits?.dims;
-  if (!dims || dims.length !== 3) {
-    throw new Error(`backend returned ${dims ? `rank ${dims.length}` : "nothing"}`);
+  try {
+    const dims = logits?.dims;
+    if (!dims || dims.length !== 3) {
+      throw new Error(`backend returned ${dims ? `rank ${dims.length}` : "nothing"}`);
+    }
+  } finally {
+    // The proof costs a full inference, and a rung that fails leaves its
+    // tensors behind on the way to trying the next one.
+    disposeAll(logits, inputs);
   }
 }
 
@@ -336,7 +380,7 @@ async function load(
     // fail, the reasons are collected, and the last rung is WASM, which is
     // always there.
     const refused: string[] = [];
-    for (const candidate of LADDER) {
+    for (const candidate of ladderFor()) {
       const candidateDtype = dtype ?? bestDtypeFor(candidate);
       try {
         const built = await AutoModelForCTC.from_pretrained(MODEL_ID, {
@@ -414,22 +458,38 @@ self.addEventListener("message", async (event: MessageEvent<AsrRequest>) => {
       const inputs = await processor(request.samples);
       const { logits } = await model(inputs);
 
-      // CTC decoding: one prediction per frame, take the arg max, then collapse
-      // repeats and drop the blank. No beam search and no language model —
-      // which is the whole reason this architecture was chosen.
-      const [, frames, vocabSize] = logits.dims as [number, number, number];
-      const scores = logits.data as Float32Array;
-      const ids = new Array<number>(frames);
-      for (let frame = 0; frame < frames; frame++) {
-        const offset = frame * vocabSize;
-        let best = 0;
-        for (let token = 1; token < vocabSize; token++) {
-          if (scores[offset + token] > scores[offset + best]) best = token;
+      let text: string;
+      try {
+        // CTC decoding: one prediction per frame, take the arg max, then
+        // collapse repeats and drop the blank. No beam search and no language
+        // model — which is the whole reason this architecture was chosen.
+        const [, frames, vocabSize] = logits.dims as [number, number, number];
+        const scores = logits.data as Float32Array;
+        const ids = new Array<number>(frames);
+        for (let frame = 0; frame < frames; frame++) {
+          const offset = frame * vocabSize;
+          let best = 0;
+          for (let token = 1; token < vocabSize; token++) {
+            if (scores[offset + token] > scores[offset + best]) best = token;
+          }
+          ids[frame] = best;
         }
-        ids[frame] = best;
+        text = decodeCtc(ids, vocab);
+      } finally {
+        // Hand every tensor back, and do it in a finally so a decode that
+        // throws still returns the memory.
+        //
+        // This loop runs several times a second for three quarters of an hour.
+        // Garbage collection covers the CPU path eventually, but a tensor that
+        // lives on the GPU holds a buffer the collector does not own and will
+        // not free, so the leak is unbounded and silent — and on iOS, where
+        // Safari caps a page near a gigabyte, unbounded means the tab is
+        // killed and quietly reloaded within a few seconds of chanting. That
+        // is exactly what was reported, and this is our half of the fault
+        // rather than the browser's.
+        disposeAll(logits, inputs);
       }
 
-      const text = decodeCtc(ids, vocab);
       const result: AsrResult = {
         type: "result",
         id: request.id,
@@ -448,6 +508,41 @@ self.addEventListener("message", async (event: MessageEvent<AsrRequest>) => {
     self.postMessage(message);
   }
 });
+
+/**
+ * Return every tensor in these values to whoever owns its memory.
+ *
+ * Written defensively on purpose: what comes back from the model is a plain
+ * object of outputs, what goes in is a plain object of inputs, and neither
+ * shape is ours to depend on. Anything carrying a dispose() gets it called,
+ * anything that throws while being freed is ignored, and a library that stops
+ * handing out disposable tensors quietly does nothing here rather than
+ * breaking the loop that transcribes the chant.
+ */
+function disposeAll(...values: unknown[]): void {
+  for (const value of values) {
+    if (!value || typeof value !== "object") continue;
+    const disposable = value as { dispose?: () => void };
+    if (typeof disposable.dispose === "function") {
+      try {
+        disposable.dispose();
+      } catch {
+        /* already gone, or not ours to free */
+      }
+      continue;
+    }
+    for (const nested of Object.values(value as Record<string, unknown>)) {
+      const inner = nested as { dispose?: () => void } | null;
+      if (inner && typeof inner === "object" && typeof inner.dispose === "function") {
+        try {
+          inner.dispose();
+        } catch {
+          /* already gone, or not ours to free */
+        }
+      }
+    }
+  }
+}
 
 /** Collapse CTC frame predictions into a string.
  *

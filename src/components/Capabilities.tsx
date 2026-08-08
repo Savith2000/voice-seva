@@ -17,7 +17,12 @@ type Finding = {
   label: string;
   value: string;
   /** good — this is the fast path. bad — this is why it is slow. */
-  tone: "good" | "bad" | "plain";
+  /**
+   * good — this device can. bad — it cannot, and that is why it is slow.
+   * warn — it can, and the app refuses to, which is a third thing and needs
+   * saying differently from both.
+   */
+  tone: "good" | "bad" | "warn" | "plain";
   note?: string;
 };
 
@@ -40,6 +45,12 @@ export default function Capabilities() {
         : "No NPU path from the browser. Chrome and Edge expose this on Copilot+ hardware; Safari does not yet.",
     });
 
+    // Apple's engine, on any platform: every browser on an iPhone is this one,
+    // so naming Safari would miss most of the devices that need this said.
+    const webkit =
+      /AppleWebKit/.test(navigator.userAgent) &&
+      !/Chrome|Chromium|Edg\/|Firefox/.test(navigator.userAgent);
+
     let gpu = "not available";
     let gpuTone: Finding["tone"] = "bad";
     let gpuNote = "This is the single biggest cause of slowness. Without it the model runs on the CPU.";
@@ -49,7 +60,16 @@ export default function Capabilities() {
       };
       if (anyNav.gpu) {
         const adapter = await anyNav.gpu.requestAdapter();
-        if (adapter) {
+        if (adapter && webkit) {
+          // Present, granted, and deliberately not used. Saying "fast path"
+          // here was wrong in the way that matters most: the page told the
+          // owner their phone was fine while the app was restarting itself
+          // mid-chant on that very device.
+          gpu = "available, but not used here";
+          gpuTone = "warn";
+          gpuNote =
+            "Apple's engine has an open bug in the WebGPU path of the model runtime: its memory climbs without limit and the page is killed and reloaded within seconds of chanting. The app takes the CPU path here on purpose — slower, and it does not restart.";
+        } else if (adapter) {
           gpu = "available, adapter granted";
           gpuTone = "good";
           gpuNote = "The fast path — about 48 ms per window on tested hardware.";
@@ -136,12 +156,15 @@ export default function Capabilities() {
     queueMicrotask(() => void probe());
   }, [probe]);
 
+  const gpuTone = findings?.find((f) => f.label === "WebGPU")?.tone;
   const verdict = findings
-    ? findings.find((f) => f.label === "WebGPU")?.tone === "good"
+    ? gpuTone === "good"
       ? "This device has the fast path. If chanting still lags, the cause is not the backend."
-      : findings.find((f) => f.label === "WebNN")?.tone === "good"
-        ? "No WebGPU, but this device exposes WebNN — so there is an NPU path the app has never tried."
-        : "No WebGPU and no WebNN. The model runs on the CPU here, and the thread count above is the ceiling."
+      : gpuTone === "warn"
+        ? "This device has WebGPU and the app will not use it — see below. The model runs on the CPU here, and the thread count above is the ceiling, so expect it to be slow. It should not restart itself."
+        : findings.find((f) => f.label === "WebNN")?.tone === "good"
+          ? "No WebGPU, but this device exposes WebNN — so there is an NPU path the app has never tried."
+          : "No WebGPU and no WebNN. The model runs on the CPU here, and the thread count above is the ceiling."
     : null;
 
   return (
@@ -175,7 +198,9 @@ export default function Capabilities() {
                     ? "text-emerald-400"
                     : f.tone === "bad"
                       ? "text-amber-400"
-                      : "text-neutral-300"
+                      : f.tone === "warn"
+                        ? "text-sky-400"
+                        : "text-neutral-300"
                 }`}
               >
                 {f.value}
