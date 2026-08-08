@@ -92,6 +92,40 @@ async function loadVocab(): Promise<Vocab> {
 env.allowLocalModels = false;
 env.allowRemoteModels = true;
 
+// ORT's WASM backend is served from this origin, not from jsdelivr.
+//
+// transformers.js has already chosen WHICH build to load — the asyncify pair,
+// or the plain threaded pair on Safari — and that choice is knowledge this
+// file should not duplicate. Only the WHERE changes: same filenames, under
+// /ort/ on this origin, kept in step with the installed onnxruntime-web by
+// tools/copy-ort-wasm.mjs before every dev and build.
+//
+// The reason is cross-origin isolation. The page sends COOP/COEP so that ORT
+// allows the WASM backend more than one core (it pins itself to one thread
+// without crossOriginIsolated, by its own explicit rule) — and isolation is
+// precisely the policy that stops a page running executable resources from
+// origins that never opted in. Loading ORT's backend from a CDN under those
+// headers is what broke the worker on every real machine it met (f15d00a).
+// Same origin, no conflict, and the class of failure is gone rather than
+// worked around.
+{
+  const ortWasm = env.backends?.onnx?.wasm;
+  const chosen = ortWasm?.wasmPaths;
+  const local = (name: string) => new URL(`/ort/${name}`, self.location.href).href;
+  if (ortWasm && chosen && typeof chosen === "object" && chosen.mjs && chosen.wasm) {
+    ortWasm.wasmPaths = {
+      mjs: local(String(chosen.mjs).split("/").pop()!),
+      wasm: local(String(chosen.wasm).split("/").pop()!),
+    };
+  } else if (ortWasm) {
+    // A future transformers.js that stops pre-selecting files still gets the
+    // same-origin prefix; ORT appends whichever filename its build wants. If
+    // that file is not in public/ort/, the fetch 404s and the refusal surfaces
+    // through the ladder rather than hanging.
+    ortWasm.wasmPaths = new URL("/ort/", self.location.href).href;
+  }
+}
+
 const MODEL_ID = "Savith/vak-san-onnx";
 
 export type AsrReady = {
