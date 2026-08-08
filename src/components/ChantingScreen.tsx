@@ -1162,7 +1162,15 @@ function PhoneSheet({
       at: event.timeStamp,
       vel: 0,
     };
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    try {
+      // Throws if the pointer is already gone — a fast tap, or a touch the
+      // browser cancelled out from under us. Capturing is an optimisation for
+      // the drag, not a precondition for it, so it must never take the
+      // handler down with it.
+      (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    } catch {
+      /* the drag still tracks through the move handler */
+    }
   };
 
   const move = (event: React.PointerEvent) => {
@@ -2288,7 +2296,16 @@ const CSS = `
   flex:none; padding:0 18px calc(14px + env(safe-area-inset-bottom));
   touch-action:none;
 }
-.vs-grab{display:block; width:100%; padding:9px 0 10px; cursor:grab; background:none; border:0}
+/* The handle carries the air above the instrument as well as its own.
+   Unpadded, the well and the state words sat hard against the top edge of the
+   sheet and the bar read as crowded — the paper needs a margin at its head
+   exactly as the page above it does.
+
+   Scoped under .vs-stage, and it has to be: the stage's own button reset sets
+   padding to zero at (0,1,1), which silently beats a bare .vs-grab at (0,1,0).
+   The first version of this rule was written unscoped and did nothing at all
+   — the same specificity trap this file has fallen into before. */
+.vs-stage .vs-grab{display:block; width:100%; padding:13px 0 20px; cursor:grab}
 .vs-grab i{display:block; width:40px; height:4px; border-radius:2px;
   background:var(--rule); margin:0 auto}
 [data-phone="yes"] .vs-sbody{
