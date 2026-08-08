@@ -78,6 +78,7 @@ const LIGHTS = {
     "--blue": "#0C5098", "--rule": "rgba(12,80,152,.32)", "--rule-soft": "rgba(12,80,152,.17)",
     "--saffron": "#9C4A05", "--saffron-full": "#EE7900", "--saffron-pale": "rgba(238,121,0,.22)",
     "--key-side": "#A24E00", "--key-face": "#FFF7EC", "--key-well": "rgba(120,70,20,.18)",
+    "--well-sheen": "rgba(255,255,255,.55)",
   },
   dawn: {
     "--page": "#131110", "--paper": "#1C1917",
@@ -85,6 +86,7 @@ const LIGHTS = {
     "--blue": "#8FB3DC", "--rule": "rgba(143,179,220,.34)", "--rule-soft": "rgba(143,179,220,.18)",
     "--saffron": "#EE9A45", "--saffron-full": "#EE7900", "--saffron-pale": "rgba(238,154,69,.24)",
     "--key-side": "#7E3D00", "--key-face": "#20180F", "--key-well": "rgba(0,0,0,.42)",
+    "--well-sheen": "rgba(255,255,255,.07)",
   },
 } as const;
 
@@ -529,7 +531,23 @@ export default function ChantingScreen() {
             travel 44 px between states, and no easing curve rescues a button
             that relocates out from under the hand reaching for it. */}
         <div className="vs-state" data-shows={shows}>
-          <InkWell shows={shows} level={session.level} />
+          {/* The well IS the button now. It used to be a 23 px mark beside a
+              separate control (a key, then a ribbon — both replaced), and the
+              page carried two objects for one idea. Now there is one
+              instrument: press the well and it sinks into the paper and stays
+              sunk while listening, your own voice holding the ink up inside
+              it. Depth is the state, readable across a room. */}
+          <WellButton
+            shows={shows}
+            level={session.level}
+            live={running}
+            busy={starting}
+            onToggle={
+              running || starting
+                ? () => void session.stop()
+                : () => void session.start("mic", { deviceId: deviceId || undefined })
+            }
+          />
           <div className="vs-txt">
             <div className="vs-says">
               {SHOWN.map((key) => (
@@ -549,18 +567,6 @@ export default function ChantingScreen() {
             <p className="vs-sr" role="status">
               {STATE_WORDS[shows].word} {STATE_WORDS[shows].sub}
             </p>
-            {/* A book's own ribbon, hung from the head of the page. Pull it
-                down to begin; it stays down while the app is listening, and
-                springs back when it is not. */}
-            <Ribbon
-              live={running}
-              busy={starting}
-              onToggle={
-                running || starting
-                  ? () => void session.stop()
-                  : () => void session.start("mic", { deviceId: deviceId || undefined })
-              }
-            />
           </div>
         </div>
       </header>
@@ -1019,141 +1025,47 @@ function NavRow({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * The ribbon: a bookmark you pull to begin.
+ * The living well: the state mark and the control, fused into one instrument.
  *
- * What it replaced was a 150 x 40 slab of full-chroma #EE7900 — by a wide
- * margin the largest field of pure colour on a page otherwise made of paper
- * and ink, and it read as harsh because it broke this palette's own rule.
- * brand-spec.md reserves full-chroma orange for "small, earned moments", and
- * every other place it appears is a mark: a 2 px rule, a 23 px disc, a
- * hairline, a 2.5 px tick. The button was a billboard among marks.
+ * The page used to carry two objects for one idea — a 23 px well that showed
+ * the voice, and beside it a control to start the voice (a text line nobody
+ * found, then a saffron slab that shouted, then a ribbon whose drag never
+ * felt right on a real machine). Each attempt failed a different way, and the
+ * fix is not a fourth style of button; it is fewer objects. The well IS the
+ * button now.
  *
- * A ribbon fixes that by being narrow. Fifteen pixels of saffron is a mark
- * again, so the colour is allowed back without shouting — and a ribbon is
- * something a book actually has, which the slab never was.
+ * Press it and it sinks into the paper and stays sunk while listening, the
+ * way a tape recorder key latches — depth is the state, readable across a
+ * hall without reading a word. Press it again and it rises, dry. While it is
+ * down, your own voice holds the ink up inside it: the level rides the
+ * microphone from an animation frame, never through React, because a setState
+ * at fifteen hertz would re-render three hundred lines of scripture to move
+ * a mark.
  *
- * OBVIOUSNESS, WHICH THIS COSTS AND HAS TO BUY BACK
+ * Each condition is a state of one material, everything interpolates, and no
+ * change is a cut. Idle is a dry raised well; hovering it wets the floor with
+ * a drop — the invitation is a taste of the result. Starting draws a stroke
+ * around the rim, and the stroke is honest: the model really is arriving.
+ * Following floods the bowl and lets the level breathe. Holding pales the
+ * ink: the voice has stopped, the place is kept.
  *
- * The previous change existed because nobody could tell what to press. A
- * ribbon is less self-evidently a control than a key, so it earns that back
- * deliberately: a fishtail end, the grab cursor, a hover that extends it a
- * little the way anything pullable should, its words kept underneath rather
- * than dropped, and a real accessible name. It stays a <button>, so a
- * keyboard still just presses it.
- *
- * You can pull it or you can tap it. Pulling the wrong way does nothing and it
- * springs back, which is the honest behaviour for a thing on a spring.
+ * The bowl of full-chroma saffron is allowed by the palette's own reasoning:
+ * brand-spec.md names orange "presence and the living voice", and this is the
+ * one mark on the page that literally is the living voice. It earns the
+ * colour by being made of it.
  */
-function Ribbon({
+function WellButton({
+  shows,
+  level,
   live,
   busy,
   onToggle,
 }: {
+  shows: Condition;
+  level: { current: number };
   live: boolean;
   busy: boolean;
   onToggle: () => void;
-}) {
-  const ref = useRef<HTMLButtonElement | null>(null);
-  const drag = useRef({ active: false, from: 0, moved: 0 });
-
-  const setDrag = (px: number) => {
-    // Straight to the DOM. A pointer moves far more often than sixty times a
-    // second and none of it is worth a React render.
-    ref.current?.style.setProperty("--drag", `${px}`);
-  };
-
-  const down = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (busy) return;
-    drag.current = { active: true, from: event.clientY, moved: 0 };
-    ref.current?.setPointerCapture(event.pointerId);
-    ref.current?.setAttribute("data-held", "");
-  };
-
-  const move = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (!drag.current.active) return;
-    // Bounded both ways: a ribbon is sewn in at the top and only has so much
-    // slack. Resisting past the limit is what tells a hand it has arrived.
-    const dy = Math.max(-46, Math.min(78, event.clientY - drag.current.from));
-    drag.current.moved = dy;
-    setDrag(dy);
-  };
-
-  const up = () => {
-    if (!drag.current.active) return;
-    const dy = drag.current.moved;
-    drag.current.active = false;
-    ref.current?.removeAttribute("data-held");
-    setDrag(0);
-    // A tap counts. So does a deliberate pull in the direction that would
-    // change something — down to start, up to stop. Anything else springs back
-    // and is treated as a change of mind, not an accident to be guessed at.
-    const tapped = Math.abs(dy) < 5;
-    const pulled = live ? dy < -20 : dy > 20;
-    if (tapped || pulled) onToggle();
-  };
-
-  return (
-    <div className="vs-hang">
-      <button
-        ref={ref}
-        type="button"
-        className="vs-ribbon"
-        data-live={live}
-        disabled={busy}
-        aria-pressed={live}
-        aria-label={live ? "Pause listening" : "Begin listening"}
-        onPointerDown={down}
-        onPointerMove={move}
-        onPointerUp={up}
-        onPointerCancel={up}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            if (!busy) onToggle();
-          }
-        }}
-      >
-        <span className="vs-band" aria-hidden="true" />
-      </button>
-      <span className="vs-hangword">
-        <span className="vs-says vs-labels">
-          <span className="vs-say" data-on={!live} aria-hidden={live}>
-            Pull to begin
-          </span>
-          <span className="vs-say" data-on={live} aria-hidden={!live}>
-            Pull to stop
-          </span>
-        </span>
-      </span>
-    </div>
-  );
-}
-
-/**
- * The state mark: a well that the voice fills with ink.
- *
- * It replaced four unrelated CSS rules — two drawing a border, two a background
- * — with nothing interpolating between them, which is why pressing the control
- * felt like something breaking rather than something starting.
- *
- * Each condition is now a state of one material. Idle is a dry ring. Starting
- * draws a stroke once around the rim, and that stroke is honest: the model
- * really is arriving. Following floods the well and then lets the level ride
- * the microphone. Holding pales the ink and lets it recede to a stain at the
- * rim — the voice has stopped but the position is kept, which is exactly what
- * that state means.
- *
- * The level is written straight to a CSS custom property from an animation
- * frame. It never passes through React: a setState at fifteen hertz would
- * re-render three hundred lines of scripture to move a mark twenty-one pixels
- * across.
- */
-function InkWell({
-  shows,
-  level,
-}: {
-  shows: Condition;
-  level: { current: number };
 }) {
   const condition = shows === "starting" ? "locating" : shows;
   const inkRef = useRef<SVGRectElement | null>(null);
@@ -1169,11 +1081,11 @@ function InkWell({
       return;
     }
 
-    // The bowl is 23 px across, so the bottom fifth of it is a sliver a few
-    // pixels tall — a true 0..1 mapping spends most of its range where nothing
-    // can be read. Listening therefore starts at a floor rather than at empty,
-    // which is also the honest reading: the instrument IS attending, even in a
-    // silence, and the voice rides above that rather than creating it.
+    // A true 0..1 mapping spends most of its range where nothing can be
+    // read, because chanting sits well below full scale. Listening therefore
+    // starts at a floor rather than at empty, which is also the honest
+    // reading: the instrument IS attending, even in a silence, and the voice
+    // rides above that rather than creating it.
     const FLOOR = 0.3;
     let frame = 0;
     const draw = () => {
@@ -1188,27 +1100,51 @@ function InkWell({
   }, [condition, level]);
 
   return (
-    <span className="vs-mark" data-condition={condition} aria-hidden="true">
-      <svg viewBox="0 0 24 24" className="vs-well">
-        <defs>
-          <clipPath id="vs-bowl">
-            <circle cx="12" cy="12" r="9.4" />
-          </clipPath>
-        </defs>
-        {/* The ink, clipped to the bowl and rising from its floor.
-            The clip must live on a parent that does NOT move: a transform on
-            the clipped element takes its clip with it, so translating the same
-            node that carries clipPath slides the ink straight out of the bowl
-            and leaves a blob hanging below the rim. */}
-        <g clipPath="url(#vs-bowl)">
-          <rect ref={inkRef} className="vs-ink" x="0" y="0" width="24" height="24" />
-        </g>
-        {/* the rim */}
-        <circle className="vs-rim" cx="12" cy="12" r="9.4" />
-        {/* the stroke that draws itself while the model arrives */}
-        <circle className="vs-draw" cx="12" cy="12" r="9.4" />
-      </svg>
-    </span>
+    <div className="vs-press">
+      <button
+        type="button"
+        className="vs-wellbtn"
+        data-condition={condition}
+        data-live={live}
+        data-busy={busy}
+        disabled={busy}
+        aria-pressed={live}
+        aria-label={live ? "Pause listening" : "Begin listening"}
+        onClick={onToggle}
+      >
+        <svg viewBox="0 0 56 56" className="vs-well" aria-hidden="true">
+          <defs>
+            <clipPath id="vs-bowl">
+              <circle cx="28" cy="28" r="23" />
+            </clipPath>
+          </defs>
+          {/* The ink, clipped to the bowl and rising from its floor.
+              The clip must live on a parent that does NOT move: a transform on
+              the clipped element takes its clip with it, so translating the
+              same node that carries clipPath slides the ink straight out of
+              the bowl and leaves a blob hanging below the rim. */}
+          <g clipPath="url(#vs-bowl)">
+            <rect ref={inkRef} className="vs-ink" x="0" y="0" width="56" height="56" />
+            {/* the drop that wets the floor on hover, before any commitment */}
+            <circle className="vs-drop" cx="28" cy="46" r="9" />
+          </g>
+          {/* the rim */}
+          <circle className="vs-rim" cx="28" cy="28" r="23" />
+          {/* the stroke that draws itself while the model arrives */}
+          <circle className="vs-draw" cx="28" cy="28" r="23" />
+        </svg>
+      </button>
+      <span className="vs-pressword">
+        <span className="vs-says">
+          <span className="vs-say" data-on={!live} aria-hidden={live}>
+            Press to begin
+          </span>
+          <span className="vs-say" data-on={live} aria-hidden={!live}>
+            Press to pause
+          </span>
+        </span>
+      </span>
+    </div>
   );
 }
 
@@ -1407,14 +1343,55 @@ const CSS = `
 .vs-navrow button.vs-here{color:var(--ink); opacity:1; font-weight:600}
 .vs-navrow button[data-on="true"]{opacity:1}
 
-.vs-state{width:330px; flex:none; display:flex; gap:13px; align-items:flex-start; position:relative; padding-right:96px}
-/* ---- the ink well -------------------------------------------------------
-   One material in four states, where there used to be four unrelated rules
-   with nothing between them. Everything below interpolates, so no change is
-   ever a cut. --------------------------------------------------------------- */
-.vs-mark{width:23px;height:23px;flex:none;margin-top:2px;display:block}
+.vs-state{width:330px; flex:none; display:flex; gap:16px; align-items:flex-start}
+/* ---- the living well ----------------------------------------------------
+   One material in four states, and now one instrument instead of two: the
+   well is the button. Everything below interpolates, so no change is ever a
+   cut — and depth is the state. Up and dry: not listening. Sunk and inked:
+   listening. The travel is 3 px of translate plus the shadows trading
+   places, which is a thing a thumb and an eye both understand at once. */
+.vs-press{flex:none; width:88px; display:flex; flex-direction:column;
+  align-items:center; gap:8px; margin-top:1px}
+.vs-stage .vs-wellbtn{
+  display:block; width:56px; height:56px; padding:0; border:0;
+  border-radius:50%; cursor:pointer; background:var(--paper);
+  /* Raised off the page: a real offset and a soft blur underneath, and a
+     hairline of light along the top edge, which is how paper actually sits
+     proud of paper under a lamp. */
+  box-shadow:0 2px 0 var(--key-well), 0 6px 14px var(--key-well),
+    inset 0 1px 0 var(--well-sheen);
+  transition:transform 90ms var(--ease), box-shadow 240ms var(--ease),
+    background 520ms var(--ease);
+}
+/* Hovering an idle well lifts it a breath — the page offering it to the
+   hand. Scoped away from the live state on purpose: a control that rises
+   while it is supposed to be latched down contradicts the state it reports,
+   which is the exact bug the ribbon shipped with its hover. */
+.vs-stage .vs-wellbtn:hover:not(:disabled):not([data-live="true"]){
+  transform:translateY(-1px);
+  box-shadow:0 3px 0 var(--key-well), 0 9px 18px var(--key-well),
+    inset 0 1px 0 var(--well-sheen);
+}
+/* Pressed under the finger, or latched down while listening. The drop
+   shadows collapse to nothing and an inner shadow appears at the lip: the
+   same 3 px of travel the raised state promised. 90 ms, the fastest thing on
+   the page, because acknowledgement that arrives late reads as latency. */
+.vs-stage .vs-wellbtn:active:not(:disabled),
+.vs-stage .vs-wellbtn[data-live="true"],
+.vs-stage .vs-wellbtn[data-busy="true"]{
+  transform:translateY(2px);
+  box-shadow:0 0 0 var(--key-well), 0 1px 2px var(--key-well),
+    inset 0 2px 5px var(--key-well);
+}
+.vs-stage .vs-wellbtn:disabled{cursor:default}
+.vs-stage .vs-wellbtn:focus-visible{outline:2px solid var(--blue); outline-offset:3px}
+.vs-pressword{font-size:13px; font-style:italic; color:var(--ink2);
+  text-align:center; white-space:nowrap; transition:color 300ms var(--ease)}
+.vs-stage .vs-wellbtn:hover:not(:disabled) ~ .vs-pressword{color:var(--ink)}
+.vs-pressword .vs-says{justify-items:center}
+
 .vs-well{width:100%;height:100%;overflow:visible;display:block;
-  transition:transform 420ms var(--ease)}
+  transform-origin:50% 50%; transition:transform 420ms var(--ease)}
 .vs-rim{fill:none; stroke:var(--ink3); stroke-width:1.5;
   transition:stroke 520ms var(--ease), opacity 520ms var(--ease)}
 
@@ -1425,9 +1402,13 @@ const CSS = `
   transform-box:view-box;
   transform:translateY(calc((1 - var(--ink)) * 100%));
   transition:fill 520ms var(--ease), opacity 520ms var(--ease)}
+/* The drop: a taste of ink at the floor of a dry well, shown on hover only
+   while idle — an invitation that says what pressing does, not a state. */
+.vs-drop{fill:var(--saffron-full); opacity:0; transition:opacity 300ms var(--ease)}
+.vs-stage .vs-wellbtn:hover:not(:disabled)[data-condition="idle"] .vs-drop{opacity:.3}
 .vs-draw{fill:none; stroke:var(--blue); stroke-width:1.6; stroke-linecap:round;
   /* 2πr, so the dash is the circumference and the offset is a full lap */
-  stroke-dasharray:59; stroke-dashoffset:59; opacity:0;
+  stroke-dasharray:144.5; stroke-dashoffset:144.5; opacity:0;
   transform-origin:50% 50%}
 
 [data-condition="idle"] .vs-ink{opacity:0}
@@ -1441,7 +1422,8 @@ const CSS = `
   animation:vs-lap 1.5s cubic-bezier(.62,0,.38,1) infinite, vsturn 3s linear infinite}
 
 /* Listening. The ink is at the level the room actually is, and the whole well
-   breathes underneath it so the mark is alive even in a silence. */
+   breathes underneath it so the mark is alive even in a silence. Gentler than
+   it was at 23 px: the same fraction of a bigger bowl is a bigger movement. */
 [data-condition="following"] .vs-rim{stroke:var(--saffron-full)}
 [data-condition="following"] .vs-ink{opacity:1}
 [data-condition="following"] .vs-well{animation:vsbreathe 4.4s ease-in-out infinite}
@@ -1451,74 +1433,12 @@ const CSS = `
 [data-condition="holding"] .vs-ink{opacity:.34; fill:var(--saffron-full)}
 
 @keyframes vsturn{to{transform:rotate(360deg)}}
-@keyframes vsbreathe{0%,100%{transform:scale(.93)}50%{transform:scale(1)}}
+@keyframes vsbreathe{0%,100%{transform:scale(.97)}50%{transform:scale(1)}}
 @keyframes vs-lap{
-  0%{stroke-dashoffset:59}
+  0%{stroke-dashoffset:144.5}
   55%{stroke-dashoffset:0}
-  100%{stroke-dashoffset:-59}
+  100%{stroke-dashoffset:-144.5}
 }
-
-/* Pressing it. The nib is put to the paper before any ink moves — 90 ms, the
-   shortest thing on the page, because acknowledgement that arrives late reads
-   as latency rather than as response. */
-/* ---- the ribbon -----------------------------------------------------------
-   A bookmark sewn in at the head of the page. It hangs, so it is anchored to
-   the top of the state block and falls past it — a ribbon that began halfway
-   down would be a decoration of a ribbon.
-
-   Length is scaleY off a fixed band rather than an animated height: composited,
-   and consistent with every other moving mark on this page. The fishtail scales
-   with it, which reads as the notch coming into view rather than as an error.
-
-   The colour is allowed here precisely because the object is narrow. Fifteen
-   pixels of full-chroma saffron is a mark, which the palette permits; a
-   150 x 40 slab of it was not, which is what this replaced.
-   -------------------------------------------------------------------------- */
-/* The caption sits below the ribbon's FULLEST extension, not below its current
-   one, so it never has to move and the band never runs through the words. The
-   air above it when the ribbon is up is the slack in a real one. */
-.vs-hang{position:absolute; top:-30px; right:0; display:flex; flex-direction:column;
-  align-items:center; gap:6px; width:88px}
-.vs-stage .vs-ribbon{
-  --extend:.40; --drag:0;
-  display:block; width:88px; height:96px; padding:0; background:none; border:0;
-  cursor:grab; touch-action:none;
-}
-.vs-stage .vs-ribbon[data-held]{cursor:grabbing}
-.vs-stage .vs-ribbon:disabled{cursor:default; opacity:.55}
-.vs-band{
-  display:block; width:15px; height:96px; margin:0 auto;
-  /* Satin: a bright fold slightly off-centre, which is how a woven ribbon
-     catches light. Not a decorative gradient — it is what the material is. */
-  background:linear-gradient(90deg,
-    #B05400 0%, #D96D00 24%, #EE7900 42%,
-    #FFB067 52%, #EE7900 64%, #C05E00 88%, #A24E00 100%);
-  clip-path:polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 9px), 0 100%);
-  transform-origin:50% 0;
-  transform:scaleY(calc(var(--extend) + var(--drag) / 96));
-  /* Settles rather than springs. The first attempt overshot on the grounds
-     that it is cloth on a hinge, which does not survive thinking about: cloth
-     damps. A silk ribbon let go falls and stops — it is a metal spring that
-     comes back past its rest. The fabric quality lives in the length of the
-     fall and in the drag tracking a finger exactly, not in a bounce, and this
-     is a screen for someone mid-prayer. Same exponential ease-out as every
-     other arrival on the page. */
-  transition:transform 560ms var(--ease);
-  box-shadow:0 1px 2px var(--key-well);
-}
-/* Hover hints in the direction the pull would go, and it has to be scoped:
-   a hover selector outspecifies a plain attribute one, so an unscoped hover
-   retracted a ribbon that was actually listening — the mark contradicting the
-   state it exists to report, and only while the pointer sat on it. */
-.vs-stage .vs-ribbon:hover:not(:disabled):not([data-live="true"]) .vs-band{--extend:.48}
-.vs-stage .vs-ribbon[data-live="true"]:hover:not(:disabled) .vs-band{--extend:.86}
-.vs-stage .vs-ribbon[data-held] .vs-band{transition:none}
-.vs-stage .vs-ribbon[data-live="true"] .vs-band{--extend:.92}
-.vs-stage .vs-ribbon:focus-visible{outline:2px solid var(--blue); outline-offset:2px; border-radius:2px}
-.vs-hangword{font-size:13px; font-style:italic; color:var(--ink2); text-align:center;
-  white-space:nowrap; transition:color 300ms var(--ease)}
-.vs-stage .vs-ribbon:hover:not(:disabled) + .vs-hangword{color:var(--ink)}
-.vs-state:has(.vs-ribbon[data-held]) .vs-well{transform:scale(.9)}
 
 /* ---- the words -----------------------------------------------------------
    Every state is rendered and stacked in one grid cell, and only opacity and
@@ -1546,7 +1466,7 @@ const CSS = `
    between two equally-present things. */
 .vs-say:not([data-on="true"]){transition-duration:220ms}
 .vs-labels{justify-items:start}
-.vs-hangword .vs-say{transition-duration:260ms}
+.vs-pressword .vs-say{transition-duration:260ms}
 
 /* ---- the travelling underline -------------------------------------------
    One mark per group, moved to whichever choice is active, rather than a
@@ -1777,10 +1697,10 @@ const CSS = `
   .vs-well, .vs-draw{animation:none !important}
   .vs-say{transition:opacity 200ms linear}
   .vs-navrow::after, .vs-v::after{transition:opacity 200ms linear}
-  /* The ribbon keeps its travel: where it hangs IS the state of the app,
-     not an effect. Only the spring in it is dropped. */
-  .vs-band{transition:transform 160ms linear}
-  .vs-draw{opacity:1; stroke-dashoffset:15}
+  /* The well keeps its travel: how deep it sits IS the state of the app,
+     not an effect. Only the ease of the journey is shortened. */
+  .vs-stage .vs-wellbtn{transition:transform 90ms linear, box-shadow 90ms linear}
+  .vs-draw{opacity:1; stroke-dashoffset:37}
   .vs-clip{scroll-behavior:auto}
   .vs-scroll, .vs-prog i, .vs-tick, .vs-leadtext{transition:none}
 }
