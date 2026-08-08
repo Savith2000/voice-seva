@@ -92,6 +92,40 @@ async function loadVocab(): Promise<Vocab> {
 env.allowLocalModels = false;
 env.allowRemoteModels = true;
 
+// ORT's WASM backend is served from this origin, not from jsdelivr.
+//
+// transformers.js has already chosen WHICH build to load — the asyncify pair,
+// or the plain threaded pair on Safari — and that choice is knowledge this
+// file should not duplicate. Only the WHERE changes: same filenames, under
+// /ort/ on this origin, kept in step with the installed onnxruntime-web by
+// tools/copy-ort-wasm.mjs before every dev and build.
+//
+// The reason is cross-origin isolation. The page sends COOP/COEP so that ORT
+// allows the WASM backend more than one core (it pins itself to one thread
+// without crossOriginIsolated, by its own explicit rule) — and isolation is
+// precisely the policy that stops a page running executable resources from
+// origins that never opted in. Loading ORT's backend from a CDN under those
+// headers is what broke the worker on every real machine it met (f15d00a).
+// Same origin, no conflict, and the class of failure is gone rather than
+// worked around.
+{
+  const ortWasm = env.backends?.onnx?.wasm;
+  const chosen = ortWasm?.wasmPaths;
+  const local = (name: string) => new URL(`/ort/${name}`, self.location.href).href;
+  if (ortWasm && chosen && typeof chosen === "object" && chosen.mjs && chosen.wasm) {
+    ortWasm.wasmPaths = {
+      mjs: local(String(chosen.mjs).split("/").pop()!),
+      wasm: local(String(chosen.wasm).split("/").pop()!),
+    };
+  } else if (ortWasm) {
+    // A future transformers.js that stops pre-selecting files still gets the
+    // same-origin prefix; ORT appends whichever filename its build wants. If
+    // that file is not in public/ort/, the fetch 404s and the refusal surfaces
+    // through the ladder rather than hanging.
+    ortWasm.wasmPaths = new URL("/ort/", self.location.href).href;
+  }
+}
+
 const MODEL_ID = "Savith/vak-san-onnx";
 
 export type AsrReady = {
@@ -137,7 +171,12 @@ export type AsrMessage = AsrReady | AsrResult | AsrError | AsrProgress;
  * (see bestDtypeFor below). The panel still offers both and reports the
  * number, because the whole point is that this was measured.
  */
-export type AsrDevice = "auto" | "webgpu" | "wasm";
+export type AsrDevice =
+  | "auto"
+  | "webgpu"
+  | "wasm"
+  | "webnn-npu"
+  | "webnn-gpu";
 
 /**
  * Which exported graph to run.
@@ -228,7 +267,49 @@ function reportProgress() {
  * one, where the extra 67 MB would buy nothing at all.
  */
 function bestDtypeFor(device: string): AsrDtype {
+  // fp16 is a GPU-only win. Every other backend has real int8 kernels, and on
+  // an NPU int8 is not merely faster, it is frequently the only thing the
+  // hardware will accept at all.
   return device === "webgpu" ? "fp16" : "q8";
+}
+
+/**
+ * What to try, best first, when nobody has asked for a particular backend.
+ *
+ * WebGPU stays at the head because it is the only rung with a measured number
+ * behind it — 48 ms against 1405 ms — and because a machine that already has
+ * it must not be made slower by anything below.
+ *
+ * WebNN is new here and it is the interesting one. It is the only web API with
+ * direct access to an NPU, and recent laptops and tablets ship one that this
+ * app has never touched: it asked for WebGPU, missed, and dropped straight to
+ * running a 94 M-parameter transformer on a CPU while dedicated silicon for
+ * exactly this sat idle beside it.
+ *
+ * Anything unavailable throws on load and costs only the attempt, so a device
+ * with none of it lands on WASM exactly as before.
+ */
+const LADDER: AsrDevice[] = ["webgpu", "webnn-npu", "webnn-gpu", "wasm"];
+
+/**
+ * Prove the backend runs, rather than that it loaded.
+ *
+ * A backend can accept a graph and then fail on the first real input — WebNN
+ * in particular is strict about shapes and operators, and an NPU that silently
+ * declines half the graph is worse than one that refuses honestly. One second
+ * of silence through the model costs little and turns "it initialised" into
+ * "it produced a tensor of the right rank", which are not the same claim and
+ * have been confused here before.
+ */
+async function proves(candidate: PreTrainedModel): Promise<void> {
+  if (!processor) throw new Error("processor missing");
+  const probe = new Float32Array(16_000);
+  const inputs = await processor(probe);
+  const { logits } = await candidate(inputs);
+  const dims = logits?.dims;
+  if (!dims || dims.length !== 3) {
+    throw new Error(`backend returned ${dims ? `rank ${dims.length}` : "nothing"}`);
+  }
 }
 
 async function load(
@@ -250,27 +331,34 @@ async function load(
   let fallbackReason: string | undefined;
 
   if (requested === "auto") {
-    // A hard failure here would read as "the model is broken" rather than
-    // "this backend cannot run it", so fall back and say so. The fallback
-    // changes the graph as well as the backend — fp16 buys nothing on WASM.
-    try {
-      resolvedDtype = dtype ?? bestDtypeFor("webgpu");
-      model = await AutoModelForCTC.from_pretrained(MODEL_ID, {
-        dtype: resolvedDtype,
-        progress_callback,
-        device: "webgpu",
-      });
-      device = "webgpu";
-    } catch (error) {
-      fallbackReason = error instanceof Error ? error.message : String(error);
-      resolvedDtype = dtype ?? bestDtypeFor("wasm");
-      model = await AutoModelForCTC.from_pretrained(MODEL_ID, {
-        dtype: resolvedDtype,
-        progress_callback,
-        device: "wasm",
-      });
-      device = "wasm";
+    // Walk the ladder. A hard failure would read as "the model is broken"
+    // rather than "this backend cannot run it", so every rung is allowed to
+    // fail, the reasons are collected, and the last rung is WASM, which is
+    // always there.
+    const refused: string[] = [];
+    for (const candidate of LADDER) {
+      const candidateDtype = dtype ?? bestDtypeFor(candidate);
+      try {
+        const built = await AutoModelForCTC.from_pretrained(MODEL_ID, {
+          dtype: candidateDtype,
+          progress_callback,
+          device: candidate,
+        });
+        await proves(built);
+        model = built;
+        device = candidate;
+        resolvedDtype = candidateDtype;
+        break;
+      } catch (error) {
+        refused.push(
+          `${candidate}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
+    if (!model) throw new Error(`no backend would run:\n${refused.join("\n")}`);
+    // Worth surfacing rather than swallowing: on a machine that ends up on
+    // WASM, these lines are the whole explanation for why it is slow.
+    if (refused.length) fallbackReason = refused.join(" · ");
   } else {
     model = await AutoModelForCTC.from_pretrained(MODEL_ID, {
       dtype: resolvedDtype,

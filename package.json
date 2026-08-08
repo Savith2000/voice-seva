@@ -4,7 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "predev": "node tools/copy-ort-wasm.mjs",
     "dev": "next dev",
+    "prebuild": "node tools/copy-ort-wasm.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

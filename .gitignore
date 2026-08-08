@@ -51,6 +51,13 @@ tools/asr-bakeoff/audio/*
 # by tools/asr-bakeoff/export_onnx.py. Git is the wrong place for it.
 public/models/
 
+# ONNX Runtime's WASM backend, copied out of node_modules by
+# tools/copy-ort-wasm.mjs before every dev and build so it is served from this
+# origin (cross-origin isolation blocks the CDN copy). ~36 MB of binaries that
+# must track the installed onnxruntime-web version exactly — committing them
+# is how they would drift.
+public/ort/
+
 # python chant importer
 tools/chant-import/.venv/
 tools/chant-import/__pycache__/

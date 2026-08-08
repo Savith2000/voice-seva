@@ -22,6 +22,9 @@ const eslintConfig = defineConfig([
     // symlinks into .agents.
     ".agents/**",
     ".claude/skills/**",
+    // ONNX Runtime's minified WASM loaders, copied out of node_modules by
+    // tools/copy-ort-wasm.mjs. Vendor output, not ours to lint.
+    "public/ort/**",
   ]),
 ]);
 

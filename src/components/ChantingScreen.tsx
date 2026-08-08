@@ -30,6 +30,7 @@
 
 import Link from "next/link";
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -42,6 +43,7 @@ import { listAudioInputs, type AudioInput } from "@/lib/audio/capture";
 import { allLines, flatten, type ChantLine } from "@/lib/chant/chant";
 import { chant, works } from "@/lib/chant/chant-data";
 import { INITIAL, follow, pin, type FollowState } from "@/lib/chant/follow";
+import { anchorFrom, glide, type Anchor } from "@/lib/chant/glide";
 import { progressThroughLine } from "@/lib/chant/matcher";
 import { useAsrSession } from "@/lib/chant/use-asr-session";
 
@@ -76,6 +78,7 @@ const LIGHTS = {
     "--blue": "#0C5098", "--rule": "rgba(12,80,152,.32)", "--rule-soft": "rgba(12,80,152,.17)",
     "--saffron": "#9C4A05", "--saffron-full": "#EE7900", "--saffron-pale": "rgba(238,121,0,.22)",
     "--key-side": "#A24E00", "--key-face": "#FFF7EC", "--key-well": "rgba(120,70,20,.18)",
+    "--well-sheen": "rgba(255,255,255,.55)",
   },
   dawn: {
     "--page": "#131110", "--paper": "#1C1917",
@@ -83,6 +86,7 @@ const LIGHTS = {
     "--blue": "#8FB3DC", "--rule": "rgba(143,179,220,.34)", "--rule-soft": "rgba(143,179,220,.18)",
     "--saffron": "#EE9A45", "--saffron-full": "#EE7900", "--saffron-pale": "rgba(238,154,69,.24)",
     "--key-side": "#7E3D00", "--key-face": "#20180F", "--key-well": "rgba(0,0,0,.42)",
+    "--well-sheen": "rgba(255,255,255,.07)",
   },
 } as const;
 
@@ -156,6 +160,17 @@ export default function ChantingScreen() {
   const [showImport, setShowImport] = useState(false);
   const [devices, setDevices] = useState<AudioInput[]>([]);
   const [deviceId, setDeviceId] = useState("");
+  /**
+   * Cadence the device actually achieved, whatever backend won the ladder.
+   *
+   * A ref rather than state: it is read once per animation frame by the glide
+   * and its drift is gradual, so re-rendering three hundred lines to update it
+   * would buy nothing. It carries the tracker's own pacing number — the first
+   * version recomputed an approximation here (inferenceMs x 2, floored at a
+   * different value than the tracker's) and the two could disagree; one
+   * source, no drift.
+   */
+  const cadenceRef = useRef(250);
 
   const session = useAsrSession(
     flat,
@@ -166,6 +181,12 @@ export default function ChantingScreen() {
             ? progressThroughLine(tick.result, flat)
             : 0;
         setState((previous) => follow(previous, tick, progress));
+        if (tick.state === "matched") {
+          // This is what makes the glide device-aware: a machine that found
+          // an NPU reports a short interval and needs little filling in; one
+          // on a single CPU thread reports a long one and needs a lot.
+          cadenceRef.current = tick.intervalMs;
+        }
       },
       [flat],
     ),
@@ -180,6 +201,22 @@ export default function ChantingScreen() {
   // Before anything has been heard the page still has to be a page, so it opens
   // on the first line rather than on nothing.
   const active = state.lineIndex ?? 0;
+  /** Words in the line being chanted — the quantum the ink moves in. */
+  const activeWords = useMemo(() => {
+    const line = lines[state.lineIndex ?? 0];
+    if (!line) return 0;
+    const text = lead === "dev" ? line.devanagari : line.transliteration;
+    return text.split(/\s+/).filter(Boolean).length;
+  }, [lines, state.lineIndex, lead]);
+
+  const { stageRef, inked } = useGlide({
+    progress: state.progress,
+    updatedAt: state.updatedAt,
+    line: state.lineIndex ?? -1,
+    words: activeWords,
+    cadenceRef,
+    live: state.kind === "locked" && !state.holding && running,
+  });
   const section = chant.anuvakas[sectionOf[active] ?? 0];
   const sectionIndex = sectionOf[active] ?? 0;
   const withinSection = active - (sectionStart[sectionIndex] ?? 0);
@@ -328,6 +365,13 @@ export default function ChantingScreen() {
     setState((previous) => pin(previous, index, performance.now()));
   }, []);
 
+  // Stable across renders so the memo on Line holds: an inline closure here
+  // would hand every line a fresh prop and re-render all three hundred of
+  // them each time the word-ink advances.
+  const registerLine = useCallback((index: number, node: HTMLDivElement | null) => {
+    lineRefs.current[index] = node;
+  }, []);
+
   const toggleFullScreen = useCallback(() => {
     if (document.fullscreenElement) void document.exitFullscreen();
     else void document.documentElement.requestFullscreen();
@@ -419,6 +463,7 @@ export default function ChantingScreen() {
 
   return (
     <div
+      ref={stageRef}
       className="vs-stage"
       data-light={light}
       data-lead={lead}
@@ -486,7 +531,23 @@ export default function ChantingScreen() {
             travel 44 px between states, and no easing curve rescues a button
             that relocates out from under the hand reaching for it. */}
         <div className="vs-state" data-shows={shows}>
-          <InkWell shows={shows} level={session.level} />
+          {/* The well IS the button now. It used to be a 23 px mark beside a
+              separate control (a key, then a ribbon — both replaced), and the
+              page carried two objects for one idea. Now there is one
+              instrument: press the well and it sinks into the paper and stays
+              sunk while listening, your own voice holding the ink up inside
+              it. Depth is the state, readable across a room. */}
+          <WellButton
+            shows={shows}
+            level={session.level}
+            live={running}
+            busy={starting}
+            onToggle={
+              running || starting
+                ? () => void session.stop()
+                : () => void session.start("mic", { deviceId: deviceId || undefined })
+            }
+          />
           <div className="vs-txt">
             <div className="vs-says">
               {SHOWN.map((key) => (
@@ -506,26 +567,6 @@ export default function ChantingScreen() {
             <p className="vs-sr" role="status">
               {STATE_WORDS[shows].word} {STATE_WORDS[shows].sub}
             </p>
-            <button
-              type="button"
-              className="vs-key"
-              data-live={running}
-              disabled={starting}
-              onClick={
-                running || starting
-                  ? () => void session.stop()
-                  : () => void session.start("mic", { deviceId: deviceId || undefined })
-              }
-            >
-              <span className="vs-says vs-labels">
-                <span className="vs-say" data-on={!running} aria-hidden={running}>
-                  Begin listening
-                </span>
-                <span className="vs-say" data-on={running} aria-hidden={!running}>
-                  Pause listening
-                </span>
-              </span>
-            </button>
           </div>
         </div>
       </header>
@@ -540,12 +581,14 @@ export default function ChantingScreen() {
           </span>
           <div className="vs-bar">
             <i
-              style={{
-                width:
-                  session.progress.fraction === null
-                    ? "33%"
-                    : `${session.progress.fraction * 100}%`,
-              }}
+              style={
+                {
+                  "--fill":
+                    session.progress.fraction === null
+                      ? 0.33
+                      : session.progress.fraction,
+                } as unknown as React.CSSProperties
+              }
             />
           </div>
         </div>
@@ -611,15 +654,14 @@ export default function ChantingScreen() {
                         <Line
                           key={lines[index].sequence}
                           line={lines[index]}
+                          index={index}
                           lead={lead}
                           big={here}
                           current={index === active}
                           near={!here && Math.abs(index - active) <= 3}
-                          progress={index === active ? state.progress : 0}
-                          onSelect={() => selectLine(index)}
-                          register={(node) => {
-                            lineRefs.current[index] = node;
-                          }}
+                          inked={index === active ? inked : 0}
+                          onSelect={selectLine}
+                          register={registerLine}
                         />
                       ))}
                     </div>
@@ -788,6 +830,112 @@ export default function ChantingScreen() {
 }
 
 /**
+ * Drive the ink from the glide, one animation frame at a time.
+ *
+ * The arithmetic and every governor live in lib/chant/glide.ts, tested there
+ * without React or a DOM, because the safety argument for extrapolating at all
+ * is those governors and it should be provable rather than merely watched.
+ *
+ * This is only the plumbing: hold an anchor, re-anchor when a real reading
+ * lands, and publish the result. The smooth value goes straight to a CSS
+ * custom property — the progress rule is a pure width and never re-renders —
+ * while the word count is state, because a word appearing is a real visual
+ * change and words arrive a few times a second, not sixty.
+ */
+function useGlide({
+  progress,
+  updatedAt,
+  line,
+  words,
+  cadenceRef,
+  live,
+}: {
+  progress: number;
+  updatedAt: number;
+  line: number;
+  words: number;
+  /** The tracker's own pacing, read once per frame. See where it is set. */
+  cadenceRef: React.RefObject<number>;
+  live: boolean;
+}) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [inked, setInked] = useState(0);
+
+  const anchor = useRef<Anchor & { line: number }>({
+    progress: 0,
+    at: 0,
+    rate: 0,
+    line: -1,
+  });
+  /** What was actually rendered last frame — the glide chases from here. */
+  const shownRef = useRef(0);
+  const latest = useRef({ progress, updatedAt, line, words, live });
+  // Refreshed in an effect rather than during render, so the frame loop sees
+  // the newest values without being torn down to get them.
+  useEffect(() => {
+    latest.current = { progress, updatedAt, line, words, live };
+  }, [progress, updatedAt, line, words, live]);
+
+  useEffect(() => {
+    const reduced = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    )?.matches;
+
+    let frame = 0;
+    let lastFrameAt = 0;
+    const tick = (frameAt: number) => {
+      frame = requestAnimationFrame(tick);
+      const stage = stageRef.current;
+      const now = latest.current;
+      const frameMs = lastFrameAt ? frameAt - lastFrameAt : 0;
+      lastFrameAt = frameAt;
+      if (!stage) return;
+
+      if (now.line !== anchor.current.line) {
+        // A new line is a jump, not a journey: snap, and forget the old pace.
+        // The ink starts over with it — the rule under a freshly-arrived line
+        // appearing at its reading is not motion, so nothing eases here.
+        anchor.current = {
+          progress: now.progress,
+          at: now.updatedAt,
+          rate: 0,
+          line: now.line,
+        };
+        shownRef.current = now.progress;
+      } else if (now.updatedAt !== anchor.current.at) {
+        anchor.current = {
+          ...anchorFrom(anchor.current, now.progress, now.updatedAt),
+          line: now.line,
+        };
+      }
+
+      const shown = reduced
+        ? anchor.current.progress
+        : glide(
+            anchor.current,
+            shownRef.current,
+            frameAt,
+            frameMs,
+            cadenceRef.current ?? 250,
+            now.live,
+          );
+      shownRef.current = shown;
+
+      stage.style.setProperty("--glide", shown.toFixed(4));
+      const reach = now.words > 0 ? Math.floor(shown * now.words) : 0;
+      setInked((was) => (was === reach ? was : reach));
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+    // cadenceRef is a ref: stable identity, read per frame by design.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return { stageRef, inked };
+}
+
+/**
  * One underline per group of choices, that travels instead of teleporting.
  *
  * It used to be a `border-bottom` on whichever button was selected — and a
@@ -839,7 +987,8 @@ function useSlider() {
     box.style.setProperty("--o", "1");
     box.style.setProperty("--x", `${on.offsetLeft}px`);
     box.style.setProperty("--y", `${on.offsetTop + on.offsetHeight}px`);
-    box.style.setProperty("--w", `${on.offsetWidth}px`);
+    // Unitless: this feeds scaleX, not a width.
+    box.style.setProperty("--w", `${on.offsetWidth}`);
 
     if (arriving) {
       // Commit the placement while transitions are still off, so the next
@@ -876,30 +1025,47 @@ function NavRow({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * The state mark: a well that the voice fills with ink.
+ * The living well: the state mark and the control, fused into one instrument.
  *
- * It replaced four unrelated CSS rules — two drawing a border, two a background
- * — with nothing interpolating between them, which is why pressing the control
- * felt like something breaking rather than something starting.
+ * The page used to carry two objects for one idea — a 23 px well that showed
+ * the voice, and beside it a control to start the voice (a text line nobody
+ * found, then a saffron slab that shouted, then a ribbon whose drag never
+ * felt right on a real machine). Each attempt failed a different way, and the
+ * fix is not a fourth style of button; it is fewer objects. The well IS the
+ * button now.
  *
- * Each condition is now a state of one material. Idle is a dry ring. Starting
- * draws a stroke once around the rim, and that stroke is honest: the model
- * really is arriving. Following floods the well and then lets the level ride
- * the microphone. Holding pales the ink and lets it recede to a stain at the
- * rim — the voice has stopped but the position is kept, which is exactly what
- * that state means.
+ * Press it and it sinks into the paper and stays sunk while listening, the
+ * way a tape recorder key latches — depth is the state, readable across a
+ * hall without reading a word. Press it again and it rises, dry. While it is
+ * down, your own voice holds the ink up inside it: the level rides the
+ * microphone from an animation frame, never through React, because a setState
+ * at fifteen hertz would re-render three hundred lines of scripture to move
+ * a mark.
  *
- * The level is written straight to a CSS custom property from an animation
- * frame. It never passes through React: a setState at fifteen hertz would
- * re-render three hundred lines of scripture to move a mark twenty-one pixels
- * across.
+ * Each condition is a state of one material, everything interpolates, and no
+ * change is a cut. Idle is a dry raised well; hovering it wets the floor with
+ * a drop — the invitation is a taste of the result. Starting draws a stroke
+ * around the rim, and the stroke is honest: the model really is arriving.
+ * Following floods the bowl and lets the level breathe. Holding pales the
+ * ink: the voice has stopped, the place is kept.
+ *
+ * The bowl of full-chroma saffron is allowed by the palette's own reasoning:
+ * brand-spec.md names orange "presence and the living voice", and this is the
+ * one mark on the page that literally is the living voice. It earns the
+ * colour by being made of it.
  */
-function InkWell({
+function WellButton({
   shows,
   level,
+  live,
+  busy,
+  onToggle,
 }: {
   shows: Condition;
   level: { current: number };
+  live: boolean;
+  busy: boolean;
+  onToggle: () => void;
 }) {
   const condition = shows === "starting" ? "locating" : shows;
   const inkRef = useRef<SVGRectElement | null>(null);
@@ -915,11 +1081,11 @@ function InkWell({
       return;
     }
 
-    // The bowl is 23 px across, so the bottom fifth of it is a sliver a few
-    // pixels tall — a true 0..1 mapping spends most of its range where nothing
-    // can be read. Listening therefore starts at a floor rather than at empty,
-    // which is also the honest reading: the instrument IS attending, even in a
-    // silence, and the voice rides above that rather than creating it.
+    // A true 0..1 mapping spends most of its range where nothing can be
+    // read, because chanting sits well below full scale. Listening therefore
+    // starts at a floor rather than at empty, which is also the honest
+    // reading: the instrument IS attending, even in a silence, and the voice
+    // rides above that rather than creating it.
     const FLOOR = 0.3;
     let frame = 0;
     const draw = () => {
@@ -934,51 +1100,102 @@ function InkWell({
   }, [condition, level]);
 
   return (
-    <span className="vs-mark" data-condition={condition} aria-hidden="true">
-      <svg viewBox="0 0 24 24" className="vs-well">
-        <defs>
-          <clipPath id="vs-bowl">
-            <circle cx="12" cy="12" r="9.4" />
-          </clipPath>
-        </defs>
-        {/* The ink, clipped to the bowl and rising from its floor.
-            The clip must live on a parent that does NOT move: a transform on
-            the clipped element takes its clip with it, so translating the same
-            node that carries clipPath slides the ink straight out of the bowl
-            and leaves a blob hanging below the rim. */}
-        <g clipPath="url(#vs-bowl)">
-          <rect ref={inkRef} className="vs-ink" x="0" y="0" width="24" height="24" />
-        </g>
-        {/* the rim */}
-        <circle className="vs-rim" cx="12" cy="12" r="9.4" />
-        {/* the stroke that draws itself while the model arrives */}
-        <circle className="vs-draw" cx="12" cy="12" r="9.4" />
-      </svg>
-    </span>
+    <div className="vs-press">
+      <button
+        type="button"
+        className="vs-wellbtn"
+        data-condition={condition}
+        data-live={live}
+        data-busy={busy}
+        disabled={busy}
+        aria-pressed={live}
+        aria-label={live ? "Pause listening" : "Begin listening"}
+        onClick={onToggle}
+      >
+        <svg viewBox="0 0 56 56" className="vs-well" aria-hidden="true">
+          <defs>
+            <clipPath id="vs-bowl">
+              <circle cx="28" cy="28" r="23" />
+            </clipPath>
+          </defs>
+          {/* The ink, clipped to the bowl and rising from its floor.
+              The clip must live on a parent that does NOT move: a transform on
+              the clipped element takes its clip with it, so translating the
+              same node that carries clipPath slides the ink straight out of
+              the bowl and leaves a blob hanging below the rim. */}
+          <g clipPath="url(#vs-bowl)">
+            <rect ref={inkRef} className="vs-ink" x="0" y="0" width="56" height="56" />
+            {/* the drop at the heart of the well on hover — the invitation.
+                Centred, not at the floor: at the floor it read as sediment. */}
+            <circle className="vs-drop" cx="28" cy="28" r="9" />
+          </g>
+          {/* the rim */}
+          <circle className="vs-rim" cx="28" cy="28" r="23" />
+          {/* the stroke that draws itself while the model arrives */}
+          <circle className="vs-draw" cx="28" cy="28" r="23" />
+        </svg>
+      </button>
+      <span className="vs-pressword">
+        <span className="vs-says">
+          <span className="vs-say" data-on={!live} aria-hidden={live}>
+            Press to begin
+          </span>
+          <span className="vs-say" data-on={live} aria-hidden={!live}>
+            Press to pause
+          </span>
+        </span>
+      </span>
+    </div>
   );
 }
 
 /** One line of the received text. */
-function Line({
+/**
+ * A line split at its word boundaries, gaps kept, each word numbered.
+ * Whitespace runs carry the number of the word before them so the map can
+ * hand them straight back without breaking the count.
+ */
+function toWords(text: string): { text: string; gap: boolean; spoken: number }[] {
+  return text
+    .split(/(\s+)/)
+    .reduce<{ text: string; gap: boolean; spoken: number }[]>((sofar, part) => {
+      const gap = /^\s*$/.test(part);
+      const previous = sofar.length ? sofar[sofar.length - 1].spoken : -1;
+      return [...sofar, { text: part, gap, spoken: gap ? previous : previous + 1 }];
+    }, []);
+}
+
+/**
+ * Memoised, and the reason is arithmetic: the word-ink advances a few times a
+ * second while someone chants, and each advance is a state change in the
+ * parent. Without the memo that re-rendered all three hundred lines to move
+ * one word's worth of ink on one of them. The callbacks are index-taking and
+ * stable for the same reason — an inline closure would defeat the memo.
+ */
+const Line = memo(function Line({
   line,
+  index,
   lead,
   big,
   current,
   near,
-  progress,
+  inked,
   onSelect,
   register,
 }: {
   line: ChantLine;
+  /** Position in the flattened chant, handed back to the stable callbacks. */
+  index: number;
   lead: Lead;
   /** This line's unit is the one being chanted — set large. */
   big: boolean;
   /** This exact line is where the tracker says the voice is — carries the ink. */
   current: boolean;
   near: boolean;
-  progress: number;
-  onSelect: () => void;
-  register: (node: HTMLDivElement | null) => void;
+  /** How many words the voice has reached, glided between windows. */
+  inked: number;
+  onSelect: (index: number) => void;
+  register: (index: number, node: HTMLDivElement | null) => void;
 }) {
   const primary = lead === "dev" ? line.devanagari : line.transliteration;
   const secondary = lead === "dev" ? line.transliteration : line.devanagari;
@@ -989,27 +1206,26 @@ function Line({
   // The word index is worked out up front rather than counted during the map.
   // A counter mutated inside render is a different value on every pass, which
   // React now rejects outright — and rightly, since the ink would drift.
-  const words = useMemo(
-    () =>
-      primary
-        .split(/(\s+)/)
-        .reduce<{ text: string; gap: boolean; spoken: number }[]>((sofar, text) => {
-          const gap = /^\s*$/.test(text);
-          const previous = sofar.length ? sofar[sofar.length - 1].spoken : -1;
-          return [...sofar, { text, gap, spoken: gap ? previous : previous + 1 }];
-        }, []),
-    [primary],
-  );
+  const words = useMemo(() => toWords(primary), [primary]);
+  const secondaryWords = useMemo(() => toWords(secondary), [secondary]);
 
   const total = words.filter((w) => !w.gap).length;
-  const position = progress * total;
-  const reached = Math.max(0, Math.min(total - 1, Math.floor(position)));
+  const reached = Math.max(0, Math.min(total - 1, inked));
+  // The second script inks in step with the first. PRODUCT.md says a large
+  // share of reciters read from the romanised line, and for them an ink that
+  // touches only the leading script is an ink that does not exist. The two
+  // scripts transliterate word for word almost everywhere, so the proportion
+  // is nearly always the identity; where the counts do differ, proportion is
+  // the honest mapping available without an alignment table.
+  const secondaryTotal = secondaryWords.filter((w) => !w.gap).length;
+  const secondaryReached =
+    total > 0 ? Math.floor((reached * secondaryTotal) / total) : 0;
 
   return (
     <div
-      ref={register}
+      ref={(node) => register(index, node)}
       className={`vs-ln ${big ? "vs-big" : ""} ${current ? "vs-current" : ""} ${near ? "vs-near" : ""}`}
-      onClick={onSelect}
+      onClick={() => onSelect(index)}
     >
       <div
         className="vs-leadtext"
@@ -1025,10 +1241,13 @@ function Line({
             <span
               key={index}
               className={inked ? "vs-inked" : now ? "vs-nowword" : undefined}
+              // The word being spoken carries a wet edge rather than a hard
+              // cut. Its position rides --glide, so it moves every frame
+              // instead of once per window.
               style={
                 now
                   ? ({
-                      "--wp": `${((position - reached) * 100).toFixed(1)}%`,
+                      "--wp": `calc((var(--glide, 0) * ${total} - ${reached}) * 100%)`,
                     } as unknown as React.CSSProperties)
                   : undefined
               }
@@ -1044,17 +1263,32 @@ function Line({
           progress rule belongs only to the line actually being chanted. */}
       {big ? (
         <div className="vs-second" lang={lead === "dev" ? "sa-Latn" : "sa"}>
-          {secondary}
+          {current
+            ? secondaryWords.map((word, at) =>
+                word.gap ? (
+                  word.text
+                ) : (
+                  <span
+                    key={at}
+                    className={word.spoken < secondaryReached ? "vs-inked" : undefined}
+                  >
+                    {word.text}
+                  </span>
+                ),
+              )
+            : secondary}
         </div>
       ) : null}
+      {/* The rule under the line is a pure width, so it is driven straight
+          from --glide at frame rate and never re-renders at all. */}
       {current ? (
         <div className="vs-prog">
-          <i style={{ width: `${Math.round(progress * 100)}%` }} />
+          <i />
         </div>
       ) : null}
     </div>
   );
-}
+});
 
 function Control({
   label,
@@ -1138,14 +1372,55 @@ const CSS = `
 .vs-navrow button.vs-here{color:var(--ink); opacity:1; font-weight:600}
 .vs-navrow button[data-on="true"]{opacity:1}
 
-.vs-state{width:290px; flex:none; display:flex; gap:13px; align-items:flex-start}
-/* ---- the ink well -------------------------------------------------------
-   One material in four states, where there used to be four unrelated rules
-   with nothing between them. Everything below interpolates, so no change is
-   ever a cut. --------------------------------------------------------------- */
-.vs-mark{width:23px;height:23px;flex:none;margin-top:2px;display:block}
+.vs-state{width:330px; flex:none; display:flex; gap:16px; align-items:flex-start}
+/* ---- the living well ----------------------------------------------------
+   One material in four states, and now one instrument instead of two: the
+   well is the button. Everything below interpolates, so no change is ever a
+   cut — and depth is the state. Up and dry: not listening. Sunk and inked:
+   listening. The travel is 3 px of translate plus the shadows trading
+   places, which is a thing a thumb and an eye both understand at once. */
+.vs-press{flex:none; width:88px; display:flex; flex-direction:column;
+  align-items:center; gap:8px; margin-top:1px}
+.vs-stage .vs-wellbtn{
+  display:block; width:56px; height:56px; padding:0; border:0;
+  border-radius:50%; cursor:pointer; background:var(--paper);
+  /* Raised off the page: a real offset and a soft blur underneath, and a
+     hairline of light along the top edge, which is how paper actually sits
+     proud of paper under a lamp. */
+  box-shadow:0 2px 0 var(--key-well), 0 6px 14px var(--key-well),
+    inset 0 1px 0 var(--well-sheen);
+  transition:transform 90ms var(--ease), box-shadow 240ms var(--ease),
+    background 520ms var(--ease);
+}
+/* Hovering an idle well lifts it a breath — the page offering it to the
+   hand. Scoped away from the live state on purpose: a control that rises
+   while it is supposed to be latched down contradicts the state it reports,
+   which is the exact bug the ribbon shipped with its hover. */
+.vs-stage .vs-wellbtn:hover:not(:disabled):not([data-live="true"]){
+  transform:translateY(-1px);
+  box-shadow:0 3px 0 var(--key-well), 0 9px 18px var(--key-well),
+    inset 0 1px 0 var(--well-sheen);
+}
+/* Pressed under the finger, or latched down while listening. The drop
+   shadows collapse to nothing and an inner shadow appears at the lip: the
+   same 3 px of travel the raised state promised. 90 ms, the fastest thing on
+   the page, because acknowledgement that arrives late reads as latency. */
+.vs-stage .vs-wellbtn:active:not(:disabled),
+.vs-stage .vs-wellbtn[data-live="true"],
+.vs-stage .vs-wellbtn[data-busy="true"]{
+  transform:translateY(2px);
+  box-shadow:0 0 0 var(--key-well), 0 1px 2px var(--key-well),
+    inset 0 2px 5px var(--key-well);
+}
+.vs-stage .vs-wellbtn:disabled{cursor:default}
+.vs-stage .vs-wellbtn:focus-visible{outline:2px solid var(--blue); outline-offset:3px}
+.vs-pressword{font-size:13px; font-style:italic; color:var(--ink2);
+  text-align:center; white-space:nowrap; transition:color 300ms var(--ease)}
+.vs-stage .vs-wellbtn:hover:not(:disabled) ~ .vs-pressword{color:var(--ink)}
+.vs-pressword .vs-says{justify-items:center}
+
 .vs-well{width:100%;height:100%;overflow:visible;display:block;
-  transition:transform 420ms var(--ease)}
+  transform-origin:50% 50%; transition:transform 420ms var(--ease)}
 .vs-rim{fill:none; stroke:var(--ink3); stroke-width:1.5;
   transition:stroke 520ms var(--ease), opacity 520ms var(--ease)}
 
@@ -1156,9 +1431,13 @@ const CSS = `
   transform-box:view-box;
   transform:translateY(calc((1 - var(--ink)) * 100%));
   transition:fill 520ms var(--ease), opacity 520ms var(--ease)}
+/* The drop: a taste of ink at the floor of a dry well, shown on hover only
+   while idle — an invitation that says what pressing does, not a state. */
+.vs-drop{fill:var(--saffron-full); opacity:0; transition:opacity 300ms var(--ease)}
+.vs-stage .vs-wellbtn:hover:not(:disabled)[data-condition="idle"] .vs-drop{opacity:.3}
 .vs-draw{fill:none; stroke:var(--blue); stroke-width:1.6; stroke-linecap:round;
   /* 2πr, so the dash is the circumference and the offset is a full lap */
-  stroke-dasharray:59; stroke-dashoffset:59; opacity:0;
+  stroke-dasharray:144.5; stroke-dashoffset:144.5; opacity:0;
   transform-origin:50% 50%}
 
 [data-condition="idle"] .vs-ink{opacity:0}
@@ -1172,7 +1451,8 @@ const CSS = `
   animation:vs-lap 1.5s cubic-bezier(.62,0,.38,1) infinite, vsturn 3s linear infinite}
 
 /* Listening. The ink is at the level the room actually is, and the whole well
-   breathes underneath it so the mark is alive even in a silence. */
+   breathes underneath it so the mark is alive even in a silence. Gentler than
+   it was at 23 px: the same fraction of a bigger bowl is a bigger movement. */
 [data-condition="following"] .vs-rim{stroke:var(--saffron-full)}
 [data-condition="following"] .vs-ink{opacity:1}
 [data-condition="following"] .vs-well{animation:vsbreathe 4.4s ease-in-out infinite}
@@ -1182,55 +1462,12 @@ const CSS = `
 [data-condition="holding"] .vs-ink{opacity:.34; fill:var(--saffron-full)}
 
 @keyframes vsturn{to{transform:rotate(360deg)}}
-@keyframes vsbreathe{0%,100%{transform:scale(.93)}50%{transform:scale(1)}}
+@keyframes vsbreathe{0%,100%{transform:scale(.97)}50%{transform:scale(1)}}
 @keyframes vs-lap{
-  0%{stroke-dashoffset:59}
+  0%{stroke-dashoffset:144.5}
   55%{stroke-dashoffset:0}
-  100%{stroke-dashoffset:-59}
+  100%{stroke-dashoffset:-144.5}
 }
-
-/* Pressing it. The nib is put to the paper before any ink moves — 90 ms, the
-   shortest thing on the page, because acknowledgement that arrives late reads
-   as latency rather than as response. */
-/* ---- the key --------------------------------------------------------------
-   It read as a line of text before, and the one thing a first-time visitor
-   has to do was the quietest thing on the screen.
-
-   It is a key now, and a latching one: UP when nothing is being heard, and
-   held DOWN for as long as it is listening. The state of the app is the
-   physical state of the object, the way it is on a tape recorder — you can
-   tell across a room whether it is running without reading a word.
-
-   The depth is the side of a solid thing rather than a decorative offset
-   shadow, so it collapses when the key goes down; the soft shadow under it is
-   the light, and that is what carries blur. Pressing costs 90 ms, the fastest
-   thing on the page, because acknowledgement arriving late reads as latency.
-   -------------------------------------------------------------------------- */
-.vs-stage .vs-key{
-  --depth:5px;
-  position:relative; display:inline-block; margin-top:11px;
-  padding:9px 17px 10px; border-radius:3px;
-  font-family:var(--book); font-size:16px; letter-spacing:.01em;
-  color:var(--key-face); background:var(--saffron-full);
-  box-shadow:0 var(--depth) 0 var(--key-side), 0 calc(var(--depth) + 3px) 9px var(--key-well);
-  transition:transform 90ms var(--ease), box-shadow 90ms var(--ease),
-             background 320ms var(--ease), color 320ms var(--ease);
-}
-.vs-stage .vs-key:hover:not(:disabled){--depth:6px}
-.vs-stage .vs-key:active:not(:disabled){
-  transform:translateY(var(--depth));
-  box-shadow:0 0 0 var(--key-side), 0 1px 3px var(--key-well);
-}
-.vs-stage .vs-key:focus-visible{outline:2px solid var(--blue); outline-offset:3px}
-/* Held down for as long as it is listening. */
-.vs-stage .vs-key[data-live="true"]{
-  background:var(--saffron-pale); color:var(--ink);
-  transform:translateY(var(--depth));
-  box-shadow:0 0 0 var(--key-side), inset 0 1px 3px var(--key-well);
-}
-.vs-stage .vs-key[data-live="true"]:active:not(:disabled){transform:translateY(calc(var(--depth) + 1px))}
-.vs-stage .vs-key:disabled{opacity:.6; cursor:default}
-.vs-state:has(.vs-key:active) .vs-well{transform:scale(.86)}
 
 /* ---- the words -----------------------------------------------------------
    Every state is rendered and stacked in one grid cell, and only opacity and
@@ -1258,7 +1495,7 @@ const CSS = `
    between two equally-present things. */
 .vs-say:not([data-on="true"]){transition-duration:220ms}
 .vs-labels{justify-items:start}
-.vs-stage .vs-key .vs-say{transition-duration:260ms}
+.vs-pressword .vs-say{transition-duration:260ms}
 
 /* ---- the travelling underline -------------------------------------------
    One mark per group, moved to whichever choice is active, rather than a
@@ -1276,10 +1513,17 @@ const CSS = `
    frame. --------------------------------------------------------------- */
 .vs-navrow::after, .vs-v::after{
   content:""; position:absolute; left:0; top:0;
-  width:var(--w,0); height:2px; background:var(--saffron-full);
+  width:1px; height:2px; background:var(--saffron-full);
   opacity:var(--o,0);
-  transform:translate(var(--x,0), var(--y,0));
-  transition:transform 420ms var(--ease), width 340ms var(--ease);
+  /* Width rides scaleX off a 1 px base rather than being animated directly.
+     Animating width relayouts the row on every frame of a 420 ms move; a
+     transform is composited and never touches layout at all. It matters here
+     more than the pixels suggest — the machines this is being tuned for are
+     running speech inference and three hundred lines of React on the same
+     main thread. */
+  transform:translate(var(--x,0), var(--y,0)) scaleX(var(--w,0));
+  transform-origin:0 0;
+  transition:transform 420ms var(--ease);
   pointer-events:none;
 }
 .vs-navrow[data-jump]::after, .vs-v[data-jump]::after{transition:none}
@@ -1293,7 +1537,8 @@ const CSS = `
 
 .vs-loading{padding:10px 0 0; font-size:13px; color:var(--ink2)}
 .vs-bar{height:1.5px; background:var(--rule-soft); margin-top:6px; position:relative}
-.vs-bar i{position:absolute; left:0; top:0; bottom:0; background:var(--blue); opacity:.6; transition:width .3s}
+.vs-bar i{position:absolute; left:0; right:0; top:0; bottom:0; background:var(--blue); opacity:.6;
+  transform:scaleX(var(--fill,0)); transform-origin:0 50%; transition:transform .3s}
 .vs-failed{padding:10px 0 0; font-size:13px; color:#B3261E}
 
 .vs-middle{flex:1; min-height:0; display:grid; grid-template-columns:70px 1fr 290px; gap:40px; padding:14px 0 0}
@@ -1302,10 +1547,16 @@ const CSS = `
 .vs-cap{font-size:13px; color:var(--ink2); text-align:right; margin-bottom:10px; font-variant-numeric:oldstyle-nums}
 .vs-stack{flex:1; display:flex; flex-direction:column; gap:5px; min-height:0}
 .vs-trow{flex:1; display:flex; align-items:center; justify-content:flex-end; min-height:5px}
-.vs-tick{height:1.5px; background:var(--blue); opacity:.38; width:12px; transition:width .3s, opacity .3s, background .3s; display:block}
-.vs-trow.vs-done .vs-tick{opacity:.72; width:18px}
-.vs-trow.vs-now .vs-tick{opacity:1; width:40px; height:2.5px; background:var(--saffron-full)}
-.vs-trow:hover .vs-tick{opacity:.9; width:24px}
+/* One box, 40 px wide, right-aligned in the row; the visible length is a
+   scale. Thirty-six of these share a column and the hover and the position
+   change animate two at once, so keeping them off the layout path is worth
+   more than the four bytes it costs. */
+.vs-tick{height:1.5px; background:var(--blue); opacity:.38; width:40px; display:block;
+  transform:scaleX(.3); transform-origin:100% 50%;
+  transition:transform .3s, opacity .3s, background .3s}
+.vs-trow.vs-done .vs-tick{opacity:.72; transform:scaleX(.45)}
+.vs-trow.vs-now .vs-tick{opacity:1; transform:scaleX(1); height:2.5px; background:var(--saffron-full)}
+.vs-trow:hover .vs-tick{opacity:.9; transform:scaleX(.6)}
 .vs-foot{font-size:13px; color:var(--ink2); text-align:right; margin-top:10px; font-variant-numeric:oldstyle-nums}
 
 .vs-vessel{display:flex; flex-direction:column; min-width:0}
@@ -1381,7 +1632,8 @@ const CSS = `
 }
 .vs-second{display:block; margin-top:6px; font-size:calc(19px * var(--scale)); line-height:1.9; color:var(--ink2)}
 .vs-prog{display:block; margin-top:11px; height:2px; background:var(--rule-soft); position:relative}
-.vs-prog i{position:absolute; left:0; top:0; bottom:0; background:var(--saffron-full); transition:width .3s linear}
+.vs-prog i{position:absolute; left:0; top:0; bottom:0; background:var(--saffron-full);
+  width:calc(var(--glide, 0) * 100%)}
 
 .vs-margin{min-height:0; position:relative; display:flex; flex-direction:column}
 .vs-gloss{flex:1; min-height:0}
@@ -1474,9 +1726,10 @@ const CSS = `
   .vs-well, .vs-draw{animation:none !important}
   .vs-say{transition:opacity 200ms linear}
   .vs-navrow::after, .vs-v::after{transition:opacity 200ms linear}
-  /* The key keeps its travel: it is the state of the app, not an effect. */
-  .vs-stage .vs-key{transition:transform 90ms linear, box-shadow 90ms linear}
-  .vs-draw{opacity:1; stroke-dashoffset:15}
+  /* The well keeps its travel: how deep it sits IS the state of the app,
+     not an effect. Only the ease of the journey is shortened. */
+  .vs-stage .vs-wellbtn{transition:transform 90ms linear, box-shadow 90ms linear}
+  .vs-draw{opacity:1; stroke-dashoffset:37}
   .vs-clip{scroll-behavior:auto}
   .vs-scroll, .vs-prog i, .vs-tick, .vs-leadtext{transition:none}
 }
