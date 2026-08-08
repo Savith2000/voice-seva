@@ -42,27 +42,18 @@ The app works. It has never been chanted into at its current size.
 | | |
 |---|---|
 | Branch | `full-rudram-and-the-book-page` |
-| HEAD | `1e9e209` "Let the ribbon settle instead of springing" |
+| HEAD | `89e5d8e` "Serve ORT's WASM backend from this origin…" |
 | Working tree | clean except 7 untracked files (§8 D) |
-| `npm test` | **145 pass, 0 fail** |
+| `npm test` | **148 pass, 0 fail** |
 | `npm run typecheck` / `lint` / `build` | all clean |
 
-### ⚠️ Six commits are unpushed
+### ⚠️ Unpushed commits
 
-`origin/full-rudram-and-the-book-page` is at **`f15d00a`**. Local is at
-`1e9e209`. `origin/main` (`bb85ef4`, PR #4) contains everything **up to
-f15d00a and no further.**
-
-So these six exist **only on this machine**:
-
-```
-1e9e209  Let the ribbon settle instead of springing
-68668f3  Replace the listening button with the book's own ribbon
-f3a07a8  Animate the small marks with transforms instead of widths
-6d7119d  Draw a continuous line through the windows
-4d65340  Try every accelerator the device has, best first
-ac991a6  Add a page that says what the device can actually do
-```
+`origin/full-rudram-and-the-book-page` is at **`f15d00a`**. `origin/main`
+(`bb85ef4`, PR #4) contains everything **up to f15d00a and no further.**
+Everything after f15d00a — the ribbon, the capabilities page, the backend
+ladder, the glide and its snap-fix, the self-hosted ORT + isolation — exists
+**only on this machine.** Run `git log f15d00a..` for the list.
 
 **If the user has deployed, none of that is live.** Confirm before diagnosing
 anything they report. Ask before pushing — they merge via PR themselves.
@@ -288,7 +279,12 @@ worker on every real machine** — a Surface and a Mac — while every test pass
 > — was never run with those headers even once.** If you test anything
 > backend-related in headless, you are testing the fallback. Assume it.
 
-The mechanism is still real (§8 B2). Kept behind `VOICE_SEVA_ISOLATE=1`.
+**Resolved since (`89e5d8e`):** both named conditions were met — ORT's WASM
+binaries are copied into `public/ort/` by `tools/copy-ort-wasm.mjs` before
+every dev and build, and the WebGPU path was watched working in headed Chrome
+with the headers live. Isolation is now ON by default; `VOICE_SEVA_ISOLATE=0`
+is the kill switch. WASM measured 446 ms/window against the old ~1400 ms on
+the M4 — threads are real. **Not yet tried on the Surface.**
 
 ### The adaptive window (never shipped, on purpose)
 Shortening 5 s → 3 s on slow devices buys real compute. But score is
@@ -309,9 +305,12 @@ recording.
    this hardware and been wrong both times.**
 2. **Chant into it at 303 lines.** Every threshold in `follow.ts` still comes
    from **one chanter, one session, fifteen windows** — against nine times the
-   text it was measured on. `glide.ts` has never run against a real voice,
-   because it only engages once the tracker is genuinely following and a fake
-   microphone never gets there.
+   text it was measured on. `glide.ts` met its first real voice this session
+   and failed it: it rendered every noisy reading the frame it arrived, and on
+   a fast machine that snapped several times a second — the machine got faster
+   and the page got worse. Fixed in `0ede139` (the ink now chases readings:
+   eases forward, never moves backwards within a line). The fix passes its
+   tests; **whether it *feels* right still needs the chanter.**
 3. **A group / second recording.** Flagged since the first handoff, never
    delivered. Still the highest-value input available.
 
@@ -322,12 +321,10 @@ recording.
    public site — that is mostly phones. There is a breakpoint at 960px that
    hides the measure entirely and **nobody has ever looked at what it does.**
    This is the largest untested surface in the project.
-5. **WASM is pinned to one thread.** ONNX Runtime sets `numThreads = 1` without
-   cross-origin isolation, by its own explicit rule. Microsoft's benchmark says
-   ~3.4× from two threads plus SIMD. The fix is to **self-host ORT's WASM
-   binaries** (~36 MB into `public/`) so isolation does not break the
-   CDN-hosted backend, then verify on a **GPU-capable** browser — the step that
-   was skipped and caused the outage.
+5. ~~WASM is pinned to one thread.~~ **Done (`89e5d8e`).** ORT self-hosted in
+   `public/ort/`, isolation on by default, verified headed on the M4: WASM
+   446 ms/window (was ~1400), WebGPU path unharmed. Remaining risk: no machine
+   but this one has run with the headers yet — the Surface is the real test.
 6. **The 190 MB download on mobile data** is a product problem, not a technical
    one. Nobody is warned what they are about to spend.
 7. **UI preferences do not persist** across reloads (script, size, light).
