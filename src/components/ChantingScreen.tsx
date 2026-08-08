@@ -37,6 +37,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 import { listAudioInputs, type AudioInput } from "@/lib/audio/capture";
@@ -904,19 +905,34 @@ export default function ChantingScreen() {
  */
 const PHONE = "(max-width: 760px)";
 
+/**
+ * Read synchronously during render, not set from an effect.
+ *
+ * The first version held this in state and filled it in from an effect, and
+ * on the owner's iPhone the page came up as the desktop composition squeezed
+ * into 390 px — the media queries had plainly worked, because the controls
+ * were in their narrow arrangement, but the attribute this branch keys on was
+ * still "no". An effect that does not run, runs late, or runs after a failed
+ * hydration leaves the layout permanently wrong, and there is no way for the
+ * page to notice.
+ *
+ * useSyncExternalStore reads the match during render on the client, so the
+ * first painted frame is already right and no effect has to arrive to rescue
+ * it. The server snapshot is false because a server has no viewport; that is
+ * also why the stylesheet carries a narrow-width floor (see the CSS), so the
+ * markup rendered before JavaScript is readable rather than a heap.
+ */
 function usePhone(): boolean {
-  // Starts false so the server and the first client paint agree; a phone
-  // corrects itself in the effect before anything is chanted. Guessing here
-  // is what produces a hydration mismatch on the one device that matters.
-  const [phone, setPhone] = useState(false);
-  useEffect(() => {
+  const subscribe = useCallback((changed: () => void) => {
     const query = window.matchMedia(PHONE);
-    const read = () => setPhone(query.matches);
-    read();
-    query.addEventListener("change", read);
-    return () => query.removeEventListener("change", read);
+    query.addEventListener("change", changed);
+    return () => query.removeEventListener("change", changed);
   }, []);
-  return phone;
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(PHONE).matches,
+    () => false,
+  );
 }
 
 /**
@@ -2038,6 +2054,33 @@ const CSS = `
   .vs-ctrls{grid-template-columns:repeat(2,minmax(0,1fr))}
   .vs-model{text-align:left}
   .vs-crest img{width:72px; height:72px}
+}
+
+/* The floor under a narrow screen.
+   ------------------------------------------------------------------------
+   These rules apply to the PAGE composition at phone width, and they exist
+   because that composition can still be what is on screen there: it is what
+   the server renders before any JavaScript has run, and it is what remains if
+   hydration is slow or fails. Without them a phone showing the page gets
+   three columns of a 1440 px design heaped on top of each other — which is
+   exactly what the owner photographed. The phone rules below outspecify every
+   one of these, so this is a floor and never a ceiling. */
+@media (max-width:760px){
+  .vs-stage{height:auto; min-height:100dvh; overflow:auto; padding:18px 16px 24px}
+  .vs-head{flex-direction:column; gap:16px}
+  .vs-crest{align-self:flex-start; margin-top:0}
+  .vs-crest img{width:64px; height:64px}
+  .vs-middle{display:block; padding-top:16px}
+  .vs-measure{display:none}
+  .vs-window{height:52dvh; min-height:300px}
+  .vs-scroll{padding:0 14px}
+  .vs-leadtext{font-size:calc(19px * var(--scale))}
+  .vs-ln.vs-big .vs-leadtext{font-size:calc(26px * var(--scale))}
+  .vs-margin{margin-top:20px}
+  .vs-state{margin-top:20px}
+  .vs-colophon{grid-template-columns:1fr; gap:16px}
+  .vs-ctrls{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vs-model{text-align:left}
 }
 
 /* ==========================================================================
