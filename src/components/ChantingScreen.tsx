@@ -536,26 +536,18 @@ export default function ChantingScreen() {
             <p className="vs-sr" role="status">
               {STATE_WORDS[shows].word} {STATE_WORDS[shows].sub}
             </p>
-            <button
-              type="button"
-              className="vs-key"
-              data-live={running}
-              disabled={starting}
-              onClick={
+            {/* A book's own ribbon, hung from the head of the page. Pull it
+                down to begin; it stays down while the app is listening, and
+                springs back when it is not. */}
+            <Ribbon
+              live={running}
+              busy={starting}
+              onToggle={
                 running || starting
                   ? () => void session.stop()
                   : () => void session.start("mic", { deviceId: deviceId || undefined })
               }
-            >
-              <span className="vs-says vs-labels">
-                <span className="vs-say" data-on={!running} aria-hidden={running}>
-                  Begin listening
-                </span>
-                <span className="vs-say" data-on={running} aria-hidden={!running}>
-                  Pause listening
-                </span>
-              </span>
-            </button>
+            />
           </div>
         </div>
       </header>
@@ -996,6 +988,117 @@ function NavRow({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * The ribbon: a bookmark you pull to begin.
+ *
+ * What it replaced was a 150 x 40 slab of full-chroma #EE7900 — by a wide
+ * margin the largest field of pure colour on a page otherwise made of paper
+ * and ink, and it read as harsh because it broke this palette's own rule.
+ * brand-spec.md reserves full-chroma orange for "small, earned moments", and
+ * every other place it appears is a mark: a 2 px rule, a 23 px disc, a
+ * hairline, a 2.5 px tick. The button was a billboard among marks.
+ *
+ * A ribbon fixes that by being narrow. Fifteen pixels of saffron is a mark
+ * again, so the colour is allowed back without shouting — and a ribbon is
+ * something a book actually has, which the slab never was.
+ *
+ * OBVIOUSNESS, WHICH THIS COSTS AND HAS TO BUY BACK
+ *
+ * The previous change existed because nobody could tell what to press. A
+ * ribbon is less self-evidently a control than a key, so it earns that back
+ * deliberately: a fishtail end, the grab cursor, a hover that extends it a
+ * little the way anything pullable should, its words kept underneath rather
+ * than dropped, and a real accessible name. It stays a <button>, so a
+ * keyboard still just presses it.
+ *
+ * You can pull it or you can tap it. Pulling the wrong way does nothing and it
+ * springs back, which is the honest behaviour for a thing on a spring.
+ */
+function Ribbon({
+  live,
+  busy,
+  onToggle,
+}: {
+  live: boolean;
+  busy: boolean;
+  onToggle: () => void;
+}) {
+  const ref = useRef<HTMLButtonElement | null>(null);
+  const drag = useRef({ active: false, from: 0, moved: 0 });
+
+  const setDrag = (px: number) => {
+    // Straight to the DOM. A pointer moves far more often than sixty times a
+    // second and none of it is worth a React render.
+    ref.current?.style.setProperty("--drag", `${px}`);
+  };
+
+  const down = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (busy) return;
+    drag.current = { active: true, from: event.clientY, moved: 0 };
+    ref.current?.setPointerCapture(event.pointerId);
+    ref.current?.setAttribute("data-held", "");
+  };
+
+  const move = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!drag.current.active) return;
+    // Bounded both ways: a ribbon is sewn in at the top and only has so much
+    // slack. Resisting past the limit is what tells a hand it has arrived.
+    const dy = Math.max(-46, Math.min(78, event.clientY - drag.current.from));
+    drag.current.moved = dy;
+    setDrag(dy);
+  };
+
+  const up = () => {
+    if (!drag.current.active) return;
+    const dy = drag.current.moved;
+    drag.current.active = false;
+    ref.current?.removeAttribute("data-held");
+    setDrag(0);
+    // A tap counts. So does a deliberate pull in the direction that would
+    // change something — down to start, up to stop. Anything else springs back
+    // and is treated as a change of mind, not an accident to be guessed at.
+    const tapped = Math.abs(dy) < 5;
+    const pulled = live ? dy < -20 : dy > 20;
+    if (tapped || pulled) onToggle();
+  };
+
+  return (
+    <div className="vs-hang">
+      <button
+        ref={ref}
+        type="button"
+        className="vs-ribbon"
+        data-live={live}
+        disabled={busy}
+        aria-pressed={live}
+        aria-label={live ? "Pause listening" : "Begin listening"}
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={up}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            if (!busy) onToggle();
+          }
+        }}
+      >
+        <span className="vs-band" aria-hidden="true" />
+      </button>
+      <span className="vs-hangword">
+        <span className="vs-says vs-labels">
+          <span className="vs-say" data-on={!live} aria-hidden={live}>
+            Pull to begin
+          </span>
+          <span className="vs-say" data-on={live} aria-hidden={!live}>
+            Pull to stop
+          </span>
+        </span>
+      </span>
+    </div>
+  );
+}
+
+/**
  * The state mark: a well that the voice fills with ink.
  *
  * It replaced four unrelated CSS rules — two drawing a border, two a background
@@ -1263,7 +1366,7 @@ const CSS = `
 .vs-navrow button.vs-here{color:var(--ink); opacity:1; font-weight:600}
 .vs-navrow button[data-on="true"]{opacity:1}
 
-.vs-state{width:290px; flex:none; display:flex; gap:13px; align-items:flex-start}
+.vs-state{width:330px; flex:none; display:flex; gap:13px; align-items:flex-start; position:relative; padding-right:96px}
 /* ---- the ink well -------------------------------------------------------
    One material in four states, where there used to be four unrelated rules
    with nothing between them. Everything below interpolates, so no change is
@@ -1317,45 +1420,59 @@ const CSS = `
 /* Pressing it. The nib is put to the paper before any ink moves — 90 ms, the
    shortest thing on the page, because acknowledgement that arrives late reads
    as latency rather than as response. */
-/* ---- the key --------------------------------------------------------------
-   It read as a line of text before, and the one thing a first-time visitor
-   has to do was the quietest thing on the screen.
+/* ---- the ribbon -----------------------------------------------------------
+   A bookmark sewn in at the head of the page. It hangs, so it is anchored to
+   the top of the state block and falls past it — a ribbon that began halfway
+   down would be a decoration of a ribbon.
 
-   It is a key now, and a latching one: UP when nothing is being heard, and
-   held DOWN for as long as it is listening. The state of the app is the
-   physical state of the object, the way it is on a tape recorder — you can
-   tell across a room whether it is running without reading a word.
+   Length is scaleY off a fixed band rather than an animated height: composited,
+   and consistent with every other moving mark on this page. The fishtail scales
+   with it, which reads as the notch coming into view rather than as an error.
 
-   The depth is the side of a solid thing rather than a decorative offset
-   shadow, so it collapses when the key goes down; the soft shadow under it is
-   the light, and that is what carries blur. Pressing costs 90 ms, the fastest
-   thing on the page, because acknowledgement arriving late reads as latency.
+   The colour is allowed here precisely because the object is narrow. Fifteen
+   pixels of full-chroma saffron is a mark, which the palette permits; a
+   150 x 40 slab of it was not, which is what this replaced.
    -------------------------------------------------------------------------- */
-.vs-stage .vs-key{
-  --depth:5px;
-  position:relative; display:inline-block; margin-top:11px;
-  padding:9px 17px 10px; border-radius:3px;
-  font-family:var(--book); font-size:16px; letter-spacing:.01em;
-  color:var(--key-face); background:var(--saffron-full);
-  box-shadow:0 var(--depth) 0 var(--key-side), 0 calc(var(--depth) + 3px) 9px var(--key-well);
-  transition:transform 90ms var(--ease), box-shadow 90ms var(--ease),
-             background 320ms var(--ease), color 320ms var(--ease);
+/* The caption sits below the ribbon's FULLEST extension, not below its current
+   one, so it never has to move and the band never runs through the words. The
+   air above it when the ribbon is up is the slack in a real one. */
+.vs-hang{position:absolute; top:-30px; right:0; display:flex; flex-direction:column;
+  align-items:center; gap:6px; width:88px}
+.vs-stage .vs-ribbon{
+  --extend:.40; --drag:0;
+  display:block; width:88px; height:96px; padding:0; background:none; border:0;
+  cursor:grab; touch-action:none;
 }
-.vs-stage .vs-key:hover:not(:disabled){--depth:6px}
-.vs-stage .vs-key:active:not(:disabled){
-  transform:translateY(var(--depth));
-  box-shadow:0 0 0 var(--key-side), 0 1px 3px var(--key-well);
+.vs-stage .vs-ribbon[data-held]{cursor:grabbing}
+.vs-stage .vs-ribbon:disabled{cursor:default; opacity:.55}
+.vs-band{
+  display:block; width:15px; height:96px; margin:0 auto;
+  /* Satin: a bright fold slightly off-centre, which is how a woven ribbon
+     catches light. Not a decorative gradient — it is what the material is. */
+  background:linear-gradient(90deg,
+    #B05400 0%, #D96D00 24%, #EE7900 42%,
+    #FFB067 52%, #EE7900 64%, #C05E00 88%, #A24E00 100%);
+  clip-path:polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 9px), 0 100%);
+  transform-origin:50% 0;
+  transform:scaleY(calc(var(--extend) + var(--drag) / 96));
+  /* A spring, not an ease: it is cloth on a hinge and it should overshoot a
+     little before it settles. */
+  transition:transform 520ms cubic-bezier(.22,1.4,.36,1);
+  box-shadow:0 1px 2px var(--key-well);
 }
-.vs-stage .vs-key:focus-visible{outline:2px solid var(--blue); outline-offset:3px}
-/* Held down for as long as it is listening. */
-.vs-stage .vs-key[data-live="true"]{
-  background:var(--saffron-pale); color:var(--ink);
-  transform:translateY(var(--depth));
-  box-shadow:0 0 0 var(--key-side), inset 0 1px 3px var(--key-well);
-}
-.vs-stage .vs-key[data-live="true"]:active:not(:disabled){transform:translateY(calc(var(--depth) + 1px))}
-.vs-stage .vs-key:disabled{opacity:.6; cursor:default}
-.vs-state:has(.vs-key:active) .vs-well{transform:scale(.86)}
+/* Hover hints in the direction the pull would go, and it has to be scoped:
+   a hover selector outspecifies a plain attribute one, so an unscoped hover
+   retracted a ribbon that was actually listening — the mark contradicting the
+   state it exists to report, and only while the pointer sat on it. */
+.vs-stage .vs-ribbon:hover:not(:disabled):not([data-live="true"]) .vs-band{--extend:.48}
+.vs-stage .vs-ribbon[data-live="true"]:hover:not(:disabled) .vs-band{--extend:.86}
+.vs-stage .vs-ribbon[data-held] .vs-band{transition:none}
+.vs-stage .vs-ribbon[data-live="true"] .vs-band{--extend:.92}
+.vs-stage .vs-ribbon:focus-visible{outline:2px solid var(--blue); outline-offset:2px; border-radius:2px}
+.vs-hangword{font-size:13px; font-style:italic; color:var(--ink2); text-align:center;
+  white-space:nowrap; transition:color 300ms var(--ease)}
+.vs-stage .vs-ribbon:hover:not(:disabled) + .vs-hangword{color:var(--ink)}
+.vs-state:has(.vs-ribbon[data-held]) .vs-well{transform:scale(.9)}
 
 /* ---- the words -----------------------------------------------------------
    Every state is rendered and stacked in one grid cell, and only opacity and
@@ -1383,7 +1500,7 @@ const CSS = `
    between two equally-present things. */
 .vs-say:not([data-on="true"]){transition-duration:220ms}
 .vs-labels{justify-items:start}
-.vs-stage .vs-key .vs-say{transition-duration:260ms}
+.vs-hangword .vs-say{transition-duration:260ms}
 
 /* ---- the travelling underline -------------------------------------------
    One mark per group, moved to whichever choice is active, rather than a
@@ -1614,8 +1731,9 @@ const CSS = `
   .vs-well, .vs-draw{animation:none !important}
   .vs-say{transition:opacity 200ms linear}
   .vs-navrow::after, .vs-v::after{transition:opacity 200ms linear}
-  /* The key keeps its travel: it is the state of the app, not an effect. */
-  .vs-stage .vs-key{transition:transform 90ms linear, box-shadow 90ms linear}
+  /* The ribbon keeps its travel: where it hangs IS the state of the app,
+     not an effect. Only the spring in it is dropped. */
+  .vs-band{transition:transform 160ms linear}
   .vs-draw{opacity:1; stroke-dashoffset:15}
   .vs-clip{scroll-behavior:auto}
   .vs-scroll, .vs-prog i, .vs-tick, .vs-leadtext{transition:none}
