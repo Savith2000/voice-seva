@@ -65,7 +65,12 @@
   property only a continuous scroll can show, because stillness on it is
   visibly stillness, not a stuck slide.
 -->
-<html lang="en">
+<!-- data-light lives on <html>, not only on .stage: the colour tokens are
+     declared on [data-light], and <body> paints the page's ground. With the
+     attribute lower down the tree, body's background resolved to nothing and
+     the browser's own white showed through wherever the paper did not reach —
+     most visibly behind the bottom bar's rounded corners. -->
+<html lang="en" data-light="dawn">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -133,7 +138,14 @@
             mask-image:linear-gradient(to bottom,transparent 0,#000 8%,#000 92%,transparent 100%);
   }
   .clip:focus-visible{outline:1px solid var(--blue); outline-offset:-1px}
-  .scrollpad{padding:34dvh 22px 60dvh}
+  /* The head of the chant sits at the head of the paper.
+     This was 34dvh — roughly 290 px of empty paper above the first line,
+     phantom space whose only job was to let line 1 be scrolled down to the
+     anchor. It made the app open on a void. The anchor already clamps at
+     zero, so the first lines simply sit where they fall and the paper starts
+     gliding once there is something above to glide. That is how the top of a
+     page behaves, and a reader knows it without being told. */
+  .scrollpad{padding:20px 22px 60dvh}
   @media (max-width:370px){ .scrollpad{padding-left:16px; padding-right:16px} }
 
   .unit{padding:10px 0}
@@ -201,11 +213,21 @@
   .scrim{position:fixed; inset:0; z-index:20; background:#0A0806; opacity:0; pointer-events:none}
 
   /* ---- the bottom bar / sheet ------------------------------------------- */
+  /* Collapsed, this is not a card floating over the page — it is the FOOT of
+     the page, the same paper, parted from the reading surface by the same
+     hairline rule that parts everything else in this book. It only becomes a
+     sheet as it rises: --lift runs 0→1 with the drag, and the corners round
+     and the shadow grows out of it. A rounded card sitting at rest left two
+     wedges of not-paper at its top corners, which is exactly what the eye
+     catches and calls unfinished. */
   .sheet{
+    --lift:0;
     position:fixed; left:0; right:0; bottom:0; z-index:30;
     height:min(86dvh,720px);
-    background:var(--paper); border-radius:18px 18px 0 0;
-    box-shadow:0 -1px 0 var(--rule), 0 -12px 32px var(--key-well);
+    background:var(--paper);
+    border-radius:calc(18px * var(--lift)) calc(18px * var(--lift)) 0 0;
+    box-shadow:0 -1px 0 var(--rule),
+      0 calc(-14px * var(--lift)) calc(34px * var(--lift)) var(--key-well);
     display:flex; flex-direction:column;
     will-change:transform;
     transition:background .5s ease;
@@ -878,6 +900,8 @@ function setSheetY(y, immediate = false){
   sheetY = Math.max(0, Math.min(collapsedY, y));
   sheet.style.transform = "translateY(" + sheetY.toFixed(1) + "px)";
   const p = collapsedY > 0 ? 1 - sheetY / collapsedY : 0;
+  // The paper only lifts off the page as it is raised. See .sheet.
+  sheet.style.setProperty("--lift", p.toFixed(3));
   scrim.style.opacity = (0.42 * p).toFixed(3);
   scrim.style.pointerEvents = p > 0.4 ? "auto" : "none";
   sbody.style.opacity = Math.max(0, (p - 0.15) / 0.85).toFixed(3);
@@ -1063,6 +1087,9 @@ const setSizeChoice = wireChoices("c-size", (v) => {
 const setLightChoice = wireChoices("c-light", (v) => {
   light = v;
   stage.dataset.light = v;
+  // The tokens must also reach <body>, or the page's own background resolves
+  // to nothing and the browser paints white behind everything.
+  document.documentElement.dataset.light = v;
   document.querySelector('meta[name="theme-color"]').setAttribute("content", v === "dawn" ? "#131110" : "#E8E1D3");
 });
 
