@@ -41,22 +41,26 @@ The app works. It has never been chanted into at its current size.
 
 | | |
 |---|---|
-| Branch | `full-rudram-and-the-book-page` |
-| HEAD | `89e5d8e` "Serve ORT's WASM backend from this origin…" |
+| Branch | **`main`** — work happens here now |
 | Working tree | clean except 7 untracked files (§8 D) |
 | `npm test` | **148 pass, 0 fail** |
 | `npm run typecheck` / `lint` / `build` | all clean |
 
-### ⚠️ Unpushed commits
+### ⚠️ Push every commit to `main`, immediately
 
-`origin/full-rudram-and-the-book-page` is at **`f15d00a`**. `origin/main`
-(`bb85ef4`, PR #4) contains everything **up to f15d00a and no further.**
-Everything after f15d00a — the ribbon, the capabilities page, the backend
-ladder, the glide and its snap-fix, the self-hosted ORT + isolation — exists
-**only on this machine.** Run `git log f15d00a..` for the list.
+**This reverses the old instruction.** The feature branch was merged (PR #6)
+and the user then asked to work on `main` and **push each commit to
+`origin/main` as it is made, without asking**, until they say otherwise.
 
-**If the user has deployed, none of that is live.** Confirm before diagnosing
-anything they report. Ask before pushing — they merge via PR themselves.
+The reason is testing: they judge this app by chanting into the deployed
+version on their phone, and a commit that has not been pushed does not exist
+as far as that is concerned. The branch-PR-merge round trip was costing a full
+cycle per fix. **Deploying on every push is the point, not a side effect.**
+
+So: run the checks bare (`typecheck`, `lint`, `test`, `build`), commit with
+the usual essay-length message, and push in the same breath. No feature
+branches, no PRs, no asking. A broken push is now a broken deployment, which
+is exactly why the checks are not optional.
 
 ---
 
