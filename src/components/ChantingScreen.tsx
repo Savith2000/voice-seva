@@ -962,13 +962,36 @@ function PhoneSheet({
   const peekRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const scrimRef = useRef<HTMLDivElement | null>(null);
-  const [open, setOpen] = useState(false);
+  const grabRef = useRef<HTMLButtonElement | null>(null);
 
   /** How far down the sheet sits when collapsed. Measured, never assumed. */
   const shut = useRef(0);
   const at = useRef(0);
-  const drag = useRef({ active: false, from: 0, base: 0, moved: 0, last: 0, vel: 0 });
+  /** Velocity, px per second. Carried across a flick into the settle. */
+  const vel = useRef(0);
+  const drag = useRef({ active: false, from: 0, base: 0, moved: 0, at: 0, vel: 0 });
   const raf = useRef(0);
+  /**
+   * Whether the sheet is up — a ref, and deliberately not React state.
+   *
+   * Two separate faults came from holding it in state, and together they were
+   * the whole of "it just jumps up rather than moving smoothly".
+   *
+   * The first: the measurement effect listed it as a dependency, so every
+   * toggle re-ran the measurement, which ends by PLACING the sheet at its
+   * target. The sheet arrived instantly and the settle had nothing left to
+   * animate.
+   *
+   * The second outlived that fix and was the larger one. Setting state here
+   * re-renders a component holding three hundred lines of scripture, and that
+   * reconciliation takes long enough to push out the first animation frame —
+   * measured at about 55 ms, so the spring's opening step covered a fifth of
+   * the travel in one go and the movement began with a lurch. Nothing about
+   * raising a sheet requires React to re-render anything: the position is a
+   * transform, the label is one attribute, and both are written straight to
+   * the DOM.
+   */
+  const openRef = useRef(false);
 
   const put = useCallback((y: number) => {
     const sheet = sheetRef.current;
@@ -990,23 +1013,78 @@ function PhoneSheet({
     }
   }, []);
 
+  /**
+   * Settle to a position — critically damped, and it carries the flick.
+   *
+   * This was an exponential lag (`x += (target - x) * k`), which is the reflex
+   * and is wrong for a drawer: exponential decay leaves rest at its highest
+   * speed and only ever slows down, so the sheet snapped away from the finger
+   * and crept the last few pixels. A drawer accelerates out of rest.
+   *
+   * A critically damped spring does both — it eases out of rest and into the
+   * stop — and critically damped means exactly zero overshoot, so it settles
+   * rather than bounces. That distinction is the page's own rule and it is not
+   * a matter of taste here: this is a screen someone is looking at mid-prayer,
+   * and a bounce is a flourish they did not ask for.
+   *
+   * Because it is a spring rather than a curve, an interrupted movement is
+   * simply the same spring with the velocity it already had, and a flick hands
+   * its own speed to the settle instead of being thrown away and restarted.
+   */
   const glideTo = useCallback(
     (target: number) => {
       cancelAnimationFrame(raf.current);
       const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
       if (reduced) {
+        vel.current = 0;
         put(target);
         return;
       }
-      let last = performance.now();
+      // Natural frequency, radians per second. ~13 settles a full-height sheet
+      // in a little over 400 ms, the band this page uses for a layout change.
+      const OMEGA = 13;
+      // Established on the first frame rather than now, and this is the
+      // difference between a movement and a lurch.
+      //
+      // The frame that first reveals the sheet is expensive: everything under
+      // it — twenty-four section buttons, the controls, the gloss — has been
+      // sitting off the bottom of the screen unpainted, and it all has to be
+      // rasterised before anything can move. Measured here at about 55 ms. A
+      // spring told that 55 ms had passed does the honest thing and covers a
+      // fifth of the travel in that one step, which is precisely the jump this
+      // was reported as. So the first frame only starts the clock; the spring
+      // begins on the second, when the browser is actually able to animate.
+      let last = 0;
       const step = (now: number) => {
-        const dt = Math.min(64, now - last);
+        if (last === 0) {
+          last = now;
+          raf.current = requestAnimationFrame(step);
+          return;
+        }
+        // And a later hitch stretches the settle rather than teleporting
+        // through it: at most a frame and a half of travel in any one frame.
+        const dt = Math.min(0.025, (now - last) / 1000);
         last = now;
-        // Exponential settle, the page's own grammar. Nothing bounces: this is
-        // a screen for someone mid-prayer, and a spring is a flourish they did
-        // not ask for.
-        const next = at.current + (target - at.current) * (1 - Math.exp(-dt / 110));
-        if (Math.abs(target - next) < 0.5) {
+
+        // Advanced along the spring's exact solution rather than by stepping
+        // its acceleration. Integrating the acceleration is the obvious way
+        // and it is unstable here: a dropped frame makes omega*dt approach 1,
+        // the step overshoots the target, and the sheet visibly stutters
+        // backwards on its way — which is what the first attempt did, and it
+        // looked worse than the jump it was written to fix. The closed form
+        // for a critically damped spring is stable at any timestep and can
+        // never overshoot, so a slow frame costs smoothness and nothing else.
+        const x0 = at.current - target;
+        const c = vel.current + OMEGA * x0;
+        const decay = Math.exp(-OMEGA * dt);
+        const offset = (x0 + c * dt) * decay;
+        vel.current = (c - OMEGA * (x0 + c * dt)) * decay;
+
+        const next = target + offset;
+        // Settled: near enough and slow enough that another frame would move
+        // it less than a pixel.
+        if (Math.abs(offset) < 0.4 && Math.abs(vel.current) < 14) {
+          vel.current = 0;
           put(target);
           return;
         }
@@ -1032,7 +1110,10 @@ function PhoneSheet({
       sheet
         .closest<HTMLElement>(".vs-stage")
         ?.style.setProperty("--peek", `${peekEl.offsetHeight}px`);
-      put(open ? 0 : shut.current);
+      // Placed without animating, because this runs when the SIZE changed —
+      // a rotation, a keyboard, a safe-area shift — and re-deriving where the
+      // sheet sits is not a movement anyone asked to watch.
+      put(openRef.current ? 0 : shut.current);
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -1044,23 +1125,41 @@ function PhoneSheet({
       window.removeEventListener("resize", measure);
       cancelAnimationFrame(raf.current);
     };
-  }, [open, put]);
+  }, [put]);
 
   const toggle = useCallback(
     (next: boolean) => {
-      setOpen(next);
+      openRef.current = next;
+      grabRef.current?.setAttribute("aria-expanded", String(next));
+      grabRef.current?.setAttribute(
+        "aria-label",
+        next ? "Close settings" : "Open settings",
+      );
       glideTo(next ? 0 : shut.current);
     },
     [glideTo],
   );
 
   const down = (event: React.PointerEvent) => {
+    // A control inside the peek is a control, not a handle.
+    //
+    // The whole peek listens for the drag, so that the bar can be pulled from
+    // anywhere along it. That swallowed the one thing the bar exists to hold:
+    // pressing the well started a drag, the release was read as a tap on the
+    // bar, and the sheet opened instead of the session starting. The button a
+    // reader came to press must always win over the surface it sits on.
+    const target = event.target as HTMLElement;
+    if (target.closest("button, select, a, input, label") && !target.closest(".vs-grab")) {
+      return;
+    }
+    cancelAnimationFrame(raf.current);
+    vel.current = 0;
     drag.current = {
       active: true,
       from: event.clientY,
       base: at.current,
       moved: 0,
-      last: event.clientY,
+      at: event.timeStamp,
       vel: 0,
     };
     (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
@@ -1069,25 +1168,30 @@ function PhoneSheet({
   const move = (event: React.PointerEvent) => {
     if (!drag.current.active) return;
     const dy = event.clientY - drag.current.from;
-    drag.current.vel = event.clientY - drag.current.last;
-    drag.current.last = event.clientY;
+    // Pixels per second, so the flick can be handed to the spring in the units
+    // the spring thinks in.
+    const elapsed = Math.max(1, event.timeStamp - drag.current.at);
+    drag.current.vel = ((drag.current.base + dy - at.current) / elapsed) * 1000;
+    drag.current.at = event.timeStamp;
     drag.current.moved = dy;
     put(drag.current.base + dy);
   };
 
   const up = () => {
     if (!drag.current.active) return;
-    const { moved, vel } = drag.current;
+    const { moved, vel: thrown } = drag.current;
     drag.current.active = false;
-    // A tap counts. So does a flick, in the direction it was flicked. Anything
-    // else goes wherever it is nearer to, which is what a hand expects of a
-    // thing it has been holding.
+    // A tap counts. So does a flick, in the direction it was flicked — and the
+    // speed it was flicked at is handed to the settle rather than discarded,
+    // so a fast pull arrives fast and a slow one drifts home.
+    vel.current = Math.max(-4000, Math.min(4000, thrown));
     if (Math.abs(moved) < 5) {
+      vel.current = 0;
       toggle(at.current > shut.current / 2);
       return;
     }
-    if (Math.abs(vel) > 2) {
-      toggle(vel < 0);
+    if (Math.abs(thrown) > 320) {
+      toggle(thrown < 0);
       return;
     }
     toggle(at.current < shut.current / 2);
@@ -1113,12 +1217,14 @@ function PhoneSheet({
           <button
             type="button"
             className="vs-grab"
-            aria-expanded={open}
-            aria-label={open ? "Close settings" : "Open settings"}
+            ref={grabRef}
+            aria-expanded={false}
+            aria-label="Open settings"
             onClick={(event) => {
               // The pointer handlers above already decided a tap; this exists
-              // so a keyboard reaches the same place.
-              if (event.detail === 0) toggle(!open);
+              // so a keyboard reaches the same place. `detail === 0` is how a
+              // keyboard-generated click identifies itself.
+              if (event.detail === 0) toggle(!openRef.current);
             }}
           >
             <i />
