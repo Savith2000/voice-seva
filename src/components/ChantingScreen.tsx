@@ -1455,9 +1455,14 @@ const CSS = `
   clip-path:polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 9px), 0 100%);
   transform-origin:50% 0;
   transform:scaleY(calc(var(--extend) + var(--drag) / 96));
-  /* A spring, not an ease: it is cloth on a hinge and it should overshoot a
-     little before it settles. */
-  transition:transform 520ms cubic-bezier(.22,1.4,.36,1);
+  /* Settles rather than springs. The first attempt overshot on the grounds
+     that it is cloth on a hinge, which does not survive thinking about: cloth
+     damps. A silk ribbon let go falls and stops — it is a metal spring that
+     comes back past its rest. The fabric quality lives in the length of the
+     fall and in the drag tracking a finger exactly, not in a bounce, and this
+     is a screen for someone mid-prayer. Same exponential ease-out as every
+     other arrival on the page. */
+  transition:transform 560ms var(--ease);
   box-shadow:0 1px 2px var(--key-well);
 }
 /* Hover hints in the direction the pull would go, and it has to be scoped:
