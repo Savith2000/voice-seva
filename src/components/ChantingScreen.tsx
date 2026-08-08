@@ -1125,8 +1125,9 @@ function WellButton({
               the bowl and leaves a blob hanging below the rim. */}
           <g clipPath="url(#vs-bowl)">
             <rect ref={inkRef} className="vs-ink" x="0" y="0" width="56" height="56" />
-            {/* the drop that wets the floor on hover, before any commitment */}
-            <circle className="vs-drop" cx="28" cy="46" r="9" />
+            {/* the drop at the heart of the well on hover — the invitation.
+                Centred, not at the floor: at the floor it read as sediment. */}
+            <circle className="vs-drop" cx="28" cy="28" r="9" />
           </g>
           {/* the rim */}
           <circle className="vs-rim" cx="28" cy="28" r="23" />
@@ -1149,6 +1150,21 @@ function WellButton({
 }
 
 /** One line of the received text. */
+/**
+ * A line split at its word boundaries, gaps kept, each word numbered.
+ * Whitespace runs carry the number of the word before them so the map can
+ * hand them straight back without breaking the count.
+ */
+function toWords(text: string): { text: string; gap: boolean; spoken: number }[] {
+  return text
+    .split(/(\s+)/)
+    .reduce<{ text: string; gap: boolean; spoken: number }[]>((sofar, part) => {
+      const gap = /^\s*$/.test(part);
+      const previous = sofar.length ? sofar[sofar.length - 1].spoken : -1;
+      return [...sofar, { text: part, gap, spoken: gap ? previous : previous + 1 }];
+    }, []);
+}
+
 /**
  * Memoised, and the reason is arithmetic: the word-ink advances a few times a
  * second while someone chants, and each advance is a state change in the
@@ -1190,20 +1206,20 @@ const Line = memo(function Line({
   // The word index is worked out up front rather than counted during the map.
   // A counter mutated inside render is a different value on every pass, which
   // React now rejects outright — and rightly, since the ink would drift.
-  const words = useMemo(
-    () =>
-      primary
-        .split(/(\s+)/)
-        .reduce<{ text: string; gap: boolean; spoken: number }[]>((sofar, text) => {
-          const gap = /^\s*$/.test(text);
-          const previous = sofar.length ? sofar[sofar.length - 1].spoken : -1;
-          return [...sofar, { text, gap, spoken: gap ? previous : previous + 1 }];
-        }, []),
-    [primary],
-  );
+  const words = useMemo(() => toWords(primary), [primary]);
+  const secondaryWords = useMemo(() => toWords(secondary), [secondary]);
 
   const total = words.filter((w) => !w.gap).length;
   const reached = Math.max(0, Math.min(total - 1, inked));
+  // The second script inks in step with the first. PRODUCT.md says a large
+  // share of reciters read from the romanised line, and for them an ink that
+  // touches only the leading script is an ink that does not exist. The two
+  // scripts transliterate word for word almost everywhere, so the proportion
+  // is nearly always the identity; where the counts do differ, proportion is
+  // the honest mapping available without an alignment table.
+  const secondaryTotal = secondaryWords.filter((w) => !w.gap).length;
+  const secondaryReached =
+    total > 0 ? Math.floor((reached * secondaryTotal) / total) : 0;
 
   return (
     <div
@@ -1247,7 +1263,20 @@ const Line = memo(function Line({
           progress rule belongs only to the line actually being chanted. */}
       {big ? (
         <div className="vs-second" lang={lead === "dev" ? "sa-Latn" : "sa"}>
-          {secondary}
+          {current
+            ? secondaryWords.map((word, at) =>
+                word.gap ? (
+                  word.text
+                ) : (
+                  <span
+                    key={at}
+                    className={word.spoken < secondaryReached ? "vs-inked" : undefined}
+                  >
+                    {word.text}
+                  </span>
+                ),
+              )
+            : secondary}
         </div>
       ) : null}
       {/* The rule under the line is a pure width, so it is driven straight
