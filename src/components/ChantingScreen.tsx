@@ -525,49 +525,19 @@ export default function ChantingScreen() {
           </div>
         </div>
 
-        {/* Every state is in the DOM at once, stacked in a single grid cell.
-            The block is therefore always the height of the tallest and NOTHING
-            below it moves — which was the actual complaint. The control used to
-            travel 44 px between states, and no easing curve rescues a button
-            that relocates out from under the hand reaching for it. */}
-        <div className="vs-state" data-shows={shows}>
-          {/* The well IS the button now. It used to be a 23 px mark beside a
-              separate control (a key, then a ribbon — both replaced), and the
-              page carried two objects for one idea. Now there is one
-              instrument: press the well and it sinks into the paper and stays
-              sunk while listening, your own voice holding the ink up inside
-              it. Depth is the state, readable across a room. */}
-          <WellButton
-            shows={shows}
-            level={session.level}
-            live={running}
-            busy={starting}
-            onToggle={
-              running || starting
-                ? () => void session.stop()
-                : () => void session.start("mic", { deviceId: deviceId || undefined })
-            }
+        {/* The council's emblem, set at the head of the page like a crest on
+            letterhead. The listening instrument that sat here now lives at the
+            foot of the margin, where the printer's seal used to be — the owner
+            swapped them. The emblem carries its own name and values in its
+            ring, so no caption repeats them. */}
+        <div className="vs-crest">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/sssgc-usa.png"
+            alt="Sri Sathya Sai Global Council, U.S.A."
+            width={92}
+            height={92}
           />
-          <div className="vs-txt">
-            <div className="vs-says">
-              {SHOWN.map((key) => (
-                <div
-                  className="vs-say"
-                  key={key}
-                  data-on={key === shows}
-                  aria-hidden={key !== shows}
-                >
-                  <div className="vs-word">{STATE_WORDS[key].word}</div>
-                  <div className="vs-sub">{STATE_WORDS[key].sub}</div>
-                </div>
-              ))}
-            </div>
-            {/* The stack is hidden from assistive tech; this is the one voice
-                that speaks, and only when the state actually changes. */}
-            <p className="vs-sr" role="status">
-              {STATE_WORDS[shows].word} {STATE_WORDS[shows].sub}
-            </p>
-          </div>
         </div>
       </header>
 
@@ -696,18 +666,43 @@ export default function ChantingScreen() {
             </div>
           ) : null}
 
-          <div className="vs-seal">
-            <div className="vs-sealrow">
-              <div className="vs-who">
-                Sri Sathya Sai
-                <br />
-                International Organisation
+          {/* The listening instrument, at the foot of the margin where the
+              printer's seal used to sit. Every state is in the DOM at once,
+              stacked in a single grid cell, so the block is always the height
+              of the tallest and nothing around it ever moves — a control that
+              relocates out from under the hand reaching for it is the bug this
+              construction exists to prevent. */}
+          <div className="vs-state" data-shows={shows}>
+            <WellButton
+              shows={shows}
+              level={session.level}
+              live={running}
+              busy={starting}
+              onToggle={
+                running || starting
+                  ? () => void session.stop()
+                  : () => void session.start("mic", { deviceId: deviceId || undefined })
+              }
+            />
+            <div className="vs-txt">
+              <div className="vs-says">
+                {SHOWN.map((key) => (
+                  <div
+                    className="vs-say"
+                    key={key}
+                    data-on={key === shows}
+                    aria-hidden={key !== shows}
+                  >
+                    <div className="vs-word">{STATE_WORDS[key].word}</div>
+                    <div className="vs-sub">{STATE_WORDS[key].sub}</div>
+                  </div>
+                ))}
               </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/ssio-logo.png" alt="" width={62} height={62} />
-            </div>
-            <div className="vs-values">
-              Truth · Right Conduct · Peace · Love · Non-violence
+              {/* The stack is hidden from assistive tech; this is the one voice
+                  that speaks, and only when the state actually changes. */}
+              <p className="vs-sr" role="status">
+                {STATE_WORDS[shows].word} {STATE_WORDS[shows].sub}
+              </p>
             </div>
           </div>
         </aside>
@@ -1372,7 +1367,12 @@ const CSS = `
 .vs-navrow button.vs-here{color:var(--ink); opacity:1; font-weight:600}
 .vs-navrow button[data-on="true"]{opacity:1}
 
-.vs-state{width:330px; flex:none; display:flex; gap:16px; align-items:flex-start}
+/* At the foot of the margin, pinned there by the auto margin exactly as the
+   printer's seal it replaced was. The words sit beside the well and wrap in
+   the column's own width. */
+.vs-state{margin-top:auto; display:flex; gap:16px; align-items:flex-start}
+.vs-crest{flex:none; margin-top:4px}
+.vs-crest img{width:92px; height:92px; display:block}
 /* ---- the living well ----------------------------------------------------
    One material in four states, and now one instrument instead of two: the
    well is the button. Everything below interpolates, so no change is ever a
@@ -1641,11 +1641,6 @@ const CSS = `
 .vs-ref{font-family:var(--book); font-size:16px; color:var(--ink2); margin-bottom:9px}
 .vs-en{font-family:var(--book); font-size:18px; line-height:1.62}
 .vs-none{font-family:var(--book); font-size:15px; line-height:1.6; color:var(--ink2); font-style:italic}
-.vs-seal{margin-top:auto; text-align:right}
-.vs-sealrow{display:flex; align-items:center; gap:14px; justify-content:flex-end}
-.vs-seal img{width:62px;height:62px;display:block;flex:none}
-.vs-who{font-size:12px; line-height:1.7; letter-spacing:.11em; text-transform:uppercase; color:var(--blue); font-variant-numeric:oldstyle-nums}
-.vs-values{margin-top:9px; font-family:var(--book); font-style:italic; font-size:13px; color:var(--ink2)}
 
 .vs-import{
   flex:none; margin-top:14px; padding:13px 16px;
@@ -1743,7 +1738,8 @@ const CSS = `
 @media (max-width:960px){
   .vs-stage{height:auto; min-height:100dvh; overflow:auto; padding:20px 16px 26px}
   .vs-head{flex-direction:column; gap:18px}
-  .vs-state{width:auto}
+  .vs-crest{order:-1; align-self:flex-end; margin-top:0}
+  .vs-crest img{width:64px; height:64px}
   .vs-middle{display:block; padding-top:18px}
   .vs-measure{display:none}
   .vs-window{height:46dvh; min-height:290px}
@@ -1751,8 +1747,7 @@ const CSS = `
   .vs-leadtext{font-size:calc(20px * var(--scale)) !important}
   .vs-ln.vs-big .vs-leadtext{font-size:calc(30px * var(--scale)) !important}
   .vs-margin{margin-top:22px}
-  .vs-seal{text-align:left}
-  .vs-sealrow{justify-content:flex-start}
+  .vs-state{margin-top:22px}
   .vs-colophon{grid-template-columns:1fr; gap:18px}
   .vs-ctrls{grid-template-columns:repeat(2,minmax(0,1fr))}
   .vs-model{text-align:left}
