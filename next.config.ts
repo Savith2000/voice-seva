@@ -15,11 +15,29 @@ const nextConfig: NextConfig = {
    * while the rest of the machine idles. That is the WASM path's real problem —
    * not the graph, not the model, just one thread.
    *
-   * COEP is `credentialless` rather than `require-corp` on purpose: the model
-   * is fetched from huggingface.co, and require-corp blocks any cross-origin
-   * subresource that does not send CORP back. Credentialless keeps the
-   * isolation while letting cross-origin fetches through without credentials,
-   * which is exactly the shape of a public model download.
+   * COEP is `require-corp`, and it was `credentialless` until an iPhone proved
+   * why that could not stay.
+   *
+   * Credentialless is the friendlier mode — it keeps the isolation while
+   * letting cross-origin subresources through without credentials, which is
+   * exactly the shape of a public model download. But **Safari does not
+   * implement it and Apple has said it does not intend to**, so on every
+   * iPhone the header did nothing at all: no isolation, no SharedArrayBuffer,
+   * and the model pinned to one core of four. The owner's /capabilities
+   * readout said precisely that, which is the only reason we know.
+   *
+   * require-corp is the mode Safari does honour. It is stricter — a
+   * cross-origin subresource fetched in no-cors mode must send CORP back or it
+   * is blocked — and this app can afford it because it has exactly one
+   * cross-origin resource: the model, fetched from huggingface.co with fetch()
+   * in CORS mode, which the CORS check governs rather than CORP. Everything
+   * else is already served from this origin: the fonts (next/font self-hosts
+   * at build, Shobhika lives in public/fonts), the emblem, and ONNX Runtime's
+   * own WASM binaries.
+   *
+   * The bill for this comes due the first time somebody adds a cross-origin
+   * image, script, or iframe. It will be blocked outright, and the console
+   * will say so plainly.
    */
   async headers() {
     // ON by default. Set VOICE_SEVA_ISOLATE=0 to turn it off again.
@@ -51,7 +69,7 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-          { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
+          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
         ],
       },
     ];

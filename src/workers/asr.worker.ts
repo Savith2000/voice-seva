@@ -124,6 +124,21 @@ env.allowRemoteModels = true;
     // through the ladder rather than hanging.
     ortWasm.wasmPaths = new URL("/ort/", self.location.href).href;
   }
+
+  // How many cores the CPU path may use — asked for explicitly rather than
+  // left to a default.
+  //
+  // ONNX Runtime pins itself to one thread whenever the page is not
+  // cross-origin isolated, by its own rule and with no argument. Where it IS
+  // isolated the default is conservative, so this asks for what the machine
+  // actually reports, less one, so the thread doing the audio capture and the
+  // scrolling is not fighting the model for a core. A phone reporting four
+  // gets three; anything that reports nothing gets two, which is still better
+  // than one and cannot be worse than the machine.
+  if (ortWasm && self.crossOriginIsolated) {
+    const cores = self.navigator?.hardwareConcurrency ?? 0;
+    ortWasm.numThreads = cores > 1 ? Math.max(2, cores - 1) : 2;
+  }
 }
 
 const MODEL_ID = "Savith/vak-san-onnx";
