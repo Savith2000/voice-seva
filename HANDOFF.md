@@ -1,50 +1,71 @@
 # HANDOFF
 
 **To: the next Claude Code session on Voice Seva.**
-**From: the one that built Chunks 0–10.**
+**From: the one that imported the full Rudram and built the book page.**
 
-Read this before touching anything. `README.md` explains *why the app is the way
-it is*; this file explains *where you are standing, what will bite you, and what
-to do next*. They do not overlap much on purpose.
+Read this before touching anything.
+
+- `README.md` explains **why the app is the way it is** — the pipeline, the
+  model bake-off, the matcher. Still largely accurate and worth reading.
+- `PRODUCT.md` is **product truth** — who it is for, what must not be invented.
+  Written this session. Read it before any design work.
+- This file explains **where you are standing and what will bite you.**
+
+A previous version of this file described Anuvaka 1, 33 lines, and weights
+served out of `public/models/`. All three are now wrong. Assume any document
+older than this one may have rotted the same way.
 
 ---
 
 ## 0. The sixty-second version
 
-Voice Seva listens to someone chanting **Sri Rudram Namakam, Anuvaka 1** through
-the microphone and scrolls the script to keep pace with them. Everything runs in
-the browser. No backend, no API keys, no audio leaves the device.
+Voice Seva listens to someone chanting **Sri Rudram** through the microphone
+and scrolls the script to keep pace with them. Everything runs in the browser.
+No backend, no accounts, no audio leaves the device.
 
 **The single most important idea in the project:**
 
 > This is a **matching** problem, not a transcription problem.
 
-The chant is a known, finite, 33-line script. Nobody ever sees the transcript.
-So the speech model is *allowed to be wrong* — it only has to be wrong
-**consistently**, because systematic errors get normalised away. That reframing
-is the entire reason a 94 M-parameter model on a laptop GPU is enough. If you
-ever catch yourself trying to improve transcription accuracy, stop: you are
-solving the wrong problem.
+The script is known and finite, and nobody ever sees the transcript. So the
+speech model is *allowed to be wrong* — it only has to be wrong **consistently**,
+because systematic errors get normalised away. That is why a 94 M-parameter
+model is enough. If you catch yourself trying to improve transcription accuracy,
+stop: you are solving the wrong problem.
 
-The app works today. It is not finished.
+The app works. It has never been chanted into at its current size.
 
 ---
 
-## 1. State of play, as of the last commit
+## 1. State of play
 
 | | |
 |---|---|
-| Branch | `mic-capture-and-model-gate` |
-| HEAD | `e601052` "Let what is on screen settle ties the audio cannot" |
-| Working tree | clean |
-| Pushed? | **No.** `main` is still at `ccfa602` "Initial commit". 19 commits are local-only. |
-| `npm test` | **125 pass, 0 fail** (verified at handoff time) |
-| `npm run typecheck` | clean, exit 0 |
-| `npm run lint` | clean, exit 0 |
-| Build order | Chunks 0–10 done; Chunk 7 (calibration) deliberately skipped |
+| Branch | `full-rudram-and-the-book-page` |
+| HEAD | `1e9e209` "Let the ribbon settle instead of springing" |
+| Working tree | clean except 7 untracked files (§8 D) |
+| `npm test` | **145 pass, 0 fail** |
+| `npm run typecheck` / `lint` / `build` | all clean |
 
-The 19 unpushed commits are the whole project. Ask the user before pushing —
-they have not asked for it and there is a licence question open (§8).
+### ⚠️ Six commits are unpushed
+
+`origin/full-rudram-and-the-book-page` is at **`f15d00a`**. Local is at
+`1e9e209`. `origin/main` (`bb85ef4`, PR #4) contains everything **up to
+f15d00a and no further.**
+
+So these six exist **only on this machine**:
+
+```
+1e9e209  Let the ribbon settle instead of springing
+68668f3  Replace the listening button with the book's own ribbon
+f3a07a8  Animate the small marks with transforms instead of widths
+6d7119d  Draw a continuous line through the windows
+4d65340  Try every accelerator the device has, best first
+ac991a6  Add a page that says what the device can actually do
+```
+
+**If the user has deployed, none of that is live.** Confirm before diagnosing
+anything they report. Ask before pushing — they merge via PR themselves.
 
 ---
 
@@ -55,375 +76,337 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-Three routes:
-
 | route | what it is |
 |---|---|
-| `/` | the front door |
-| `/chant` | **the app** — listen, follow, scroll |
-| `/harness` | the instruments, one panel per chunk |
+| `/` | **the app.** The chanting screen is the front door now. |
+| `/chant` | 307 → `/`. Kept because the link was shared. |
+| `/capabilities` | what this browser can actually do. Always available. |
+| `/harness` | the instruments. **404s in production** unless `VOICE_SEVA_HARNESS=1`. |
 
-**`/chant` will not work until the model weights exist.** They are ~190 MB of
-derived artefact and are gitignored. Regenerate:
+**The model no longer lives in the repo.** It is fetched from
+**`Savith/vak-san-onnx`** on Hugging Face. `public/models/` may still exist on
+the user's machine; it is unused and gitignored. A fresh clone works.
 
-```bash
-cd tools/asr-bakeoff && uv sync && uv run python export_onnx.py
-```
-
-That writes `public/models/vak-san/` and verifies the export against PyTorch
-before declaring success. At handoff time this directory **exists on the user's
-machine** but will not exist on a fresh clone.
-
-`/harness` is not a worse copy of `/chant`. It shows the matcher's **raw**
-answer with no state machine in the way, which is how you tell "the matcher was
-wrong" from "the matcher was right and the state machine was being sensible".
-Both drive the same pipeline through the same `useAsrSession`, so they cannot
-drift into reproducing different bugs. **Debug on `/harness` first, always.**
+`/harness` shows the matcher's **raw** answer with no state machine in the way,
+which is how you tell "the matcher was wrong" from "the matcher was right and
+the state machine was being sensible". **Debug there first.**
 
 ---
 
 ## 3. How it actually works
 
 ```
- AUDIO THREAD              MAIN THREAD                    WORKER THREAD
- AudioWorklet              tracker + matcher + UI         wav2vec2 CTC / WebGPU
- ────────────────          ──────────────────────         ─────────────────────
- mic 48 kHz → 16 kHz  ──▶  RingBuffer (5 s)
- mono, ~15 frames/s        decides when to fire     ──▶   transcribe 5 s window
-                                                          ~48 ms on fp16/WebGPU
-                           fuzzy match ◀──────────────    Devanagari text
-                           state machine (follow.ts)
-                           highlight + scroll
+ AUDIO THREAD          MAIN THREAD                      WORKER THREAD
+ AudioWorklet          tracker · matcher · follow · UI   wav2vec2 CTC
+ ──────────────        ────────────────────────────      ──────────────────
+ mic 48k → 16k    ──▶  RingBuffer (5 s)                  best of:
+ mono, ~15 fps         decides when to fire        ──▶     webgpu (fp16)
+                                                           webnn-npu (int8)
+                       fuzzy match  ◀───────────────       webnn-gpu (int8)
+                       follow.ts (pure reducer)            wasm (int8)
+                       glide.ts (fills the gaps)
+                       highlight + scroll
 ```
 
-The main thread is in the middle **twice**: it holds the rolling buffer and
-decides when to send a window, and then it takes the text back and decides what
-the screen should do about it. The worker only transcribes. The audio thread
-only captures.
-
-**Felt lag = `inference + cadence/2`, and cadence *is* inference** (a window
-only starts once the last one returns), so every millisecond off inference comes
-off twice. Currently ~190 ms end to end on an M-series Mac.
+**Felt lag = `inference + cadence/2`, and cadence *is* inference** — a window
+only starts once the last returns. ~190 ms on WebGPU. **~2.1 s on WASM.**
 
 ---
 
 ## 4. Code map
 
-Read in this order if you are new. Every one of these files has a header comment
-explaining its reason for existing — those comments are load-bearing
-documentation, not decoration. Do not delete them when editing.
+Every file has a header comment explaining its reason for existing. Those are
+load-bearing documentation. Do not delete them when editing.
 
-### The pipeline, in order
+### The pipeline
 
 | file | job | watch out |
 |---|---|---|
-| `src/lib/audio/capture.ts` | mic → 16 kHz mono frames | `AudioContext` is *constructed* at 16 kHz so the browser resamples natively. Do not hand-roll a decimator. |
-| `public/worklets/capture-processor.js` | the AudioWorklet itself | plain JS, not TS — it is loaded by URL, not bundled |
-| `src/lib/audio/ring-buffer.ts` | rolling 5 s of samples | trivial, well tested |
-| `src/lib/chant/tracker.ts` | **the loop, and its refusals** | the hard part of the whole app. §5. |
-| `src/workers/asr.worker.ts` | model load, inference, CTC decode | the blank-token trap. §6. |
-| `src/lib/chant/normalize.ts` | nine destructive normalisation rules | **exists twice.** §6. |
-| `src/lib/chant/matcher.ts` | Sellers/Levenshtein fuzzy substring search | score vs margin vs viewport tie-break |
+| `src/lib/audio/capture.ts` | mic → 16 kHz mono | `AudioContext` is *constructed* at 16 kHz so the browser resamples natively |
+| `public/worklets/capture-processor.js` | the AudioWorklet | plain JS, loaded by URL, not bundled |
+| `src/lib/audio/ring-buffer.ts` | rolling 5 s | trivial, well tested |
+| `src/lib/chant/tracker.ts` | the loop, and its refusals | §5 |
+| `src/workers/asr.worker.ts` | backend ladder, inference, CTC decode | §6.1, §6.2 |
+| `src/lib/chant/normalize.ts` | nine destructive rules | **exists twice.** §6.3 |
+| `src/lib/chant/matcher.ts` | Sellers fuzzy substring search | margin excludes neighbours on purpose |
 | `src/lib/chant/follow.ts` | pure reducer: what the screen shows | "following is cheap, jumping is expensive" |
-| `src/lib/chant/use-asr-session.ts` | the plumbing both pages share | one copy on purpose |
-| `src/components/ChantingScreen.tsx` | `/chant` — 649 lines, the whole UI | the only big file |
+| `src/lib/chant/glide.ts` | fills gaps between windows | **new.** §7 boundary |
+| `src/lib/chant/closest-pair.ts` | which two lines are hardest to tell apart | filtered similarity join |
+| `src/lib/chant/use-asr-session.ts` | plumbing both pages share | one copy on purpose |
+| `src/components/ChantingScreen.tsx` | **1770 lines.** The whole UI. | the only big file |
 
 ### Data
 
 | file | |
 |---|---|
-| `src/data/chants/sri-rudram-namakam-anuvaka-1.json` | **generated.** 33 lines, 18 verses. Never hand-edit — edit the importer and re-run. |
-| `src/lib/chant/chant.ts` | types + `flatten()`. Imports **no** JSON, deliberately, so `npm test` works without the `@/` alias. |
+| `src/data/chants/sri-rudram-saiveda.json` | **generated.** 24 sections, 303 lines. Never hand-edit. |
+| `src/data/chants/sri-rudram-namakam-anuvaka-1.json` | the **old Trust-edition** Anuvaka 1. Not shipped — it is the verified fixture the tests and the import gate compare against. **Keep it.** |
+| `src/lib/chant/chant.ts` | types + `flatten()`. Imports no JSON, deliberately. |
 | `src/lib/chant/chant-data.ts` | the one place the JSON is imported |
-| `src/lib/chant/normalize-vectors.json` | fixture written by Python, replayed by the TS test |
 
-### Offline tools (Python, via `uv`)
+### Offline tools
 
 | dir | |
 |---|---|
-| `tools/asr-bakeoff/` | the model bake-off, the ONNX export, the consistency gate. `results-ctc.txt` holds **the fifteen real transcripts** every threshold in the app was derived from. |
-| `tools/chant-import/` | decodes the source PDF's two legacy 8-bit font layers and cross-checks them against each other |
+| `tools/chant-import/import_saiveda.py` | **the current importer.** §6.4 |
+| `tools/chant-import/decode_pdf.py` | the *old* Trust-edition importer. Different publisher, different technique. Still valid, still used for that PDF. |
+| `tools/asr-bakeoff/` | model bake-off, ONNX export, the consistency gate |
 
-### Harness panels (`/harness`)
+### Design
 
-`MlSmokeTest` (WebGPU adapter) → `MicCaptureTest` (Chunk 1) → `AsrTest`
-(Chunk 2) → `BenchPanel` (dtype × device × window sweep) → `TrackingTest`
-(Chunk 6, raw matcher on live audio) → `MatcherTest` (Chunk 5, type text, no
-audio) → `ChantScript` (Chunk 4, renders the JSON).
+`design/` holds `PRODUCT.md`'s visual counterpart: `brand-spec.md`,
+`design-spec.md`, `direction-approved.md`, and **three complete interactive
+design directions** in `design/design-demos/`. Direction C was chosen and built.
+Read `direction-approved.md` before reshaping the UI — it records what the two
+rejected directions got right and why they were rejected.
 
 ---
 
-## 5. Every tunable number, and where it lives
+## 5. Every tunable number
 
-If you are asked to "make it snappier" or "make it less jumpy", the answer is
-almost certainly one of these. They were put in named constants specifically so
-a future session would not have to hunt.
+**`src/lib/chant/tracker.ts`** — `WINDOW_SECONDS` 5, `DEFAULT_INTERVAL_MS` 250,
+`DUTY_FACTOR` 2, `MAX_INTERVAL_MS` 1500, `silenceRms` 0.005, `minFillRatio` 0.6.
 
-**`src/lib/chant/tracker.ts`**
+**`src/lib/chant/follow.ts`** — `THRESHOLDS.high` 0.7/0.2, `.medium` 0.5/0.08,
+`CONTINUES` back 1 forward 2, `CORROBORATION` 2 **and** 800 ms, `PATIENCE` 4
+**and** 2000 ms, `IDLE_AFTER_SILENT_MS` 8000.
 
-| constant | value | meaning |
-|---|---|---|
-| `WINDOW_SECONDS` | 5 | swept against real chanting: 3 s jitters, 8 s blurs lines |
-| `DEFAULT_INTERVAL_MS` | 250 | floor between window *starts* |
-| `DUTY_FACTOR` | 2 | pacing = `2 × measured inference`, so the machine keeps half of itself |
-| `MAX_INTERVAL_MS` | 1500 | ceiling, so a WASM-only machine is not stretched to 2.8 s |
-| `PACING_SMOOTHING` | 0.3 | one slow window is not a trend |
-| `silenceRms` (option) | 0.005 | below this, refuse the window |
-| `minFillRatio` (option) | 0.6 | first window fires at 3 s, not 5 s |
+**`src/lib/chant/matcher.ts`** — `TIE_WITHIN` 0.08.
 
-**`src/lib/chant/follow.ts`**
+**`src/lib/chant/glide.ts`** — `MAX_RATE` 0.004, `OVERRUN` 1.15.
 
-| constant | value | meaning |
-|---|---|---|
-| `THRESHOLDS.high` | score 0.7 / margin 0.2 | jump automatically |
-| `THRESHOLDS.medium` | score 0.5 / margin 0.08 | jump only with corroboration |
-| `CONTINUES` | back 1, forward 2 | what counts as "carrying on" |
-| `CORROBORATION` / `_MS` | 2 windows **and** 800 ms | before jumping somewhere distant |
-| `PATIENCE` / `_MS` | 4 windows **and** 2000 ms | before giving up a lock |
-| `IDLE_AFTER_SILENT_MS` | 8000 | quiet this long ends the session |
-
-**`src/lib/chant/matcher.ts`**
-
-| constant | value | meaning |
-|---|---|---|
-| `TIE_WITHIN` | 0.08 | how close a rival must be before the viewport may decide |
-
-> **The count-and-clock pairs are not redundant.** When the loop ran once a
-> second, "two agreeing windows" meant 2.4 s of evidence. At 250 ms it would
-> mean 0.5 s — the same code silently four times more willing to move the
-> screen. Every evidence threshold is `count >= N && elapsed >= MS` so that
-> making the model faster can never make the app twitchier. **If you speed up
-> inference again, you do not need to retune these.** That is the point.
+> **The count-and-clock pairs are not redundant.** Every evidence threshold is
+> `count >= N && elapsed >= MS` so that making the model faster can never make
+> the app twitchier. **If you speed up inference, you do not need to retune
+> these.** That is the point.
 
 ---
 
 ## 6. Landmines — things that fail *silently*
 
-This project has an unusual number of failure modes that produce plausible
-output rather than an error. Every one of these was found the hard way.
+### 6.1 The CTC blank token is not the one the model's repo declares
+Get it wrong and you get `न<s>म<s>स<s>्<s>` — which looks *almost* like a
+transcript. `export_onnx.py` writes the corrected token; `loadVocab()` reads it
+back. One place, no drift.
 
-1. **The CTC blank token is not the one the model's own repo declares.** The
-   repo labels index 0 `<s>` and names `<pad>` at index 1 as the pad token —
-   and index 1 never appears in the output at all. Get it wrong and you get
-   `न<s>म<s>स<s>्<s>त<s>े…`, which looks *almost* like a transcript.
-   `export_onnx.py` writes the corrected token into the exported
-   `tokenizer_config.json`; `loadVocab()` reads it back. One place, no drift.
+### 6.2 CTC decode order
+Collapse runs of identical tokens **first**, *then* drop the blank. Reverse it
+and `अअ` silently becomes `अ`.
 
-2. **CTC decode order.** Collapse runs of identical tokens **first**, *then*
-   drop the blank. A blank between two identical letters is how CTC represents
-   a genuine double letter. Reverse the order and `अअ` silently becomes `अ`.
+### 6.3 The normaliser exists twice
+`src/lib/chant/normalize.ts` and `tools/asr-bakeoff/normalize.py`. **The gate
+was measured with the Python one.** If they drift, the browser matches against
+numbers nobody measured and *nothing fails*. `normalize.test.ts` replays a
+fixture character for character.
 
-3. **The normaliser exists twice** — `src/lib/chant/normalize.ts` (browser) and
-   `tools/asr-bakeoff/normalize.py` (harness). **The go/no-go gate was measured
-   with the Python one.** If they drift, the browser matches against numbers
-   nobody measured and *nothing fails*. `dump_vectors.py` writes a fixture and
-   `normalize.test.ts` replays it character for character. Never change one
-   without the other.
+### 6.4 Unicode svara ordering — and its inverse
+The accent must come **after** every matra/virama/anusvara/visarga. NFC will
+**not** fix this: visarga is a spacing mark of combining class 0. Wrong order →
+orphaned visarga → dotted circle. Renders wrong, tests pass.
 
-4. **Unicode svara ordering.** The accent mark must come *after* every
-   matra/virama/anusvara/visarga. NFC will **not** fix this, because visarga is
-   a spacing mark of combining class 0. Wrong order → orphaned visarga →
-   HarfBuzz renders a dotted circle. Tests, typecheck and build all passed; it
-   was only visible on screen. `decode_pdf.py` has a `MISORDERED_SVARA` reorder
-   pass and there is a regression test.
+`import_saiveda.py` meets the same thing from the other side and carries two
+related traps, both of which produced perfectly well-formed wrong Sanskrit:
 
-5. **`npm test` runs the TypeScript sources directly** through Node's type
-   stripping. The one syntax that cannot be erased is a constructor **parameter
-   property** (`constructor(private x: T)`) — it generates an assignment.
-   `erasableSyntaxOnly` is on in `tsconfig.json` so `tsc` catches it, rather
-   than it surfacing later as an unrunnable test file.
+- **Stripping accents with a character *range*** swallows the marks that carry
+  meaning as well as pitch. U+030D sits beside U+0304 (the ā in *rudrāya*);
+  U+0331 beside U+0323 (the ṣ ṛ ḍ ḥ). Use the exact set, never a range.
+- **Compose before substituting sentinels.** Canonical ordering sorts combining
+  marks by class, so `ā̱` decomposes to `a` + anudatta + macron; substitute
+  first and the sentinel lands between the `a` and its own macron.
 
-6. **Never pipe a check that gates a commit.** `npm run typecheck | tail`
-   swallows the exit code and a type error got committed that way once. Run it
-   bare, read the tail yourself.
+### 6.5 Fonts do not have the Vedic Extensions block
+U+1CDA (double svarita) appears in the text and **no macOS system Devanagari
+font has it.** It rendered as an empty box and nothing errored. Shobhika is
+self-hosted in `public/fonts/` and `--font-devanagari` in `globals.css` is the
+one place the stack is defined. Consume that variable; do not hardcode a stack.
 
-7. **`erasableSyntaxOnly` + no `@/` alias in tests** is why `chant.ts` imports
-   no JSON. If you add a JSON import to a module that tests touch, `npm test`
-   breaks and the error will not obviously say why.
+### 6.6 `npm test` runs the TypeScript sources directly
+Node type-stripping. Constructor **parameter properties** cannot be erased —
+`erasableSyntaxOnly` in tsconfig catches relapses. No `@/` alias in tests, which
+is why `chant.ts` imports no JSON.
 
-8. **Microphone requires a secure context.** `localhost` qualifies. Testing on a
-   phone over `192.168.x.x:3000` will silently fail to get permission. Deploy or
-   tunnel over HTTPS.
+### 6.7 Never pipe a check that gates a commit
+`npm run typecheck | tail` swallows the exit code. Run it bare.
 
-9. **transformers.js v4 needs no webpack aliases.** Older guides tell you to
-   alias away `onnxruntime-node` and `sharp`. v4 ships proper `exports`
-   conditions and resolves the web bundle itself. Do not add that config back
-   without a failing build to justify it.
+### 6.8 Backticks inside the stylesheet comments
+`ChantingScreen.tsx` holds its CSS in a **template literal**. A backtick in a
+comment inside it closes the string. **This happened twice in one session.**
+Write `--glide` or "the forwards fill", never in backticks.
 
-10. **This is not the Next.js in your training data.** See `AGENTS.md`. Read
-    `node_modules/next/dist/docs/` before writing App Router code.
+### 6.9 CSS specificity in that same file
+Two real bugs, both of which rendered *almost* correctly:
+
+- `.vs-stage button` (0,1,1) silently beat a bare `.vs-key` (0,1,0) and took
+  its colour, background and padding.
+- `:hover` outspecifies `[data-live]`, so hovering a *listening* ribbon
+  retracted it — the mark contradicting the state it exists to report.
+
+Scope new component rules under `.vs-stage`, and scope hover per state.
+
+### 6.10 Microphone needs a secure context
+`localhost` counts. `192.168.x.x` over plain HTTP does not.
+
+### 6.11 This is not the Next.js in your training data
+See `AGENTS.md`. Read `node_modules/next/dist/docs/` before writing App Router
+code. It was right every time this session.
 
 ---
 
 ## 7. The graveyard — tried, measured, removed
 
-**Do not re-propose these without new evidence of the kind named.** Each was
-built, tested, and taken out for a reason that is written down.
+**Do not re-propose these without new evidence of the kind named.**
 
 ### Predicting ahead (removed, `31d4d79`)
-The highlight always trails slightly. Extrapolating forward at the measured
-tempo was implemented and worked. It did not *feel* better: a prediction that is
-right most of the time still moves the highlight for reasons the reader cannot
-see, and an unexplained move costs more attention than a highlight that is
-honestly a little late. Attack the lag at the source, not with a guess.
+Extrapolating the **line** forward worked and did not *feel* better: a
+prediction that is right most of the time still moves the highlight for reasons
+the reader cannot see.
+
+> **`glide.ts` deliberately stays on the right side of this.** It interpolates
+> progress *within a line the tracker has already committed to*, never which
+> line. Worst case is ink slightly ahead of a voice on a line it is
+> demonstrably on. Do not extend it to lines.
 
 ### Matching the recent tail of the transcript (removed, `668b8eb`)
-After a jump the 5 s window is still mostly the *old* line, so the position
-cannot move until the window flushes — a **3.5 s median**, which is the single
-worst number in the app. Matching just the last 30–40% notices a jump in ~1 s.
-A sweep of the whole anuvaka at up to double the model's error rate found
-**zero** wrong landings at both 40% and 30%.
-
-It was still too jumpy to chant with, at both settings, and it is gone.
-
-> **The lesson is about the sweep, not the tail.** It degrades clean reference
-> text with uniform substitutions — nothing like what actually reaches a matcher
-> at a line boundary: breath, silence, a half-swallowed final syllable, and a
-> CTC model that answers confidently when handed any of them. A shorter window
-> is a larger fraction of exactly that material.
->
-> **This is the second time a synthetic proxy pointed the wrong way here.** The
-> first was TTS audio ranking Whisper above every CTC model in Chunk 3, which
-> would have cost three chunks. If you attack jump latency again, do it with **a
-> real recording of someone actually jumping lines**, not a simulation.
+Too jumpy to chant with at both 40% and 30%. **The lesson is about the sweep,
+not the tail:** a synthetic degradation is nothing like what reaches a matcher
+at a line boundary. **This is the second time a synthetic proxy pointed the
+wrong way.** Attack jump latency with a real recording of someone jumping lines.
 
 ### Whisper (rejected in Chunk 3)
-Its decoder is a language model — its superpower on ordinary speech and its
-downfall here. The encoder pads a 5 s window out to 30 s and the decoder
-dutifully transcribes the silence, producing runaway loops (`आप आप आप आप …`).
-CTC has no language model and no generation loop, so it *structurally cannot*
-invent filler or switch alphabet.
+Its decoder is a language model; the encoder pads 5 s out to 30 s and it
+transcribes the silence. CTC structurally cannot invent filler.
 
 ### int8 on the GPU (replaced, `8287f06`)
-int8 is the smallest download, which is not the same as the fastest thing to
-execute.
+fp16/webgpu 48 ms vs int8/webgpu 887 ms. The download follows the backend.
 
-| | webgpu | wasm |
-|---|---|---|
-| int8 (123 MB) | 887 ms | 1405 ms |
-| **fp16 (190 MB)** | **48 ms** | 1411 ms |
+### Cross-origin isolation (turned off by default, `f15d00a`) — **this session**
+COOP/COEP were added to unpin the WASM backend from one thread. **They broke the
+worker on every real machine** — a Surface and a Mac — while every test passed.
 
-Where onnxruntime-web has no WebGPU kernel for a quantised MatMul it dequantises
-or falls back per node, paying a copy across the GPU boundary each time — so the
-int8 graph was *preventing* the GPU from being used. WASM has real int8 kernels,
-which is why nothing changes there and why the gap is diagnostic rather than
-mysterious. **The download now follows the backend.**
+> **The tests passed because headless Chromium has no GPU adapter, so all of
+> them fell back to the WASM path. The WebGPU path — the one real machines take
+> — was never run with those headers even once.** If you test anything
+> backend-related in headless, you are testing the fallback. Assume it.
 
-### Chunk 7, calibration (skipped, not failed)
-It exists to tune the reference text toward what the model actually says. Real
-windows score 0.9+ against the text as printed, so there is nothing to tune.
-Revisit only if a longer or group recording says otherwise.
+The mechanism is still real (§8 B2). Kept behind `VOICE_SEVA_ISOLATE=1`.
 
----
-
-## 8. Open work, roughly in priority order
-
-### A. Things the user owes the project (blocked on them, not on you)
-
-1. **A longer / group recording.** Every threshold in `follow.ts` comes from
-   *one recording by one chanter* — the fifteen transcripts in
-   `tools/asr-bakeoff/results-ctc.txt`. This has been flagged repeatedly and
-   never delivered. It is the highest-value input available and it unblocks
-   almost everything else in this list.
-2. **The ear check on Chunk 1** — download the WAV from `/harness` and confirm
-   the resampling actually *sounds* right. Task #2 is still `in_progress` for
-   this reason alone.
-3. **An authoritative translation source.** Every `meaning` field in the chant
-   JSON is `null`, on purpose — a translation without a named source is worse
-   than none. Requirement 1.4 wants meanings.
-4. **Confirm the model licence** on the Hugging Face page for
-   `vakyansh-wav2vec2-sanskrit-sam-60` before anything is published. This could
-   not be verified locally. **Flag it again if publishing comes up.**
-
-### B. Known-unfinished code
-
-5. **UI preferences do not persist across reloads** — script order
-   (`devanagariLeads`), font size (`fontStep`), auto-scroll. Deferred because
-   `localStorage` in an effect trips `react-hooks/set-state-in-effect` and a
-   lazy initialiser breaks hydration. The clean fix is probably reading it in a
-   `useSyncExternalStore` or accepting a one-frame flash behind a
-   `suppressHydrationWarning`. Small, annoying, visible every session.
-6. **Jump latency is ~3.5 s median and unfixed.** See the graveyard. This is the
-   worst remaining number in the app.
-
-### C. Scope not yet started
-
-7. Anuvakas 2–11 (the importer handles one PDF at a time; the pipeline is ready)
-8. Other chants; the JSON builder (Requirement 1.6)
-9. Mobile; 45-minute sessions; group chanting
-10. Deploy (needs HTTPS for the mic — see landmine 8)
+### The adaptive window (never shipped, on purpose)
+Shortening 5 s → 3 s on slow devices buys real compute. But score is
+`1 − distance / query length`, so a shorter query makes every error cost
+proportionally more, and **every threshold in `follow.ts` was derived at five
+seconds.** This is exactly the class of change the graveyard says needs a real
+recording.
 
 ---
 
-## 9. How the user works, and what they expect
+## 8. Open work
 
-This matters as much as the code. Getting it wrong wastes their time.
+### A. Blocked on the user — ask, do not guess
 
-**They test the app themselves, by chanting into it.** They are not reading your
-test output — they are reading the screen while reciting. When they say
-something is "too sensitive" or "pretty slow", that is a *measurement*, and it
-outranks any simulation you have run. Twice now the simulation has been wrong
-and they have been right.
+1. **`/capabilities` on the Surface.** Decides everything about performance
+   work: whether there is an NPU to switch on, a WebGPU driver problem to
+   attack, or a genuinely CPU-only device. **Two sessions have now guessed at
+   this hardware and been wrong both times.**
+2. **Chant into it at 303 lines.** Every threshold in `follow.ts` still comes
+   from **one chanter, one session, fifteen windows** — against nine times the
+   text it was measured on. `glide.ts` has never run against a real voice,
+   because it only engages once the tracker is genuinely following and a fake
+   microphone never gets there.
+3. **A group / second recording.** Flagged since the first handoff, never
+   delivered. Still the highest-value input available.
 
-**Explain things in plain language.** They have said, more than once, to explain
-"as if i am really ndumb". They ask good questions about the internals — the
-model, threading, the GPU, ONNX, the tie-break — and they want analogies and
-concrete numbers, not jargon. This is a standing preference; it applies to every
-explanation unless they say otherwise.
+### B. Known-unfinished
 
-**Commit messages here are essays, and that is deliberate.** Look at
-`git log -3 --format='%B'`. The subject line is a sentence in the imperative
-about *what changed for the user* ("Let what is on screen settle ties the audio
-cannot", "Make it 8x less laggy by shipping fp16 to the GPU"). The body explains
-the reasoning, the measurement, and — critically — **what was wrong and why**
-when something is reverted. Match this. Do not degrade to
-"fix: update matcher threshold".
+4. **Mobile is completely unverified.** Every screenshot ever taken of this app
+   is 1440×900. `PRODUCT.md` says the audience is SSIO devotees broadly on a
+   public site — that is mostly phones. There is a breakpoint at 960px that
+   hides the measure entirely and **nobody has ever looked at what it does.**
+   This is the largest untested surface in the project.
+5. **WASM is pinned to one thread.** ONNX Runtime sets `numThreads = 1` without
+   cross-origin isolation, by its own explicit rule. Microsoft's benchmark says
+   ~3.4× from two threads plus SIMD. The fix is to **self-host ORT's WASM
+   binaries** (~36 MB into `public/`) so isolation does not break the
+   CDN-hosted backend, then verify on a **GPU-capable** browser — the step that
+   was skipped and caused the outage.
+6. **The 190 MB download on mobile data** is a product problem, not a technical
+   one. Nobody is warned what they are about to spend.
+7. **UI preferences do not persist** across reloads (script, size, light).
+8. **Jump latency ~3.5 s median.** See the graveyard.
 
-**Be blunt about your own mistakes.** There is a commit body that says the
-measurement "was not noisy or marginal, it was answering a different question
-than the one that mattered." Earlier in the project a commit message wrongly
-described a bug as pre-existing when it had been introduced in that same change;
-that was corrected to the user directly. Keep that standard.
+### C. Not started
 
-**Record reversals in the README.** The graveyard entries in §7 all live in
-`README.md` next to the feature they replaced, so the reasoning survives the
-commit log. Do the same for anything you remove.
+9. Chamakam beyond import — **only Anuvaka 1 of Namakam is independently
+   verified** (0.0208 CER after normalisation against the Trust edition). The
+   other 23 sections passed the shape gate and the round trip, nothing more.
+10. Translations. `meaning` is null everywhere, on purpose. The saiveda PDF
+    *does* contain English; the owner said not to ship it for now.
+11. `/harness` is unreachable in production but **still compiled into the
+    bundle.** Fine for a test deploy, not "absent".
 
-**Do not spawn subagents or run workflows unless asked.** Standing instruction.
+### D. Untracked files to decide about
+
+`tools/chant-import/{decode,verify,build_chant,derive_saiveda_maps}_saiveda.py`
+and friends — the **abandoned** glyph-map approach from a killed agent. It never
+finished verification. Left untracked deliberately so unverified decoding of
+scripture does not sit in the history beside the verified path. Delete or commit
+clearly labelled; do not quietly adopt.
+
+---
+
+## 9. How the user works
+
+**They test by chanting into it.** They are not reading your test output. When
+they say something is "too sensitive", "clunky", or "harsh on the eyes", that is
+a **measurement** and it outranks any simulation you have run. It has been right
+every single time this session, including twice when I had evidence saying
+otherwise.
+
+**Explain in plain language.** They have asked to be told things "as if i am
+really ndumb". They ask excellent questions about internals and want analogies
+and concrete numbers, not jargon.
+
+**They will push back on "that's impossible."** They did, and they were right —
+it produced the WebNN finding. Take it seriously and go research properly.
+
+**Commit messages here are essays.** Subject line is a sentence in the
+imperative about *what changed for the user*. The body explains the reasoning,
+the measurement, and — critically — **what was wrong and why**. Look at
+`git log -3 --format='%B'`. Do not degrade to "fix: update button".
+
+**Be blunt about your own mistakes.** This session shipped a change that broke
+the app on every real machine, and the commit reverting it says so plainly. Keep
+that standard.
+
+**Do not spawn subagents or run workflows unless asked.**
+
+**Two design skills are installed** (`.claude/skills/`, gitignored):
+`impeccable` (with a hook that scans UI edits automatically) and
+`huashu-design`. `/impeccable` owns design work; it demands proposing options
+before `overdrive` and it has caught real defects. Respect its findings or
+classify them explicitly — do not silence them.
 
 ---
 
 ## 10. Facts worth not re-deriving
 
-- **The model**: `vakyansh-wav2vec2-sanskrit-sam-60`, 94 M params, 60 h of
-  Sanskrit, CTC. Vocabulary is 67 tokens of **pure Devanagari**, so the output
-  script cannot drift — script instability was the largest single source of
-  inconsistency in the Whisper tests and normalisation cannot repair it.
-- **Language match beat data volume.** The same architecture on 4,200 h of Hindi
-  lost to 60 h of Sanskrit. 70× the audio in the wrong language was worth less
-  than a little in the right one.
-- **Size did not matter.** 94 M beat 316 M beat 965 M, in that order.
-- **The gate**: stability **0.095**, discriminability **0.798** on real
-  chanting, corroborated on a second recording under a second protocol.
-  **Answer: GO.**
-- **The chant is separable**: the two most similar of the 33 lines differ by
-  **0.516** — five times the model's own 0.095 instability.
-- **The int8 graph is 123 MB, not 94 MB**, because wav2vec2's positional
-  convolution is weight-normalised — its weight is computed at runtime rather
-  than stored — so those layers cannot be quantised and stay fp32.
-- **Everything after the model is under 5 ms combined** — match, state machine,
-  React. There has never been anything else worth optimising.
-- **Margin ≠ second-best score.** Lines are concatenated with *no separator*, so
-  an alignment ending one character into the next line costs one edit and scores
-  almost identically. Counting that as a rival made a verbatim line 2 look
-  ambiguous at 0.04; excluding the neighbours a 5 s window may legally straddle
-  takes it to 0.58, while correctly leaving the genuinely-ambiguous line 4/27
-  case at 0.00.
-- **Duty cycle is ~25%** on an M-series Mac. The real risks on a weak machine
-  are memory (190 MB of weights, shared with system RAM on integrated graphics)
-  and heat over a long session — which is what `DUTY_FACTOR` is for.
-- **`erasableSyntaxOnly` is on**, `npm test` is `node --test 'src/**/*.test.ts'`,
-  Node is v25.8.2, and there is no build step between source and tests.
+- **The model**: `vakyansh-wav2vec2-sanskrit-sam-60`, 94 M params, CTC,
+  vocabulary of 67 pure-Devanagari tokens. Exported to ONNX by us; the export
+  lives at **`Savith/vak-san-onnx`** on the Hub. Public, free — Hugging Face
+  bills for *storage*, not bandwidth, and downloads count in your favour.
+- **Language match beat data volume.** 4,200 h of Hindi lost to 60 h of Sanskrit.
+- **Size did not matter.** 94 M beat 316 M beat 965 M.
+- **The gate**: stability 0.095, discriminability 0.798. **GO.**
+- **Separability at full scale holds.** Chamakam's *ca me* litany was expected
+  to collapse it and did not: closest pair **0.184**. The only sub-0.10 pair in
+  303 lines is Namakam anuvaka 11's refrain, sung verbatim twice — CER **0.000**,
+  genuinely inseparable, handled by the viewport tie-break and by the 5 s window
+  being longer than a line.
+- **Both models exceed GitHub's 100 MiB per-file limit** (190 MB and 123 MB) and
+  Vercel Hobby's 100 MB deployment cap. They can never live in the repo. This is
+  why the Hub is not optional.
+- **Everything after the model is under 5 ms combined.**
+- Node v25.8.2, `npm test` is `node --test 'src/**/*.test.ts'`, no build step
+  between source and tests.
 
 ---
 
@@ -431,30 +414,34 @@ commit log. Do the same for anything you remove.
 
 | ask | start here |
 |---|---|
-| "make the line switching faster" | §7 graveyard first — then get a real jump recording. Do not simulate. |
-| "it's too jumpy / too sensitive" | `follow.ts` `THRESHOLDS` and `CORROBORATION_MS`. Raise, don't lower. |
-| "it's too slow to react" | `tracker.ts` `DEFAULT_INTERVAL_MS`, then `WINDOW_SECONDS`. Remember lag = `inference + cadence/2`. |
-| "add another anuvaka" | `tools/chant-import/README.md`. Put the PDF at the repo root. Run `verify.py` and **read what it says** — it is not optional. |
-| "add translations" | ask for the source edition first. `meaning: null` is a decision, not an oversight. |
-| "make it work on my phone" | landmine 8 — HTTPS first, then everything else. |
-| "why is X the way it is" | `README.md` almost certainly answers it, in prose, already. |
-| "ship it" | §8 A4 — the licence is unverified. Say so. |
+| "it's slow" | **Get `/capabilities` first.** Then §8 B5. Do not guess at their hardware. |
+| "make line switching faster" | §7 graveyard, then get a real jump recording. |
+| "it's too jumpy" | `follow.ts` `THRESHOLDS`, `CORROBORATION_MS`. Raise, don't lower. |
+| anything about the UI | `/impeccable`, and read `design/direction-approved.md` first. |
+| "add another chant" | `tools/chant-import/`. Run the gate and **read what it says.** |
+| "add translations" | `meaning: null` is a decision. Ask for the source edition. |
+| "make it work on my phone" | §8 B4 — genuinely unexplored. Expect real work. |
+| "deploy it" | Vercel, production branch `main`. Every other branch gets a free preview URL. |
+| "why is X like this" | `README.md` or the file's header comment almost certainly says. |
 
 ---
 
 ## 12. Where the writing already is
 
-Do not duplicate these. Extend them.
-
 | file | |
 |---|---|
-| `README.md` | the reasoning behind every design decision, in prose. **375 lines and worth reading in full.** |
-| `AI_Chant_Synchronization_Requirements.md` | the original requirements, numbered. `follow.ts` cites 1.7 by number. |
-| `AGENTS.md` / `CLAUDE.md` | "This is NOT the Next.js you know." Read the local docs. |
-| `tools/asr-bakeoff/README.md` | 391 lines: the bake-off protocol, every number, the two duplicate-model traps |
-| `tools/chant-import/README.md` | why decoding the PDF is a program and not a copy-paste |
-| header comments in every `src/lib/chant/*.ts` | the reason each module exists. Load-bearing. |
+| `PRODUCT.md` | product truth. Users, constraints, what must not be invented. |
+| `README.md` | the reasoning behind every design decision, in prose. |
+| `design/direction-approved.md` | why the UI looks like this, and what was rejected. |
+| `design/brand-spec.md` | the palette, sampled from the emblem. **Full-chroma saffron is for marks, never fields** — breaking that is what made the old button look harsh. |
+| `AI_Chant_Synchronization_Requirements.md` | the original numbered requirements. |
+| `tools/chant-import/README.md` | why decoding a PDF is a program. |
+| header comments in `src/lib/chant/*.ts` | load-bearing. |
 
 ---
 
-**Good luck. The app works — chant into it before you change anything.**
+**The app works and it is prettier than it has ever been. It has also never
+been chanted into at this size, on the device that matters, by the person who
+will actually use it. Everything in §8 A is worth more than anything in §8 B.**
+
+**Good luck. Chant into it before you change anything.**
