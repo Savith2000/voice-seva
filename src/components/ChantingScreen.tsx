@@ -30,6 +30,7 @@
 
 import Link from "next/link";
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -157,8 +158,17 @@ export default function ChantingScreen() {
   const [showImport, setShowImport] = useState(false);
   const [devices, setDevices] = useState<AudioInput[]>([]);
   const [deviceId, setDeviceId] = useState("");
-  /** Cadence the device actually achieved, whatever backend won the ladder. */
-  const [cadence, setCadence] = useState(250);
+  /**
+   * Cadence the device actually achieved, whatever backend won the ladder.
+   *
+   * A ref rather than state: it is read once per animation frame by the glide
+   * and its drift is gradual, so re-rendering three hundred lines to update it
+   * would buy nothing. It carries the tracker's own pacing number — the first
+   * version recomputed an approximation here (inferenceMs x 2, floored at a
+   * different value than the tracker's) and the two could disagree; one
+   * source, no drift.
+   */
+  const cadenceRef = useRef(250);
 
   const session = useAsrSession(
     flat,
@@ -170,14 +180,10 @@ export default function ChantingScreen() {
             : 0;
         setState((previous) => follow(previous, tick, progress));
         if (tick.state === "matched") {
-          // Read once per window rather than per frame. This is what makes the
-          // glide device-aware: a machine that found an NPU reports a short
-          // interval and needs little filling in; one on a single CPU thread
-          // reports a long one and needs a lot.
-          setCadence((was) => {
-            const now = Math.round(tick.inferenceMs * 2);
-            return Math.abs(now - was) < 40 ? was : Math.max(200, now);
-          });
+          // This is what makes the glide device-aware: a machine that found
+          // an NPU reports a short interval and needs little filling in; one
+          // on a single CPU thread reports a long one and needs a lot.
+          cadenceRef.current = tick.intervalMs;
         }
       },
       [flat],
@@ -206,7 +212,7 @@ export default function ChantingScreen() {
     updatedAt: state.updatedAt,
     line: state.lineIndex ?? -1,
     words: activeWords,
-    intervalMs: cadence,
+    cadenceRef,
     live: state.kind === "locked" && !state.holding && running,
   });
   const section = chant.anuvakas[sectionOf[active] ?? 0];
@@ -355,6 +361,13 @@ export default function ChantingScreen() {
    * because the five seconds it describes are mostly the line just left. */
   const selectLine = useCallback((index: number) => {
     setState((previous) => pin(previous, index, performance.now()));
+  }, []);
+
+  // Stable across renders so the memo on Line holds: an inline closure here
+  // would hand every line a fresh prop and re-render all three hundred of
+  // them each time the word-ink advances.
+  const registerLine = useCallback((index: number, node: HTMLDivElement | null) => {
+    lineRefs.current[index] = node;
   }, []);
 
   const toggleFullScreen = useCallback(() => {
@@ -635,15 +648,14 @@ export default function ChantingScreen() {
                         <Line
                           key={lines[index].sequence}
                           line={lines[index]}
+                          index={index}
                           lead={lead}
                           big={here}
                           current={index === active}
                           near={!here && Math.abs(index - active) <= 3}
                           inked={index === active ? inked : 0}
-                          onSelect={() => selectLine(index)}
-                          register={(node) => {
-                            lineRefs.current[index] = node;
-                          }}
+                          onSelect={selectLine}
+                          register={registerLine}
                         />
                       ))}
                     </div>
@@ -829,14 +841,15 @@ function useGlide({
   updatedAt,
   line,
   words,
-  intervalMs,
+  cadenceRef,
   live,
 }: {
   progress: number;
   updatedAt: number;
   line: number;
   words: number;
-  intervalMs: number;
+  /** The tracker's own pacing, read once per frame. See where it is set. */
+  cadenceRef: React.RefObject<number>;
   live: boolean;
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -848,12 +861,14 @@ function useGlide({
     rate: 0,
     line: -1,
   });
-  const latest = useRef({ progress, updatedAt, line, words, intervalMs, live });
+  /** What was actually rendered last frame — the glide chases from here. */
+  const shownRef = useRef(0);
+  const latest = useRef({ progress, updatedAt, line, words, live });
   // Refreshed in an effect rather than during render, so the frame loop sees
   // the newest values without being torn down to get them.
   useEffect(() => {
-    latest.current = { progress, updatedAt, line, words, intervalMs, live };
-  }, [progress, updatedAt, line, words, intervalMs, live]);
+    latest.current = { progress, updatedAt, line, words, live };
+  }, [progress, updatedAt, line, words, live]);
 
   useEffect(() => {
     const reduced = window.matchMedia?.(
@@ -861,20 +876,26 @@ function useGlide({
     )?.matches;
 
     let frame = 0;
-    const tick = () => {
+    let lastFrameAt = 0;
+    const tick = (frameAt: number) => {
       frame = requestAnimationFrame(tick);
       const stage = stageRef.current;
       const now = latest.current;
+      const frameMs = lastFrameAt ? frameAt - lastFrameAt : 0;
+      lastFrameAt = frameAt;
       if (!stage) return;
 
       if (now.line !== anchor.current.line) {
         // A new line is a jump, not a journey: snap, and forget the old pace.
+        // The ink starts over with it — the rule under a freshly-arrived line
+        // appearing at its reading is not motion, so nothing eases here.
         anchor.current = {
           progress: now.progress,
           at: now.updatedAt,
           rate: 0,
           line: now.line,
         };
+        shownRef.current = now.progress;
       } else if (now.updatedAt !== anchor.current.at) {
         anchor.current = {
           ...anchorFrom(anchor.current, now.progress, now.updatedAt),
@@ -884,7 +905,15 @@ function useGlide({
 
       const shown = reduced
         ? anchor.current.progress
-        : glide(anchor.current, performance.now(), now.intervalMs, now.live);
+        : glide(
+            anchor.current,
+            shownRef.current,
+            frameAt,
+            frameMs,
+            cadenceRef.current ?? 250,
+            now.live,
+          );
+      shownRef.current = shown;
 
       stage.style.setProperty("--glide", shown.toFixed(4));
       const reach = now.words > 0 ? Math.floor(shown * now.words) : 0;
@@ -893,6 +922,8 @@ function useGlide({
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
+    // cadenceRef is a ref: stable identity, read per frame by design.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { stageRef, inked };
@@ -1182,8 +1213,16 @@ function InkWell({
 }
 
 /** One line of the received text. */
-function Line({
+/**
+ * Memoised, and the reason is arithmetic: the word-ink advances a few times a
+ * second while someone chants, and each advance is a state change in the
+ * parent. Without the memo that re-rendered all three hundred lines to move
+ * one word's worth of ink on one of them. The callbacks are index-taking and
+ * stable for the same reason — an inline closure would defeat the memo.
+ */
+const Line = memo(function Line({
   line,
+  index,
   lead,
   big,
   current,
@@ -1193,6 +1232,8 @@ function Line({
   register,
 }: {
   line: ChantLine;
+  /** Position in the flattened chant, handed back to the stable callbacks. */
+  index: number;
   lead: Lead;
   /** This line's unit is the one being chanted — set large. */
   big: boolean;
@@ -1201,8 +1242,8 @@ function Line({
   near: boolean;
   /** How many words the voice has reached, glided between windows. */
   inked: number;
-  onSelect: () => void;
-  register: (node: HTMLDivElement | null) => void;
+  onSelect: (index: number) => void;
+  register: (index: number, node: HTMLDivElement | null) => void;
 }) {
   const primary = lead === "dev" ? line.devanagari : line.transliteration;
   const secondary = lead === "dev" ? line.transliteration : line.devanagari;
@@ -1230,9 +1271,9 @@ function Line({
 
   return (
     <div
-      ref={register}
+      ref={(node) => register(index, node)}
       className={`vs-ln ${big ? "vs-big" : ""} ${current ? "vs-current" : ""} ${near ? "vs-near" : ""}`}
-      onClick={onSelect}
+      onClick={() => onSelect(index)}
     >
       <div
         className="vs-leadtext"
@@ -1282,7 +1323,7 @@ function Line({
       ) : null}
     </div>
   );
-}
+});
 
 function Control({
   label,

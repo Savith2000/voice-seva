@@ -81,6 +81,16 @@ export type MatchedTick = TickBase & {
   /** Null when the transcript normalises to nothing. */
   result: MatchResult | null;
   inferenceMs: number;
+  /**
+   * The tracker's own pacing at the moment this window landed — the expected
+   * gap to the next one, after duty-cycle protection and both bounds.
+   *
+   * Carried on the tick so a consumer that needs the cadence (the glide fills
+   * exactly this much gap) reads the number the tracker actually paces by,
+   * rather than re-deriving its own approximation from inferenceMs and
+   * drifting from the real one.
+   */
+  intervalMs: number;
 };
 
 // "silent" and "filling" are separate members rather than one member with a
@@ -283,6 +293,7 @@ export class SlidingWindowTracker {
         transcript: text,
         result: match(text, this.flat, { inView: this.inView }),
         inferenceMs,
+        intervalMs: this.pacingMs,
       });
     } catch {
       // A failed window is not worth surfacing on its own — the next one is

@@ -11,6 +11,27 @@
 // between arrivals and draw a continuous line through them, correcting every
 // time a real reading lands.
 //
+// HOW A CORRECTION IS ALLOWED TO LOOK
+//
+// The first version of this file rendered each new reading the frame it
+// arrived. That was wrong in a way no test caught and one chant into it did:
+// the matcher's position estimate is noisy — the tail of a five-second window
+// is its least reliable part, and consecutive windows can disagree by a good
+// fraction of a line, including backwards. The old once-per-window bar hid
+// that noise behind a 300 ms CSS ease; this system had removed the ease and
+// displayed the noise raw, sixty times a second. On a fast machine readings
+// land four times a second, so the ink visibly snapped four times a second —
+// the machine got faster and the page got worse.
+//
+// So the shown position is now its own state, and it *chases* the readings
+// rather than becoming them:
+//
+//   - ahead of the ink, a reading is approached smoothly, most of the way in
+//     about three window arrivals' worth of frames (SETTLE_MS);
+//   - behind the ink, a reading does not drag the ink back. The ink pauses
+//     and the voice catches up. Within one line, ink only ever advances —
+//     which is also how a reader's eye moves.
+//
 // WHAT IT DELIBERATELY DOES NOT DO
 //
 // It never advances the *line*. Predicting which line someone is on was built,
@@ -37,6 +58,16 @@ export const MAX_RATE = 0.004;
  * for breath watches the ink carry on without them.
  */
 export const OVERRUN = 1.15;
+
+/**
+ * Time constant of the chase, in milliseconds.
+ *
+ * A correction closes 63% of its gap in this long and ~95% in three times it.
+ * 150 ms is quick enough that the ink is settled well before the next reading
+ * even on a fast device, and slow enough that no single frame moves the ink
+ * far enough to read as a jump.
+ */
+export const SETTLE_MS = 150;
 
 export type Anchor = {
   /** Progress at the last real reading, 0..1. */
@@ -72,27 +103,52 @@ export function anchorFrom(
 }
 
 /**
- * Where the ink should be right now.
+ * Where the ink believes the voice is, from the last reading and its pace.
  *
- * Three governors, because unattended extrapolation is exactly how the
- * graveyard entry above got written:
- *
- *   1. never past the end of the line;
- *   2. never more than OVERRUN expected windows past a real reading, so a
- *      chanter who stops is not left watching the ink walk away;
- *   3. only while the tracker is genuinely following — a held or searching
- *      position sits still, which is the honest thing for it to do.
+ * Governed twice, because unattended extrapolation is exactly how the
+ * graveyard entry above got written: never past the end of the line, and never
+ * more than OVERRUN expected windows past a real reading, so a chanter who
+ * stops is not left watching the ink walk away.
  */
-export function glide(
-  anchor: Anchor,
-  now: number,
-  intervalMs: number,
-  live: boolean,
-): number {
-  if (!live || anchor.rate <= 0) return clamp(anchor.progress);
+export function target(anchor: Anchor, now: number, intervalMs: number): number {
   const since = Math.max(0, now - anchor.at);
   const allowed = Math.min(since, Math.max(intervalMs, 250) * OVERRUN);
   return clamp(anchor.progress + anchor.rate * allowed);
+}
+
+/**
+ * Where the ink should be this frame, given where it was last frame.
+ *
+ * `shown` is the position actually rendered on the previous frame, and the
+ * return value is the one to render now — the caller owns that piece of state
+ * and threads it back in, which keeps this a pure function a test can drive
+ * frame by frame.
+ *
+ * The governors, in the order they apply:
+ *
+ *   1. only while the tracker is genuinely following — a held or searching
+ *      position sits exactly still, which is the honest thing for it to do;
+ *   2. within a line the ink never moves backwards: a reading behind the ink
+ *      pauses it rather than dragging it back (a new *line* is a jump, not a
+ *      journey — the caller resets `shown` there);
+ *   3. a reading ahead of the ink is approached on the SETTLE_MS ease, never
+ *      arrived at in one frame;
+ *   4. the position chased is itself capped by {@link target}: never past the
+ *      end of the line, never more than OVERRUN windows past a real reading.
+ */
+export function glide(
+  anchor: Anchor,
+  shown: number,
+  now: number,
+  frameMs: number,
+  intervalMs: number,
+  live: boolean,
+): number {
+  if (!live) return clamp(shown);
+  const aim = target(anchor, now, intervalMs);
+  if (aim <= shown) return clamp(shown);
+  const closed = 1 - Math.exp(-Math.max(0, frameMs) / SETTLE_MS);
+  return clamp(shown + (aim - shown) * closed);
 }
 
 function clamp(value: number): number {

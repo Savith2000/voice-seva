@@ -48,6 +48,7 @@ function heard(text: string, at = (clock += 1000)): MatchedTick {
     transcript: text,
     result: match(text, flat),
     inferenceMs: 900,
+    intervalMs: 1000,
   };
 }
 
