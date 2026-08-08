@@ -8,8 +8,9 @@ web
 
 ## Users
 
-**Devotees of the Sri Sathya Sai International Organisation, broadly** — not a
-single centre and not one person's practice tool.
+**Devotees in the Sri Sathya Sai community, broadly** — not a single centre
+and not one person's practice tool. The app is published under the **Sri
+Sathya Sai Global Council, U.S.A.** (see Brand Commitments).
 
 They are chanting **out loud, from memory or near-memory, while looking at the
 screen.** Hands are not free. They cannot stop to interpret an interface. Skill
@@ -108,20 +109,30 @@ reframing:
 
 ## Brand Commitments
 
-**Sri Sathya Sai International Organisation. Use of the emblem and name is
-approved** — confirmed by the owner, and therefore binding rather than
-decorative.
+**Sri Sathya Sai Global Council, U.S.A. The owner supplied the emblem and
+directed its use** (August 2026) — a permanent decision, and therefore binding
+rather than decorative.
 
-- The emblem is the five-values lotus: **Truth · Right Conduct · Peace · Love ·
-  Non-violence**. It is an organisational mark and is not to be recoloured,
-  cropped, rotated, or placed on a busy field.
-- Palette is sampled from the emblem itself, not chosen: brand blue `#0C5098`,
-  brand orange `#EE7900`, ray orange `#FBBA74`.
+> This replaced the Sri Sathya Sai International Organisation emblem that the
+> page originally carried. The swap was the owner's explicit instruction, made
+> permanent in their words. Do not "correct" the emblem back.
+
+- The emblem is a five-petal lotus of faith symbols — Om, cross, crescent and
+  star, dharmachakra, fire vessel — around a central lamp, ringed **Truth ·
+  Right Action · Peace · Love · Nonviolence** with the council's name beneath.
+  Note the ring's own wording: *Right Action*, not *Right Conduct*, and
+  *Nonviolence* unhyphenated. Quote the emblem, not the older list.
+- It is an organisational mark and is not to be recoloured, cropped, rotated,
+  or placed on a busy field. It carries its own name and values, so no caption
+  should repeat them beside it.
+- Palette: brand blue `#0C5098`, brand orange `#EE7900`, ray orange `#FBBA74`.
+  These were originally sampled from the previous emblem and are **retained**
+  as the app's palette — the rebrand changed the seal, not the paper and ink.
 - **Voice:** reverent, calm, unhurried, plain. It addresses someone mid-prayer.
   No marketing register, no exclamation, no cleverness.
 - This is a devotional instrument used by people of many faiths — the emblem's
-  own premise. Nothing in it should read as belonging to one tradition's
-  aesthetics over another's.
+  own premise, stated in its petals. Nothing in it should read as belonging to
+  one tradition's aesthetics over another's.
 
 ## Evidence on Hand
 
@@ -130,7 +141,10 @@ decorative.
   independently-decoded Sri Sathya Sai Trust edition of Anuvaka 1 at **0.0276
   character error with accents, 0.0208 after normalisation**, with every
   remaining difference being the two editions' anusvara/visarga convention.
-- **The emblem**: `ssio-logo-english.png`, `public/ssio-logo.png`.
+- **The emblem**: `public/sssgc-usa.png` (512 px, downscaled from the owner's
+  2000 px original, otherwise untouched). The previous organisation's emblem
+  (`ssio-logo-english.png`, `public/ssio-logo.png`) remains in the repo as
+  history but is no longer shown anywhere.
 - **The model choice** was measured, not assumed: `tools/asr-bakeoff/` holds the
   bake-off, and `results-ctc.txt` holds the fifteen real transcripts every
   threshold in the app derives from.
