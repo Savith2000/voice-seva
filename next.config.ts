@@ -15,29 +15,34 @@ const nextConfig: NextConfig = {
    * while the rest of the machine idles. That is the WASM path's real problem —
    * not the graph, not the model, just one thread.
    *
-   * COEP is `require-corp`, and it was `credentialless` until an iPhone proved
-   * why that could not stay.
+   * COEP is `credentialless`, and it went to `require-corp` for exactly one
+   * commit before an actual browser said no. Read this before changing it
+   * again, because the reasoning that leads to require-corp is sound and the
+   * conclusion is still wrong.
    *
-   * Credentialless is the friendlier mode — it keeps the isolation while
-   * letting cross-origin subresources through without credentials, which is
-   * exactly the shape of a public model download. But **Safari does not
-   * implement it and Apple has said it does not intend to**, so on every
-   * iPhone the header did nothing at all: no isolation, no SharedArrayBuffer,
-   * and the model pinned to one core of four. The owner's /capabilities
-   * readout said precisely that, which is the only reason we know.
+   * The argument for require-corp: credentialless is not implemented in Safari
+   * and Apple has said it does not intend to implement it, so on every iPhone
+   * the isolation header does nothing, and ONNX Runtime pins itself to a
+   * single core. The owner's phone reported "1 of 4" and require-corp fixed
+   * exactly that — their next reading said four.
    *
-   * require-corp is the mode Safari does honour. It is stricter — a
-   * cross-origin subresource fetched in no-cors mode must send CORP back or it
-   * is blocked — and this app can afford it because it has exactly one
-   * cross-origin resource: the model, fetched from huggingface.co with fetch()
-   * in CORS mode, which the CORS check governs rather than CORP. Everything
-   * else is already served from this origin: the fonts (next/font self-hosts
-   * at build, Shobhika lives in public/fonts), the emblem, and ONNX Runtime's
-   * own WASM binaries.
+   * The reason it cannot stay: making Safari isolated for the first time also
+   * exposes it to ONNX Runtime's own long-standing bug, microsoft/onnxruntime
+   * #11567, "Inference is Broken in Safari when Cross Origin Isolation is
+   * active". The worker stops starting at all. Safari was previously immune to
+   * that bug for the accidental reason that it was never isolated, and the
+   * moment that changed, the app stopped working — the owner reported it as
+   * "the worker could not start", the exact sentence this app prints when a
+   * worker dies without a message.
    *
-   * The bill for this comes due the first time somebody adds a cross-origin
-   * image, script, or iframe. It will be blocked outright, and the console
-   * will say so plainly.
+   * So the trade is: credentialless means a slow iPhone, require-corp means a
+   * broken one. **It costs nothing to be slow and everything to be broken** —
+   * this project's own hard-won rule, written after the same header broke
+   * every real machine in f15d00a, and now demonstrated twice.
+   *
+   * What would let require-corp come back is upstream #11567 being fixed, and
+   * that must be TESTED in Safari rather than inferred from a changelog. Until
+   * then a phone's threads are not available to us at any price we can pay.
    */
   async headers() {
     // ON by default. Set VOICE_SEVA_ISOLATE=0 to turn it off again.
@@ -69,7 +74,7 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+          { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
         ],
       },
     ];
