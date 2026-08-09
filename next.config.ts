@@ -45,30 +45,49 @@ const nextConfig: NextConfig = {
    * then a phone's threads are not available to us at any price we can pay.
    */
   async headers() {
-    // ON by default. Set VOICE_SEVA_ISOLATE=0 to turn it off again.
+    // OFF by default. Set VOICE_SEVA_ISOLATE=1 to turn it on.
     //
-    // History, because this flag has been through it: isolation was on for two
-    // commits and broke the worker on every machine it met — a Surface and a
-    // Mac — while every test here passed. The tests passed because headless
-    // Chromium has no GPU adapter, so all of them took the WASM path; the
-    // WebGPU path, which is what a real machine actually uses, was never
-    // exercised with these headers once. The cause was ONNX Runtime fetching
-    // its backend from cdn.jsdelivr.net, which cross-origin isolation is
-    // precisely designed to stop, so it was turned off (f15d00a) until both
-    // named conditions were met:
+    // THIRD OUTAGE FROM THIS HEADER. Read the whole comment before enabling it.
     //
-    //   1. ORT's binaries served from this origin — tools/copy-ort-wasm.mjs
-    //      copies them into public/ort/ before every dev and build, and the
-    //      worker points ORT there;
-    //   2. a real GPU-capable browser watched starting a session with the
-    //      headers present — the verification whose absence shipped the
-    //      breakage last time.
+    // This time the browser said it outright, in the owner's console: a
+    // Turbopack worker chunk under /_next/static was blocked for want of a
+    // COEP header. The chunks are served WITH the header now — that was
+    // checked — but they are also served `immutable, max-age=31536000`, so a
+    // browser that fetched them during any period when isolation was off holds
+    // a copy with no COEP header for a year, and Chrome enforces the policy
+    // against the cached response. Enabling isolation therefore breaks exactly
+    // the people who used the app before it was enabled, which is everybody,
+    // and it cannot be tested by any browser that has not been running the app
+    // for days — which is why three separate verifications missed it.
     //
-    // The kill switch stays, because the failure mode is "the worker will not
-    // start on someone else's machine" and a deploy-time escape hatch beats
-    // a revert.
-    if (process.env.VOICE_SEVA_ISOLATE === "0") return [];
-
+    // WHAT IT WAS BUYING, HONESTLY
+    //
+    // Isolation only ever helps the CPU path, by letting ONNX Runtime use more
+    // than one thread. It is worth nothing to a machine with WebGPU, which
+    // takes the GPU path regardless and is the case for every desktop this app
+    // has met. It is worth nothing on any iPhone, because Safari does not
+    // implement `credentialless` and Apple has said it does not intend to. So
+    // the entire benefit is: a desktop browser with no WebGPU, of which this
+    // project has not yet met one.
+    //
+    // Against that: three outages, each one presenting as "the worker could
+    // not start", each one invisible on the machine that shipped it.
+    //
+    // It costs nothing to be slow and everything to be broken.
+    if (process.env.VOICE_SEVA_ISOLATE !== "1") return [];
+    //
+    // Earlier history, kept because it is the same lesson twice more. Isolation
+    // was on for two commits and broke the worker on a Surface and a Mac while
+    // every test here passed — the tests passed because headless Chromium has
+    // no GPU adapter and so took the WASM path, while the WebGPU path that real
+    // machines take was never exercised with these headers once. That cause was
+    // ONNX Runtime fetching its backend from cdn.jsdelivr.net; it was fixed by
+    // serving those binaries from this origin (tools/copy-ort-wasm.mjs), which
+    // remains worth doing on its own merits and is not undone here.
+    //
+    // Turning it back on then produced outages two and three: a Safari that
+    // became isolated for the first time and met onnxruntime#11567, and the
+    // year-long immutable cache described above.
     return [
       {
         source: "/:path*",
