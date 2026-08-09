@@ -125,20 +125,19 @@ env.allowRemoteModels = true;
     ortWasm.wasmPaths = new URL("/ort/", self.location.href).href;
   }
 
-  // How many cores the CPU path may use — asked for explicitly rather than
-  // left to a default.
+  // The thread count is ONNX Runtime's own to choose, and an attempt to
+  // override it is what this comment exists to warn off.
   //
-  // ONNX Runtime pins itself to one thread whenever the page is not
-  // cross-origin isolated, by its own rule and with no argument. Where it IS
-  // isolated the default is conservative, so this asks for what the machine
-  // actually reports, less one, so the thread doing the audio capture and the
-  // scrolling is not fighting the model for a core. A phone reporting four
-  // gets three; anything that reports nothing gets two, which is still better
-  // than one and cannot be worse than the machine.
-  if (ortWasm && self.crossOriginIsolated) {
-    const cores = self.navigator?.hardwareConcurrency ?? 0;
-    ortWasm.numThreads = cores > 1 ? Math.max(2, cores - 1) : 2;
-  }
+  // Asking for `hardwareConcurrency - 1` looked free and was not: it shipped in
+  // the same commit as a COEP change, the app broke in production with "the
+  // worker could not start", and reverting only the header did not fix it. On
+  // a fourteen-core machine that override asks the runtime to spin up thirteen
+  // WebAssembly threads, each with its own stack inside one WASM memory, at the
+  // moment the graph is being built. The runtime's own default is chosen with
+  // knowledge of that budget; ours was chosen with none.
+  //
+  // If it is ever tried again it needs a real machine with the model actually
+  // loading, not a page that merely reports a thread count.
 }
 
 const MODEL_ID = "Savith/vak-san-onnx";
